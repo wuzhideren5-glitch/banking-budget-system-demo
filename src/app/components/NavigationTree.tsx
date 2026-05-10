@@ -8,7 +8,7 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-const DISABLED_NODE_IDS = new Set(["analysis-ppt"]);
+const DISABLED_NODE_IDS = new Set<string>();
 
 function hasPermission(permissionType: number, required: number): boolean {
   if (permissionType === 1) return true;

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Awaitable, Callable
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.schemas import (
@@ -41,6 +42,9 @@ def build_smart_reports_router(
         template_type: str = Form("analysis"),
         remark: str | None = Form(None),
     ):
+        filename = (file.filename or "").lower()
+        if not (filename.endswith(".docx") or filename.endswith(".pptx")):
+            raise HTTPException(status_code=400, detail="请上传 .docx 或 .pptx 文件")
         result = await service.create_or_update_template(
             file=file,
             template_code=template_code,
@@ -117,7 +121,7 @@ def build_smart_reports_router(
         result = await service.generate(body)
         await write_operation_log(
             action_type="smart_report_generate",
-            action_desc=f"生成智能 Word 报告：instance_id={result.instance_id}",
+            action_desc=f"生成智能报告：instance_id={result.instance_id}",
             target_table="smart_report_instance",
             affected_rows=1,
             after_data=result.model_dump(),
@@ -137,7 +141,7 @@ def build_smart_reports_router(
         result = await service.refresh_instance(instance_id)
         await write_operation_log(
             action_type="smart_report_refresh",
-            action_desc=f"刷新智能 Word 报告：instance_id={instance_id}",
+            action_desc=f"刷新智能报告：instance_id={instance_id}",
             target_table="smart_report_instance",
             affected_rows=1,
             after_data=result.model_dump(),
@@ -147,10 +151,15 @@ def build_smart_reports_router(
     @router.get("/instances/{instance_id}/download")
     async def download_instance(instance_id: int):
         path = await service.instance_output_path(instance_id)
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            if Path(path).suffix.lower() == ".pptx"
+            else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         return FileResponse(
             path=str(path),
             filename=path.name,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            media_type=media_type,
         )
 
     return router

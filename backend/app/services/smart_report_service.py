@@ -152,8 +152,11 @@ class SmartReportService:
         remark: str | None = None,
         created_by: str | None = None,
     ) -> SmartReportTemplateCreateResponse:
-        if not file.filename or not file.filename.lower().endswith(".docx"):
-            raise HTTPException(status_code=400, detail="请上传 .docx Word 模板")
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="请上传 .docx 或 .pptx 文件")
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in {".docx", ".pptx"}:
+            raise HTTPException(status_code=400, detail="请上传 .docx 或 .pptx 文件")
         safe_code = _safe_code(template_code)
         now = _iso_now()
         self.template_dir.mkdir(parents=True, exist_ok=True)
@@ -166,11 +169,11 @@ class SmartReportService:
             )
             existing = await cur.fetchone()
             next_version = int(existing[1]) + 1 if existing else 1
-            target = self.template_dir / f"{safe_code}_v{next_version}.docx"
+            target = self.template_dir / f"{safe_code}_v{next_version}{suffix}"
             with target.open("wb") as fh:
                 shutil.copyfileobj(file.file, fh)
 
-            placeholders = self.extract_placeholders(target)
+            placeholders = self._extract_placeholders_for_path(target)
             if existing:
                 template_id = int(existing[0])
                 await db.execute(
@@ -538,9 +541,13 @@ class SmartReportService:
             variables = await self._variables_for_template(template_id, template_path)
             resolved, warnings = await self._resolve_values(variables, parameters, text_values)
             prefix = "smart_report_refresh" if job_type == "refresh" else "smart_report"
-            output_filename = f"{prefix}_{instance_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+            ext = template_path.suffix.lower()
+            output_filename = f"{prefix}_{instance_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
             output_path = self.output_dir / output_filename
-            self._render_docx(template_path, output_path, resolved)
+            if ext == ".pptx":
+                self._render_pptx(template_path, output_path, resolved)
+            else:
+                self._render_docx(template_path, output_path, resolved)
             finished = _iso_now()
             async with aiosqlite.connect(common_db_path()) as db:
                 await db.execute("PRAGMA foreign_keys = ON")
@@ -617,7 +624,7 @@ class SmartReportService:
                 await db.commit()
             if isinstance(exc, HTTPException):
                 raise exc
-            raise HTTPException(status_code=500, detail=f"生成 Word 报告失败：{exc}") from exc
+            raise HTTPException(status_code=500, detail=f"生成报告失败：{exc}") from exc
 
     async def list_instances(self) -> list[SmartReportInstanceRow]:
         async with aiosqlite.connect(common_db_path()) as db:
@@ -675,6 +682,28 @@ class SmartReportService:
                 token = match.group(1).strip()
                 if token and token not in found:
                     found.append(token)
+        return found
+
+    def extract_placeholders_pptx(self, pptx_path: Path) -> list[str]:
+        from pptx import Presentation
+
+        prs = Presentation(str(pptx_path))
+        found: list[str] = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        for match in PLACEHOLDER_RE.finditer(paragraph.text):
+                            token = match.group(1).strip()
+                            if token and token not in found:
+                                found.append(token)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            for match in PLACEHOLDER_RE.finditer(cell.text):
+                                token = match.group(1).strip()
+                                if token and token not in found:
+                                    found.append(token)
         return found
 
     async def _sync_detected_variables(
@@ -930,7 +959,7 @@ class SmartReportService:
         rows = await self.list_variables(template_id)
         by_key = {item.variable_key: item for item in rows}
         now = _iso_now()
-        for idx, token in enumerate(self.extract_placeholders(template_path)):
+        for idx, token in enumerate(self._extract_placeholders_for_path(template_path)):
             if token in by_key:
                 continue
             variable_type, binding_config = self._infer_variable(token)
@@ -1005,9 +1034,49 @@ class SmartReportService:
                         self._replace_in_paragraph(paragraph, resolved)
         doc.save(str(output_path))
 
+    def _render_pptx(self, template_path: Path, output_path: Path, resolved: dict[str, str]) -> None:
+        from pptx import Presentation
+
+        if not template_path.exists():
+            raise HTTPException(status_code=404, detail="PPTX 模板文件不存在")
+        prs = Presentation(str(template_path))
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        self._replace_pptx_paragraph(paragraph, resolved)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.text_frame.paragraphs:
+                                self._replace_pptx_paragraph(paragraph, resolved)
+        prs.save(str(output_path))
+
     def _render_preview_text(self, template_path: Path, resolved: dict[str, str]) -> str:
         if not template_path.exists():
             raise HTTPException(status_code=404, detail="模板文件不存在")
+        if template_path.suffix.lower() == ".pptx":
+            from pptx import Presentation
+
+            prs = Presentation(str(template_path))
+            blocks: list[str] = []
+            for index, slide in enumerate(prs.slides, 1):
+                slide_texts: list[str] = []
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        text = self._replace_text(shape.text_frame.text, resolved).strip()
+                        if text:
+                            slide_texts.append(text)
+                    if shape.has_table:
+                        for row in shape.table.rows:
+                            cells = [self._replace_text(cell.text, resolved).strip() for cell in row.cells]
+                            line = " | ".join(cell for cell in cells if cell)
+                            if line:
+                                slide_texts.append(line)
+                if slide_texts:
+                    blocks.append(f"--- Slide {index} ---")
+                    blocks.extend(slide_texts)
+            return "\n".join(blocks)
         doc = Document(str(template_path))
         blocks: list[str] = []
         for paragraph in doc.paragraphs:
@@ -1042,8 +1111,25 @@ class SmartReportService:
         for run in paragraph.runs[1:]:
             run.text = ""
 
+    def _replace_pptx_paragraph(self, paragraph: Any, resolved: dict[str, str]) -> None:
+        text = paragraph.text
+        if "{{" not in text:
+            return
+        new_text = self._replace_text(text, resolved)
+        if paragraph.runs:
+            paragraph.runs[0].text = new_text
+            for run in paragraph.runs[1:]:
+                run.text = ""
+            return
+        paragraph.text = new_text
+
     def _replace_text(self, text: str, resolved: dict[str, str]) -> str:
         return PLACEHOLDER_RE.sub(lambda m: resolved.get(m.group(1).strip(), m.group(0)), text)
+
+    def _extract_placeholders_for_path(self, template_path: Path) -> list[str]:
+        if template_path.suffix.lower() == ".pptx":
+            return self.extract_placeholders_pptx(template_path)
+        return self.extract_placeholders(template_path)
 
     def _iter_doc_text(self, doc: Any) -> list[str]:
         texts = [p.text for p in doc.paragraphs]

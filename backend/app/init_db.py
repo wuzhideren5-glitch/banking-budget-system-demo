@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS smart_report_template (
   template_id INTEGER PRIMARY KEY AUTOINCREMENT,
   template_code TEXT NOT NULL UNIQUE,
   template_name TEXT NOT NULL,
-  template_type TEXT NOT NULL DEFAULT 'analysis',
+  template_type TEXT NOT NULL DEFAULT 'analysis' CHECK (template_type IN ('analysis', 'report', 'summary', 'ppt')),
   file_path TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
   version_no INTEGER NOT NULL DEFAULT 1,
@@ -1480,7 +1480,7 @@ def ensure_databases() -> None:
                   template_id INTEGER PRIMARY KEY AUTOINCREMENT,
                   template_code TEXT NOT NULL UNIQUE,
                   template_name TEXT NOT NULL,
-                  template_type TEXT NOT NULL DEFAULT 'analysis',
+                  template_type TEXT NOT NULL DEFAULT 'analysis' CHECK (template_type IN ('analysis', 'report', 'summary', 'ppt')),
                   file_path TEXT NOT NULL,
                   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
                   version_no INTEGER NOT NULL DEFAULT 1,
@@ -1565,6 +1565,43 @@ def ensure_databases() -> None:
             smart_report_instance_cols = {str(r[1]) for r in cur.fetchall()}
             if "text_values_json" not in smart_report_instance_cols:
                 conn.execute("ALTER TABLE smart_report_instance ADD COLUMN text_values_json TEXT")
+            cur = conn.execute(
+                """
+                SELECT sql FROM sqlite_master
+                WHERE type = 'table' AND name = 'smart_report_template'
+                """
+            )
+            row = cur.fetchone()
+            template_table_sql = str(row[0] or "") if row else ""
+            if "template_type" in template_table_sql and "CHECK" in template_table_sql and "'ppt'" not in template_table_sql:
+                conn.executescript(
+                    """
+                    PRAGMA foreign_keys = OFF;
+                    CREATE TABLE smart_report_template_new (
+                      template_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      template_code TEXT NOT NULL UNIQUE,
+                      template_name TEXT NOT NULL,
+                      template_type TEXT NOT NULL DEFAULT 'analysis' CHECK (template_type IN ('analysis', 'report', 'summary', 'ppt')),
+                      file_path TEXT NOT NULL,
+                      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
+                      version_no INTEGER NOT NULL DEFAULT 1,
+                      remark TEXT,
+                      created_by TEXT,
+                      created_at TEXT NOT NULL,
+                      updated_at TEXT NOT NULL
+                    );
+                    INSERT INTO smart_report_template_new (
+                      template_id, template_code, template_name, template_type, file_path,
+                      status, version_no, remark, created_by, created_at, updated_at
+                    )
+                    SELECT template_id, template_code, template_name, template_type, file_path,
+                           status, version_no, remark, created_by, created_at, updated_at
+                    FROM smart_report_template;
+                    DROP TABLE smart_report_template;
+                    ALTER TABLE smart_report_template_new RENAME TO smart_report_template;
+                    PRAGMA foreign_keys = ON;
+                    """
+                )
             cur = conn.execute(
                 """
                 SELECT sql FROM sqlite_master
