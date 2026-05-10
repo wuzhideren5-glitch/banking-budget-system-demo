@@ -1,0 +1,24 @@
+{
+  "intent_router": {
+    "semantic_budget_threshold_high": 0.78,
+    "semantic_budget_threshold_mid": 0.65,
+    "enable_llm_arbiter": true,
+    "trace_enabled": true,
+    "trace_max_query_chars": 200
+  },
+  "general_answer": {
+    "temperature": 0.35,
+    "max_tokens": 1200,
+    "enable_shorten": false,
+    "shorten_target_ratio": 0.5,
+    "shorten_min_chars": 90,
+    "shorten_max_chars": 260
+  },
+  "pivot": {
+    "recommend_all_analysis": true,
+    "recommend_min_score": 2,
+    "recommend_min_confidence": 0.72,
+    "auto_open_on_execute_when_preferred": true,
+    "base_confidence": 0.6
+  }
+}

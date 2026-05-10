@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-04-12T02:24:54Z",
+  "source_db": {
+    "common_db_path": "/Users/arthur/Documents/cursor_projects/cursor_budget_test3/data/common.db",
+    "budget_db_path": "/Users/arthur/Documents/cursor_projects/cursor_budget_test3/data/budget_2026.db"
+  },
+  "table_counts": {
+    "data_account": 23,
+    "report_account": 58,
+    "dept_account": 14,
+    "product_type": 9,
+    "report_data_mapping": 13,
+    "dept_product_mapping": 8,
+    "period": 12,
+    "version": 1
+  },
+  "notes": [
+    "Seed files are generated from current SQLite data snapshot.",
+    "If core master-data tables are empty, please import business dictionaries first."
+  ]
+}

@@ -1,0 +1,58 @@
+CTO_20260509_FULL_PACKAGE_MANIFEST
+
+Package:
+  releases/CTO_20260509_完整交付包_含env_data_excel.zip
+  releases/CTO_20260509_完整交付包_含env_data_excel_dist.zip
+
+Purpose:
+  Full PMO/CTO handover package with source code, backend/.env, data directory,
+  download templates, root Excel/CSV business files, PDD documents, knowledge base,
+  and project configuration.
+
+Dist variant:
+  CTO_20260509_完整交付包_含env_data_excel_dist.zip additionally includes dist/
+  for static frontend deployment or acceptance handover.
+
+Included sensitive/runtime data by explicit request:
+  backend/.env
+  data/common.db
+  data/budget_2025.db
+  data/budget_2026.db
+  data/compare.db
+  data/*.backup*
+  data/*.json
+
+Included root Excel/CSV business files:
+  C0401表.xlsx
+  产品树20260505v4.xlsx
+  费用整体框架.xlsx
+  部门费用执行.xls
+  report_tree_export2.0_05051000.xlsx
+  data_account_export-冲突清单.csv
+  data_account_export-现在版本.xlsx
+  data_account_export-现在版本_合并结果.xlsx
+  data_account_export-被合并部分.xlsx
+  data_account_import_result.xlsx
+  data_account_import_result_二次修复.xlsx
+  data_account_import_result_二次修复_backup_20260508_182601.xlsx
+  data_account_import_result_修复产品代码星号.xlsx
+  data_account_metric_tree_识别草案_20260508_182601.xlsx
+
+Included templates:
+  download_template/*.xlsx
+
+Excluded bulky/generated/runtime folders:
+  node_modules/
+  .venv/
+  dist/ (excluded only in the non-dist package)
+  .git/
+  releases/
+  ZLC_20260507_增加工作台和参数模板/
+  panpan_20260508_新增费用管理五大核心模块/
+  __pycache__/
+  *.pyc
+  runtime logs, pid files, cookie files
+
+Note:
+  Some command-line zip tools may display Chinese filenames as question marks,
+  but the files are included in the archive.

@@ -1,0 +1,396 @@
+<!-- 本快照由 backend/scripts/export_product_manager_catalog_prompt.py 生成 -->
+
+- generated_at: 2026-04-23T04:05:26Z
+- source_db: `/Users/arthur/Documents/cursor_projects/cursor_budget_test3/data/common.db`
+- counts: report_accounts=112, data_accounts=143, report_data_mappings=151, dept_accounts=15, products=13, dept_product_mappings=13
+
+## 一、报告科目树（含报告->数据映射）
+- X01 资产负债日均
+  - X0101 资产日均
+    - X010101 存放央行日均
+      - 映射数据科目:
+        - A1001 存放央行法准_表内日均 (value_type=金额, product_scope=Z9001 司库对外业务-外部资产负债)
+        - A1010 存放央行超备_表内日均 (value_type=金额, product_scope=Z9001 司库对外业务-外部资产负债)
+    - X010102 同业资产日均
+      - X01010201 存放同业日均
+        - 映射数据科目:
+          - A1020 存放同业活期资产_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+          - A1021 存放同业定期资产_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+          - A1022 存放同业其他资产_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01010202 拆放同业日均
+        - 映射数据科目:
+          - A1030 拆放同业资产_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01010203 买入返售资产日均
+        - 映射数据科目:
+          - A1040 买入返售资产_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01010204 同业存单投资日均
+        - 映射数据科目:
+          - A1050 同业存单投资_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01010205 同业基金投资日均
+        - 映射数据科目:
+          - A1060 同业货基投资_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+          - A1061 同业债基投资_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01010206 债券资产投资日均
+        - X0101020601 国债投资
+          - 映射数据科目:
+            - A1100 国债投资_日均 (value_type=金额, product_scope=Z1001 金市投资业务)
+        - X0101020602 地方债投资日均
+          - 映射数据科目:
+            - A1101 地方债投资_日均 (value_type=金额, product_scope=Z1001 金市投资业务)
+        - X0101020603 政策性金融债投资日均
+          - 映射数据科目:
+            - A1102 政策性金融债投资_日均 (value_type=金额, product_scope=Z1001 金市投资业务)
+        - X0101020604 金融债投资日均
+        - X0101020605 信用债投资日均
+    - X010103 各项贷款日均
+      - X01010301 个人贷款日均
+        - 映射数据科目:
+          - A1200 开鑫贷单品联贷自持表内贷款_日均 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+          - A1201 开鑫贷分期联贷自持表内贷款_日均 (value_type=金额, product_scope=Z0003 开鑫贷分期)
+          - A1203 开鑫贷单品纯自营贷款表内_日均 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+          - A1204 开鑫贷分期纯自营贷款表内_日均 (value_type=金额, product_scope=Z0003 开鑫贷分期)
+          - A3161 车车贷单品贷款资产_表内日均 (value_type=金额, product_scope=Z0004 车车贷单品)
+      - X01010302 企业贷款日均
+        - 映射数据科目:
+          - A1250 企企贷贷款资产_表内日均 (value_type=金额, product_scope=Z0002 企企贷单品)
+      - X01010309 其他贷款日均
+    - X010109 其他生息资产日均
+  - X0102 负债日均
+    - X010201 各项存款日均
+      - X01020101 个人存款日均
+        - 映射数据科目:
+          - A3100 开心小账户存款_日均 (value_type=金额, product_scope=Z0005 开心小账户存款)
+          - A3120 其他小小产品存款_日均 (value_type=金额, product_scope=Z2001 其他小小产品)
+      - X01020102 企业存款日均
+        - 映射数据科目:
+          - A3150 企小乐存款_日均 (value_type=金额, product_scope=Z0017 企小乐存款)
+          - A3160 小企业保证金存款_日均 (value_type=金额, product_scope=Z0017 企小乐存款)
+    - X010202 同业负债日均
+      - X01020201 同业存款日均
+        - 映射数据科目:
+          - A3000 同业存放活期负债_表内日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01020202 同业拆入日均
+        - 映射数据科目:
+          - A3010 同业拆入负债_日均 (value_type=金额, product_scope=Z1002 金市资金业务)
+      - X01020203 卖出回购日均
+      - X01020209 发行同业存单日均
+    - X010203 央行资金日均
+    - X010209 其他付息负债日均
+  - X0104 表外项目
+- X02 资产负债时点
+  - X0201 资产时点
+    - 映射数据科目:
+      - B1001 存放央行法准_时点 (value_type=金额, product_scope=Z9001 司库对外业务-外部资产负债)
+      - B1010 存放央行超备_表内时点 (value_type=金额, product_scope=Z9001 司库对外业务-外部资产负债)
+  - X0202 负债时点
+  - X0203 权益时点
+- X03 损益（净利润）
+  - X0301 净收入
+    - X030101 营业收入
+      - X03010101 利息净收入
+        - X0301010101 同业资产业务外部利息收入
+          - 映射数据科目:
+            - C1001 存放央行法准利息收入 (value_type=金额, product_scope=Z9001 司库对外业务-外部资产负债)
+            - C1010 存放央行超备利息收入 (value_type=金额, product_scope=Z9001 司库对外业务-外部资产负债)
+            - C9004 存放同业活期资产利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9005 存放同业定期资产利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9006 存放同业其他资产利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9007 拆放同业资产利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9008 买入返售资产利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9009 同业存单投资利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9010 同业货基投资利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9011 同业债基投资利息收入 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9012 国债投资利息收入 (value_type=金额, product_scope=Z1001 金市投资业务)
+            - C9013 地方债投资利息收入 (value_type=金额, product_scope=Z1001 金市投资业务)
+            - C9014 政策性金融债投资利息收入 (value_type=金额, product_scope=Z1001 金市投资业务)
+        - X0301010102 同业资产业务内部FTP利息支出
+          - 映射数据科目:
+            - C9019 存放同业活期资产内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9020 国债投资内部FTP利息支出 (value_type=金额, product_scope=Z1001 金市投资业务)
+            - C9021 存放同业定期资产内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9022 存放同业其他资产内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9023 拆放同业资产内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9024 买入返售资产内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9025 同业存单投资内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9026 同业货基投资内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9027 同业债基投资内部FTP利息支出 (value_type=金额, product_scope=Z1002 金市资金业务)
+            - C9028 地方债投资内部FTP利息支出 (value_type=金额, product_scope=Z1001 金市投资业务)
+            - C9029 政策性金融债投资内部FTP利息支出 (value_type=金额, product_scope=Z1001 金市投资业务)
+        - X0301010103 信贷业务外部利息收入
+          - 映射数据科目:
+            - C1200 开鑫贷单品贷款利息收入 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+            - C1201 开鑫贷分期贷款利息收入 (value_type=金额, product_scope=Z0003 开鑫贷分期)
+            - C1250 企企贷贷款利息收入 (value_type=金额, product_scope=Z0002 企企贷单品)
+            - C9003 车车贷单品贷款利息收入 (value_type=金额, product_scope=Z0004 车车贷单品)
+        - X0301010104 信贷业务内部FTP利息支出
+          - 映射数据科目:
+            - C9015 开鑫贷单品贷款内部FTP利息支出 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+            - C9016 企企贷单品贷款内部FTP利息支出 (value_type=金额, product_scope=Z0002 企企贷单品)
+            - C9017 开鑫贷分期贷款内部FTP利息支出 (value_type=金额, product_scope=Z0003 开鑫贷分期)
+            - C9018 车车贷单品贷款内部FTP利息支出 (value_type=金额, product_scope=Z0004 车车贷单品)
+        - X0301010105 同业负债业务内部FTP利息收入
+        - X0301010106 同业负债业务外部利息支出
+        - X0301010107 存款业务内部FTP利息收入
+          - 映射数据科目:
+            - C3101 开心小账户存款_内部FTP利息收入 (value_type=金额, product_scope=Z0005 开心小账户存款)
+            - C3121 其他小小产品存款_内部FTP利息收入 (value_type=金额, product_scope=Z2001 其他小小产品)
+            - C3151 企小乐存款_内部FTP利息收入 (value_type=金额, product_scope=Z0017 企小乐存款)
+            - C3161 小企业保证金存款_内部FTP利息收入 (value_type=金额, product_scope=Z0017 企小乐存款)
+        - X0301010108 存款业务外部利息支出
+          - 映射数据科目:
+            - C3100 开心小账户存款_外部利息支出 (value_type=金额, product_scope=Z0005 开心小账户存款)
+            - C3120 其他小小产品存款_外部利息支出 (value_type=金额, product_scope=Z2001 其他小小产品)
+            - C3150 企小乐存款_外部利息支出 (value_type=金额, product_scope=Z0017 企小乐存款)
+            - C3160 小企业保证金存款_外部利息支出 (value_type=金额, product_scope=Z0017 企小乐存款)
+      - X03010102 手续费净收入
+      - X03010103 其他营业收入
+        - 映射数据科目:
+          - C4001 其他其他产品营业收入 (value_type=金额, product_scope=Z9999 其他产品无关类别)
+    - X030102 风险成本
+      - X03010201 个人金融信贷风险成本
+        - 映射数据科目:
+          - C5200 开鑫贷单品表内风险成本_减值损失 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+          - C5201 开鑫贷分期表内风险成本_减值损失 (value_type=金额, product_scope=Z0003 开鑫贷分期)
+      - X03010202 企业金融信贷风险成本
+        - 映射数据科目:
+          - C5250 企企贷表内风险成本_减值损失 (value_type=金额, product_scope=Z0002 企企贷单品)
+  - X0302 税金及附加
+    - 映射数据科目:
+      - C6001 营业税金及附加 (value_type=金额, product_scope=ALL_PRODUCTS)
+  - X0303 业务及管理费
+    - X030301 人力成本
+      - X03030101 非IT人力费用
+        - X0303010101 常规非IT人力费用
+          - 映射数据科目:
+            - C7001 非IT常规人力薪金 (value_type=金额, product_scope=ALL_PRODUCTS)
+            - C7010 非IT人力费用_年度奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - X0303010102 特别非IT人力费用
+          - 映射数据科目:
+            - C7011 非IT人力费用_专项奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+            - C7012 非IT人力费用_特别奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+      - X03030102 IT人力费用
+        - X0303010201 常规IT人力费用
+          - 映射数据科目:
+            - C7051 IT人力费用_常规薪金 (value_type=金额, product_scope=ALL_PRODUCTS)
+            - C7060 IT人力费用_年度奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - X0303010202 特别IT人力费用
+          - 映射数据科目:
+            - C7061 IT人力费用_专项奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+            - C7062 IT人力费用_特别奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+    - X030302 业务费用
+      - X03030201 营销费用
+        - 映射数据科目:
+          - C7100 产品营销费用_直接营销 (value_type=金额, product_scope=ALL_PRODUCTS)
+          - C7101 产品营销费用_间接摊销 (value_type=金额, product_scope=ALL_PRODUCTS)
+      - X03030202 运营费用
+        - 映射数据科目:
+          - C7150 业务运营费用 (value_type=金额, product_scope=ALL_PRODUCTS)
+    - X030303 IT科技运维费用
+      - 映射数据科目:
+        - C8200 一般科技费用 (value_type=金额, product_scope=ALL_PRODUCTS)
+    - X030304 职场及日常费用
+      - 映射数据科目:
+        - C7170 职场费用_非IT (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7180 职场费用_IT (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C8201 日常费用_非IT (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C8250 日常费用_IT (value_type=金额, product_scope=ALL_PRODUCTS)
+  - X0304 其他业务净收入
+    - X030401 其他业务收入
+      - 映射数据科目:
+        - C8500 其他业务收入 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C8520 其他业务支出 (value_type=金额, product_scope=ALL_PRODUCTS)
+    - X030402 其他业务支出
+  - X0305 营业外净收支
+    - X030501 营业外收入
+      - 映射数据科目:
+        - C8550 营业外收入 (value_type=金额, product_scope=Z9100 总行总部)
+    - X030502 营业外支出
+      - 映射数据科目:
+        - C8560 营业外支出 (value_type=金额, product_scope=Z9100 总行总部)
+  - X0309 所得税费用
+    - 映射数据科目:
+      - C9001 企业所得税费用一般费用 (value_type=金额, product_scope=Z9100 总行总部)
+      - C9002 企业所得税费用特殊调整 (value_type=金额, product_scope=Z9100 总行总部)
+- X04 预算口径列示
+  - X0401 预算口径人力费用
+    - X040101 常规薪资奖金
+      - 映射数据科目:
+        - C7001 非IT常规人力薪金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7010 非IT人力费用_年度奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7051 IT人力费用_常规薪金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7060 IT人力费用_年度奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+    - X040102 特别人力费用
+      - 映射数据科目:
+        - C7011 非IT人力费用_专项奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7012 非IT人力费用_特别奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7061 IT人力费用_专项奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+        - C7062 IT人力费用_特别奖金 (value_type=金额, product_scope=ALL_PRODUCTS)
+- X05 管理贷款日均
+  - X0501 个人金融管理贷款日均
+    - 映射数据科目:
+      - E1200 开鑫贷单品联合贷款_日均总额 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+      - E1201 开鑫贷分期联合贷款_日均总额 (value_type=金额, product_scope=Z0003 开鑫贷分期)
+  - X0502 企业金融管理贷款日均
+    - 映射数据科目:
+      - E1250 企企贷表联合贷款_日均总额 (value_type=金额, product_scope=Z0002 企企贷单品)
+- X06 管理资产日均
+  - X0601 个人金融管理资产日均
+    - 映射数据科目:
+      - F3100 开心小账户管理资产_日均总额 (value_type=金额, product_scope=Z0005 开心小账户存款)
+      - F3120 其他小小产品管理资产_日均总额 (value_type=金额, product_scope=Z2001 其他小小产品)
+  - X0602 企业金融管理资产日均
+    - 映射数据科目:
+      - F3150 企小乐管理资产_日均总额 (value_type=金额, product_scope=Z0017 企小乐存款)
+- X07 业务量数据
+- X08 客户量数据
+- X09 风险数据
+  - X0901 年化信贷风险成本率
+  - X0902 本期末不良贷款表内余额
+- X10 生息资产收益率
+  - X1000 司库内部资产收益率_FTP利率
+    - 映射数据科目:
+      - K1278 开鑫贷单品贷款内部FTP利率_年化 (value_type=百分比, product_scope=Z0001 开鑫贷单品)
+      - K1279 企企贷单品贷款内部FTP利率_年化 (value_type=百分比, product_scope=Z0002 企企贷单品)
+      - K1280 开鑫贷分期贷款内部FTP利率_年化 (value_type=百分比, product_scope=Z0003 开鑫贷分期)
+      - K1281 车车贷单品贷款内部FTP利率_年化 (value_type=百分比, product_scope=Z0004 车车贷单品)
+      - K1282 存放同业活期资产内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1283 存放同业定期资产内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1284 存放同业其他资产内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1285 拆放同业资产内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1286 买入返售资产内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1287 同业存单投资内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1288 同业货基投资内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1289 同业债基投资内部FTP利率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1290 国债投资内部FTP利率_年化 (value_type=百分比, product_scope=Z1001 金市投资业务)
+      - K1291 地方债投资内部FTP利率_年化 (value_type=百分比, product_scope=Z1001 金市投资业务)
+      - K1292 政策性金融债投资内部FTP利率_年化 (value_type=百分比, product_scope=Z1001 金市投资业务)
+  - X1001 司库外部资产收益率
+    - 映射数据科目:
+      - K1001 存放央行法准收益率_年化 (value_type=百分比, product_scope=Z9001 司库对外业务-外部资产负债)
+      - K1010 存放央行超备收益率_年化 (value_type=百分比, product_scope=Z9001 司库对外业务-外部资产负债)
+  - X1002 金市资产收益率
+    - 映射数据科目:
+      - K1252 存放同业活期资产收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1253 存放同业定期资产收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1254 存放同业其他资产收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1255 拆放同业资产收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1256 买入返售资产收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1257 同业存单投资收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1258 同业货基投资收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1259 同业债基投资收益率_年化 (value_type=百分比, product_scope=Z1002 金市资金业务)
+      - K1260 国债投资收益率_年化 (value_type=百分比, product_scope=Z1001 金市投资业务)
+      - K1261 地方债投资收益率_年化 (value_type=百分比, product_scope=Z1001 金市投资业务)
+      - K1262 政策性金融债投资收益率_年化 (value_type=百分比, product_scope=Z1001 金市投资业务)
+  - X1003 个人金融资产收益率
+    - 映射数据科目:
+      - K1200 开鑫贷单品贷款收益率_年化 (value_type=百分比, product_scope=Z0001 开鑫贷单品)
+      - K1201 开鑫贷分期贷款收益率_年化 (value_type=百分比, product_scope=Z0003 开鑫贷分期)
+      - K1251 车车贷单品贷款收益率_年化 (value_type=百分比, product_scope=Z0004 车车贷单品)
+  - X1004 企业金融资产收益率
+    - 映射数据科目:
+      - K1250 企企贷贷款收益率_年化 (value_type=百分比, product_scope=Z0002 企企贷单品)
+- X11 付息负债付息率
+  - X1100 司库内部负债付息率_FTP利率
+  - X1101 司库外部负债付息率
+  - X1102 金市负债付息率
+  - X1103 个人金融负债付息率
+    - 映射数据科目:
+      - L3100 开心小账户存款付息率_年化 (value_type=百分比, product_scope=Z0005 开心小账户存款)
+      - L3120 其他小小产品存款付息率_年化 (value_type=百分比, product_scope=Z2001 其他小小产品)
+      - L3161 开心小账户存款内部FTP利率_年化 (value_type=百分比, product_scope=Z0005 开心小账户存款)
+      - L3163 其他小小产品存款内部FTP利率_年化 (value_type=百分比, product_scope=Z2001 其他小小产品)
+  - X1104 企业金融负债付息率
+    - 映射数据科目:
+      - L3150 企小乐存款付息率_年化 (value_type=百分比, product_scope=Z0017 企小乐存款)
+      - L3160 小企业保证金存款付息率_年化 (value_type=百分比, product_scope=Z0017 企小乐存款)
+      - L3162 企小乐存款内部FTP利率_年化 (value_type=百分比, product_scope=Z0017 企小乐存款)
+      - L3164 小企业保证金存款内部FTP利率_年化 (value_type=百分比, product_scope=Z0017 企小乐存款)
+- X20 产品及业务数据
+  - X2001 个金业务数据
+    - X200101 开鑫贷业务数据
+      - 映射数据科目:
+        - M1200 开鑫贷单品表内贷款逾期90+规模占比 (value_type=金额, product_scope=Z0001 开鑫贷单品)
+  - X2002 企金业务数据
+- X50 HR相关数据
+  - X5001 HR_各部门人编数据
+  - X5002 HR_平均人数
+    - 映射数据科目:
+      - P1001 产品线平均人数 (value_type=金额, product_scope=ALL_PRODUCTS)
+  - X5003 HR_人均费用
+    - 映射数据科目:
+      - P1101 产品线月度人均常规薪酬 (value_type=金额, product_scope=ALL_PRODUCTS)
+  - X5004 HR_各项奖金数据
+- X90 备查数据信息
+  - X9001 日期相关基础数据
+
+## 二、部门科目树（含部门->产品授权）
+- Y1 个人金融部
+  - 有效产品集合(含下级继承):
+    - Z0001 开鑫贷单品
+    - Z0003 开鑫贷分期
+    - Z0004 车车贷单品
+    - Z0005 开心小账户存款
+  - Y10 泛开鑫贷
+    - 有效产品集合(含下级继承):
+      - Z0001 开鑫贷单品
+      - Z0003 开鑫贷分期
+    - Y100 开鑫贷
+      - 直接授权产品:
+        - Z0001 开鑫贷单品
+        - Z0003 开鑫贷分期
+      - 有效产品集合(含下级继承):
+        - Z0001 开鑫贷单品
+        - Z0003 开鑫贷分期
+    - Y101 开户贷
+  - Y11 开心账户
+    - 有效产品集合(含下级继承):
+      - Z0005 开心小账户存款
+    - Y110 开心账户存款
+      - 直接授权产品:
+        - Z0005 开心小账户存款
+      - 有效产品集合(含下级继承):
+        - Z0005 开心小账户存款
+    - Y111 开心账户理财
+  - Y12 汽车金融
+    - 直接授权产品:
+      - Z0004 车车贷单品
+    - 有效产品集合(含下级继承):
+      - Z0004 车车贷单品
+- Y2 企业金融部
+  - 有效产品集合(含下级继承):
+    - Z0002 企企贷单品
+    - Z0017 企小乐存款
+  - Y20 小微业务团队
+    - 直接授权产品:
+      - Z0002 企企贷单品
+      - Z0017 企小乐存款
+    - 有效产品集合(含下级继承):
+      - Z0002 企企贷单品
+      - Z0017 企小乐存款
+- Y3 普惠金融部
+  - 直接授权产品:
+    - Z2001 其他小小产品
+  - 有效产品集合(含下级继承):
+    - Z2001 其他小小产品
+- Y4 科技事业部
+- Y5 金融市场部
+  - 直接授权产品:
+    - Z1001 金市投资业务
+    - Z1002 金市资金业务
+  - 有效产品集合(含下级继承):
+    - Z1001 金市投资业务
+    - Z1002 金市资金业务
+- Y6 司库部门
+  - 直接授权产品:
+    - Z9000 司库对内业务-内部资产负债
+    - Z9001 司库对外业务-外部资产负债
+  - 有效产品集合(含下级继承):
+    - Z9000 司库对内业务-内部资产负债
+    - Z9001 司库对外业务-外部资产负债
+- Y7 其他部门
+  - 直接授权产品:
+    - Z9100 总行总部
+    - Z9999 其他产品无关类别
+  - 有效产品集合(含下级继承):
+    - Z9100 总行总部
+    - Z9999 其他产品无关类别

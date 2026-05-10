@@ -1,0 +1,452 @@
+[
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C1001",
+        "name": "存放央行法准利息收入",
+        "product": "Z0701"
+      },
+      {
+        "code": "C1002",
+        "name": "存放央行法准FTP利息支出",
+        "product": "Z0701"
+      },
+      {
+        "code": "C1010",
+        "name": "存放央行超备利息收入",
+        "product": "Z0701"
+      },
+      {
+        "code": "C1011",
+        "name": "存放央行超备FTP利息支出",
+        "product": "Z0701"
+      },
+      {
+        "code": "C1200",
+        "name": "一般性贷款利息收入",
+        "product": null
+      },
+      {
+        "code": "C1201",
+        "name": "票据直贴利息收入",
+        "product": "Z02010301"
+      },
+      {
+        "code": "C1250",
+        "name": "票据转贴利息收入",
+        "product": "Z02010301"
+      },
+      {
+        "code": "C3101",
+        "name": "活期储蓄存款_FTP利息收入",
+        "product": null
+      },
+      {
+        "code": "C3121",
+        "name": "定期储蓄存款_FTP利息收入",
+        "product": null
+      },
+      {
+        "code": "C3151",
+        "name": "单位活期存款_FTP利息收入",
+        "product": null
+      },
+      {
+        "code": "C3161",
+        "name": "单位定期存款_FTP利息收入",
+        "product": null
+      },
+      {
+        "code": "C3170",
+        "name": "同业存放活期负债_FTP利息收入",
+        "product": null
+      },
+      {
+        "code": "C3171",
+        "name": "同业存放定期负债_FTP利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3172",
+        "name": "同业拆入负债_FTP利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3173",
+        "name": "卖出回购FTP利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3174",
+        "name": "发行同业存单FTP利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3175",
+        "name": "向中央银行借款FTP利息收入",
+        "product": "Z0201"
+      },
+      {
+        "code": "C3176",
+        "name": "交易性金融负债FTP利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3179",
+        "name": "其他付息负债FTP利息收入",
+        "product": null
+      },
+      {
+        "code": "C3201",
+        "name": "活期储蓄存款_外部利息支出",
+        "product": null
+      },
+      {
+        "code": "C3221",
+        "name": "定期储蓄存款_外部利息支出",
+        "product": null
+      },
+      {
+        "code": "C3251",
+        "name": "单位活期存款_外部利息支出",
+        "product": null
+      },
+      {
+        "code": "C3261",
+        "name": "单位定期存款_外部利息支出",
+        "product": null
+      },
+      {
+        "code": "C3270",
+        "name": "同业存放活期负债_外部利息支出",
+        "product": null
+      },
+      {
+        "code": "C3271",
+        "name": "同业存放定期负债_外部利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3272",
+        "name": "同业拆入负债_外部利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3273",
+        "name": "卖出回购外部利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3274",
+        "name": "发行同业存单外部利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3275",
+        "name": "向中央银行借款外部利息支出",
+        "product": "Z0201"
+      },
+      {
+        "code": "C3276",
+        "name": "交易性金融负债外部利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C3279",
+        "name": "其他付息负债外部利息支出",
+        "product": null
+      },
+      {
+        "code": "C9003",
+        "name": "福费廷利息收入",
+        "product": "Z02010303"
+      },
+      {
+        "code": "C9004",
+        "name": "存放同业活期资产利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9005",
+        "name": "存放同业定期资产利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9007",
+        "name": "拆放同业资产利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9008",
+        "name": "买入返售资产利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9009",
+        "name": "同业存单投资利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9010",
+        "name": "同业货基投资利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9011",
+        "name": "同业债基投资利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9012",
+        "name": "利率债投资利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9013",
+        "name": "信用债投资利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9014",
+        "name": "资产支持证券（ABS）利息收入",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9015",
+        "name": "一般性贷款利息收入",
+        "product": null
+      },
+      {
+        "code": "C9016",
+        "name": "票据直贴利息收入",
+        "product": "Z02010301"
+      },
+      {
+        "code": "C9017",
+        "name": "票据转贴利息收入",
+        "product": "Z02010301"
+      },
+      {
+        "code": "C9018",
+        "name": "福费廷利息收入",
+        "product": "Z02010303"
+      },
+      {
+        "code": "C9019",
+        "name": "存放同业活期资产内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9021",
+        "name": "存放同业定期资产内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9023",
+        "name": "拆放同业资产内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9024",
+        "name": "买入返售资产内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9025",
+        "name": "同业存单投资内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9026",
+        "name": "同业货基投资内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9027",
+        "name": "同业债基投资内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9028",
+        "name": "利率债投资内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9029",
+        "name": "信用债投资内部FTP利息支出",
+        "product": "Z0202"
+      },
+      {
+        "code": "C9030",
+        "name": "资产支持证券（ABS）FTP利息支出",
+        "product": "Z0202"
+      }
+    ]
+  },
+  {
+    "pattern": "???",
+    "rows": [
+      {
+        "code": "C4006",
+        "name": "代销业务手续费收入",
+        "product": null
+      },
+      {
+        "code": "C4008",
+        "name": "其他手续费收入",
+        "product": null
+      },
+      {
+        "code": "C4107",
+        "name": "积分手续费",
+        "product": null
+      },
+      {
+        "code": "C4108",
+        "name": "其他手续费支出",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C5200",
+        "name": "风险成本_基础拨备",
+        "product": null
+      },
+      {
+        "code": "C5201",
+        "name": "风险成本_超额拨备",
+        "product": "Z0702"
+      },
+      {
+        "code": "C5202",
+        "name": "同业风险成本",
+        "product": "Z0202"
+      },
+      {
+        "code": "C5203",
+        "name": "其他风险成本",
+        "product": "Z0702"
+      }
+    ]
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C4001",
+        "name": "合作贷款平台费",
+        "product": "Z010101"
+      },
+      {
+        "code": "C4005",
+        "name": "对公平台服务",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C4101",
+        "name": "渠道费",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "??",
+    "rows": []
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C4002",
+        "name": "同业贷款催收费",
+        "product": "Z0202"
+      },
+      {
+        "code": "C4102",
+        "name": "催收费",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C4103",
+        "name": "征信费",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C4106",
+        "name": "清算费",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "????",
+    "rows": [
+      {
+        "code": "C4105",
+        "name": "技术服务费",
+        "product": null
+      }
+    ]
+  },
+  {
+    "pattern": "???",
+    "rows": []
+  },
+  {
+    "pattern": "????",
+    "rows": []
+  },
+  {
+    "pattern": "????",
+    "rows": []
+  },
+  {
+    "pattern": "??????",
+    "rows": []
+  },
+  {
+    "pattern": "??",
+    "rows": [
+      {
+        "code": "C7021",
+        "name": "利润分享_IT",
+        "product": null
+      },
+      {
+        "code": "C7022",
+        "name": "利润分享_非IT",
+        "product": null
+      },
+      {
+        "code": "C8021",
+        "name": "利润分享_IT",
+        "product": null
+      },
+      {
+        "code": "C8022",
+        "name": "利润分享_非IT",
+        "product": null
+      }
+    ]
+  }
+]

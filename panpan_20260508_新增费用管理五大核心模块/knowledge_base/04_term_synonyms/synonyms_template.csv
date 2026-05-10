@@ -1,0 +1,5 @@
+domain,term,normalized_type,normalized_code,normalized_name,confidence,requires_confirmation,notes
+department,零售条线,dept_account,Y1,零售金融部,0.95,false,常见口语表达
+product,个贷,product_type,Z0001,个人经营贷,0.82,true,不同机构可能定义不同
+metric,预实差,builtin_metric,m_budget_actual_gap,预算实际差异,0.98,false,默认映射到指标库定义
+time,去年同期,builtin_time_rule,YOY_SAME_PERIOD,同比同周期,0.93,false,由时间解析器进一步展开

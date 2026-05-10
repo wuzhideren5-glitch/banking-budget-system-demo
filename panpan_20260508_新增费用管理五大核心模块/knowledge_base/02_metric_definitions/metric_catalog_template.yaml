@@ -1,0 +1,43 @@
+version: "1.0"
+updated_at: "2026-04-12T00:00:00Z"
+metrics:
+  - metric_id: "m_budget_actual_gap"
+    metric_name: "预算实际差异"
+    business_definition: "同一时间、同一维度下，预算值与实际值的绝对差异。"
+    formula_sql: "actual_value - budget_value"
+    required_dimensions: ["year", "month", "data_account", "dept", "version_id"]
+    required_sources:
+      - "budget_summary.budget_actual"
+      - "budget_summary.value"
+    filter_rules:
+      budget_value_selector: "budget_actual = 0"
+      actual_value_selector: "budget_actual = 1"
+    granularity_supported: ["month", "quarter", "year"]
+    unit_rule: "follow_value_type"
+    interpretation_template:
+      positive: "实际高于预算，需关注增量来源。"
+      negative: "实际低于预算，需关注执行进度或业务下滑。"
+    data_quality_checks:
+      - "budget_value and actual_value must exist in same dimension grain"
+    owner: "finance_team"
+    status: "active"
+
+  - metric_id: "m_yoy_growth"
+    metric_name: "同比增速"
+    business_definition: "本期值与去年同期值的相对变动比例。"
+    formula_sql: "(current_value - previous_year_same_period_value) / NULLIF(previous_year_same_period_value, 0)"
+    required_dimensions: ["year", "month_or_quarter", "comparable_scope"]
+    required_sources:
+      - "budget_summary.year"
+      - "budget_summary.month"
+      - "budget_summary.quarter"
+      - "budget_summary.value"
+    granularity_supported: ["month", "quarter", "year"]
+    unit_rule: "percentage_4_decimal"
+    interpretation_template:
+      positive: "同比增长，说明该业务较去年同期改善。"
+      negative: "同比下降，需结合基数和结构变化分析。"
+    data_quality_checks:
+      - "ensure same scope and same dimension keys in both periods"
+    owner: "finance_team"
+    status: "active"

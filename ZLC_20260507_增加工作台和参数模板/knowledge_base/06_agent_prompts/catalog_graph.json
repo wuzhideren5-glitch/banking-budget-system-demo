@@ -1,0 +1,2572 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-04-23T04:05:26Z",
+  "source_db_path": "/Users/arthur/Documents/cursor_projects/cursor_budget_test3/data/common.db",
+  "counts": {
+    "report_accounts": 112,
+    "data_accounts": 143,
+    "report_data_mappings": 151,
+    "dept_accounts": 15,
+    "products": 13,
+    "dept_product_mappings": 13
+  },
+  "warnings": [],
+  "report_roots": [
+    "X01",
+    "X02",
+    "X03",
+    "X04",
+    "X05",
+    "X06",
+    "X07",
+    "X08",
+    "X09",
+    "X10",
+    "X11",
+    "X20",
+    "X50",
+    "X90"
+  ],
+  "report_nodes": {
+    "X01": {
+      "code": "X01",
+      "name": "资产负债日均",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0101",
+        "X0102",
+        "X0104"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0101": {
+      "code": "X0101",
+      "name": "资产日均",
+      "parent_code": "X01",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X010101",
+        "X010102",
+        "X010103",
+        "X010109"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X010101": {
+      "code": "X010101",
+      "name": "存放央行日均",
+      "parent_code": "X0101",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1001",
+        "A1010"
+      ]
+    },
+    "X010102": {
+      "code": "X010102",
+      "name": "同业资产日均",
+      "parent_code": "X0101",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X01010201",
+        "X01010202",
+        "X01010203",
+        "X01010204",
+        "X01010205",
+        "X01010206"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X01010201": {
+      "code": "X01010201",
+      "name": "存放同业日均",
+      "parent_code": "X010102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1020",
+        "A1021",
+        "A1022"
+      ]
+    },
+    "X01010202": {
+      "code": "X01010202",
+      "name": "拆放同业日均",
+      "parent_code": "X010102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1030"
+      ]
+    },
+    "X01010203": {
+      "code": "X01010203",
+      "name": "买入返售资产日均",
+      "parent_code": "X010102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1040"
+      ]
+    },
+    "X01010204": {
+      "code": "X01010204",
+      "name": "同业存单投资日均",
+      "parent_code": "X010102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1050"
+      ]
+    },
+    "X01010205": {
+      "code": "X01010205",
+      "name": "同业基金投资日均",
+      "parent_code": "X010102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1060",
+        "A1061"
+      ]
+    },
+    "X01010206": {
+      "code": "X01010206",
+      "name": "债券资产投资日均",
+      "parent_code": "X010102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [
+        "X0101020601",
+        "X0101020602",
+        "X0101020603",
+        "X0101020604",
+        "X0101020605"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0101020601": {
+      "code": "X0101020601",
+      "name": "国债投资",
+      "parent_code": "X01010206",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1100"
+      ]
+    },
+    "X0101020602": {
+      "code": "X0101020602",
+      "name": "地方债投资日均",
+      "parent_code": "X01010206",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1101"
+      ]
+    },
+    "X0101020603": {
+      "code": "X0101020603",
+      "name": "政策性金融债投资日均",
+      "parent_code": "X01010206",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1102"
+      ]
+    },
+    "X0101020604": {
+      "code": "X0101020604",
+      "name": "金融债投资日均",
+      "parent_code": "X01010206",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0101020605": {
+      "code": "X0101020605",
+      "name": "信用债投资日均",
+      "parent_code": "X01010206",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X010103": {
+      "code": "X010103",
+      "name": "各项贷款日均",
+      "parent_code": "X0101",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X01010301",
+        "X01010302",
+        "X01010309"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X01010301": {
+      "code": "X01010301",
+      "name": "个人贷款日均",
+      "parent_code": "X010103",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1200",
+        "A1201",
+        "A1203",
+        "A1204",
+        "A3161"
+      ]
+    },
+    "X01010302": {
+      "code": "X01010302",
+      "name": "企业贷款日均",
+      "parent_code": "X010103",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A1250"
+      ]
+    },
+    "X01010309": {
+      "code": "X01010309",
+      "name": "其他贷款日均",
+      "parent_code": "X010103",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X010109": {
+      "code": "X010109",
+      "name": "其他生息资产日均",
+      "parent_code": "X0101",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0102": {
+      "code": "X0102",
+      "name": "负债日均",
+      "parent_code": "X01",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X010201",
+        "X010202",
+        "X010203",
+        "X010209"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X010201": {
+      "code": "X010201",
+      "name": "各项存款日均",
+      "parent_code": "X0102",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X01020101",
+        "X01020102"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X01020101": {
+      "code": "X01020101",
+      "name": "个人存款日均",
+      "parent_code": "X010201",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A3100",
+        "A3120"
+      ]
+    },
+    "X01020102": {
+      "code": "X01020102",
+      "name": "企业存款日均",
+      "parent_code": "X010201",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A3150",
+        "A3160"
+      ]
+    },
+    "X010202": {
+      "code": "X010202",
+      "name": "同业负债日均",
+      "parent_code": "X0102",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X01020201",
+        "X01020202",
+        "X01020203",
+        "X01020209"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X01020201": {
+      "code": "X01020201",
+      "name": "同业存款日均",
+      "parent_code": "X010202",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A3000"
+      ]
+    },
+    "X01020202": {
+      "code": "X01020202",
+      "name": "同业拆入日均",
+      "parent_code": "X010202",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "A3010"
+      ]
+    },
+    "X01020203": {
+      "code": "X01020203",
+      "name": "卖出回购日均",
+      "parent_code": "X010202",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X01020209": {
+      "code": "X01020209",
+      "name": "发行同业存单日均",
+      "parent_code": "X010202",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X010203": {
+      "code": "X010203",
+      "name": "央行资金日均",
+      "parent_code": "X0102",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X010209": {
+      "code": "X010209",
+      "name": "其他付息负债日均",
+      "parent_code": "X0102",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0104": {
+      "code": "X0104",
+      "name": "表外项目",
+      "parent_code": "X01",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X02": {
+      "code": "X02",
+      "name": "资产负债时点",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0201",
+        "X0202",
+        "X0203"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0201": {
+      "code": "X0201",
+      "name": "资产时点",
+      "parent_code": "X02",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "B1001",
+        "B1010"
+      ]
+    },
+    "X0202": {
+      "code": "X0202",
+      "name": "负债时点",
+      "parent_code": "X02",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0203": {
+      "code": "X0203",
+      "name": "权益时点",
+      "parent_code": "X02",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X03": {
+      "code": "X03",
+      "name": "损益（净利润）",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0301",
+        "X0302",
+        "X0303",
+        "X0304",
+        "X0305",
+        "X0309"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0301": {
+      "code": "X0301",
+      "name": "净收入",
+      "parent_code": "X03",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X030101",
+        "X030102"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X030101": {
+      "code": "X030101",
+      "name": "营业收入",
+      "parent_code": "X0301",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X03010101",
+        "X03010102",
+        "X03010103"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X03010101": {
+      "code": "X03010101",
+      "name": "利息净收入",
+      "parent_code": "X030101",
+      "level": 4,
+      "is_leaf": false,
+      "children": [
+        "X0301010101",
+        "X0301010102",
+        "X0301010103",
+        "X0301010104",
+        "X0301010105",
+        "X0301010106",
+        "X0301010107",
+        "X0301010108"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0301010101": {
+      "code": "X0301010101",
+      "name": "同业资产业务外部利息收入",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C1001",
+        "C1010",
+        "C9004",
+        "C9005",
+        "C9006",
+        "C9007",
+        "C9008",
+        "C9009",
+        "C9010",
+        "C9011",
+        "C9012",
+        "C9013",
+        "C9014"
+      ]
+    },
+    "X0301010102": {
+      "code": "X0301010102",
+      "name": "同业资产业务内部FTP利息支出",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C9019",
+        "C9020",
+        "C9021",
+        "C9022",
+        "C9023",
+        "C9024",
+        "C9025",
+        "C9026",
+        "C9027",
+        "C9028",
+        "C9029"
+      ]
+    },
+    "X0301010103": {
+      "code": "X0301010103",
+      "name": "信贷业务外部利息收入",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C1200",
+        "C1201",
+        "C1250",
+        "C9003"
+      ]
+    },
+    "X0301010104": {
+      "code": "X0301010104",
+      "name": "信贷业务内部FTP利息支出",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C9015",
+        "C9016",
+        "C9017",
+        "C9018"
+      ]
+    },
+    "X0301010105": {
+      "code": "X0301010105",
+      "name": "同业负债业务内部FTP利息收入",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0301010106": {
+      "code": "X0301010106",
+      "name": "同业负债业务外部利息支出",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0301010107": {
+      "code": "X0301010107",
+      "name": "存款业务内部FTP利息收入",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C3101",
+        "C3121",
+        "C3151",
+        "C3161"
+      ]
+    },
+    "X0301010108": {
+      "code": "X0301010108",
+      "name": "存款业务外部利息支出",
+      "parent_code": "X03010101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C3100",
+        "C3120",
+        "C3150",
+        "C3160"
+      ]
+    },
+    "X03010102": {
+      "code": "X03010102",
+      "name": "手续费净收入",
+      "parent_code": "X030101",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X03010103": {
+      "code": "X03010103",
+      "name": "其他营业收入",
+      "parent_code": "X030101",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C4001"
+      ]
+    },
+    "X030102": {
+      "code": "X030102",
+      "name": "风险成本",
+      "parent_code": "X0301",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X03010201",
+        "X03010202"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X03010201": {
+      "code": "X03010201",
+      "name": "个人金融信贷风险成本",
+      "parent_code": "X030102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C5200",
+        "C5201"
+      ]
+    },
+    "X03010202": {
+      "code": "X03010202",
+      "name": "企业金融信贷风险成本",
+      "parent_code": "X030102",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C5250"
+      ]
+    },
+    "X0302": {
+      "code": "X0302",
+      "name": "税金及附加",
+      "parent_code": "X03",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C6001"
+      ]
+    },
+    "X0303": {
+      "code": "X0303",
+      "name": "业务及管理费",
+      "parent_code": "X03",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X030301",
+        "X030302",
+        "X030303",
+        "X030304"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X030301": {
+      "code": "X030301",
+      "name": "人力成本",
+      "parent_code": "X0303",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X03030101",
+        "X03030102"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X03030101": {
+      "code": "X03030101",
+      "name": "非IT人力费用",
+      "parent_code": "X030301",
+      "level": 4,
+      "is_leaf": false,
+      "children": [
+        "X0303010101",
+        "X0303010102"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0303010101": {
+      "code": "X0303010101",
+      "name": "常规非IT人力费用",
+      "parent_code": "X03030101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7001",
+        "C7010"
+      ]
+    },
+    "X0303010102": {
+      "code": "X0303010102",
+      "name": "特别非IT人力费用",
+      "parent_code": "X03030101",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7011",
+        "C7012"
+      ]
+    },
+    "X03030102": {
+      "code": "X03030102",
+      "name": "IT人力费用",
+      "parent_code": "X030301",
+      "level": 4,
+      "is_leaf": false,
+      "children": [
+        "X0303010201",
+        "X0303010202"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0303010201": {
+      "code": "X0303010201",
+      "name": "常规IT人力费用",
+      "parent_code": "X03030102",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7051",
+        "C7060"
+      ]
+    },
+    "X0303010202": {
+      "code": "X0303010202",
+      "name": "特别IT人力费用",
+      "parent_code": "X03030102",
+      "level": 5,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7061",
+        "C7062"
+      ]
+    },
+    "X030302": {
+      "code": "X030302",
+      "name": "业务费用",
+      "parent_code": "X0303",
+      "level": 3,
+      "is_leaf": false,
+      "children": [
+        "X03030201",
+        "X03030202"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X03030201": {
+      "code": "X03030201",
+      "name": "营销费用",
+      "parent_code": "X030302",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7100",
+        "C7101"
+      ]
+    },
+    "X03030202": {
+      "code": "X03030202",
+      "name": "运营费用",
+      "parent_code": "X030302",
+      "level": 4,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7150"
+      ]
+    },
+    "X030303": {
+      "code": "X030303",
+      "name": "IT科技运维费用",
+      "parent_code": "X0303",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C8200"
+      ]
+    },
+    "X030304": {
+      "code": "X030304",
+      "name": "职场及日常费用",
+      "parent_code": "X0303",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7170",
+        "C7180",
+        "C8201",
+        "C8250"
+      ]
+    },
+    "X0304": {
+      "code": "X0304",
+      "name": "其他业务净收入",
+      "parent_code": "X03",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X030401",
+        "X030402"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X030401": {
+      "code": "X030401",
+      "name": "其他业务收入",
+      "parent_code": "X0304",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C8500",
+        "C8520"
+      ]
+    },
+    "X030402": {
+      "code": "X030402",
+      "name": "其他业务支出",
+      "parent_code": "X0304",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0305": {
+      "code": "X0305",
+      "name": "营业外净收支",
+      "parent_code": "X03",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X030501",
+        "X030502"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X030501": {
+      "code": "X030501",
+      "name": "营业外收入",
+      "parent_code": "X0305",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C8550"
+      ]
+    },
+    "X030502": {
+      "code": "X030502",
+      "name": "营业外支出",
+      "parent_code": "X0305",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C8560"
+      ]
+    },
+    "X0309": {
+      "code": "X0309",
+      "name": "所得税费用",
+      "parent_code": "X03",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C9001",
+        "C9002"
+      ]
+    },
+    "X04": {
+      "code": "X04",
+      "name": "预算口径列示",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0401"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0401": {
+      "code": "X0401",
+      "name": "预算口径人力费用",
+      "parent_code": "X04",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X040101",
+        "X040102"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X040101": {
+      "code": "X040101",
+      "name": "常规薪资奖金",
+      "parent_code": "X0401",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7001",
+        "C7010",
+        "C7051",
+        "C7060"
+      ]
+    },
+    "X040102": {
+      "code": "X040102",
+      "name": "特别人力费用",
+      "parent_code": "X0401",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "C7011",
+        "C7012",
+        "C7061",
+        "C7062"
+      ]
+    },
+    "X05": {
+      "code": "X05",
+      "name": "管理贷款日均",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0501",
+        "X0502"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0501": {
+      "code": "X0501",
+      "name": "个人金融管理贷款日均",
+      "parent_code": "X05",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "E1200",
+        "E1201"
+      ]
+    },
+    "X0502": {
+      "code": "X0502",
+      "name": "企业金融管理贷款日均",
+      "parent_code": "X05",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "E1250"
+      ]
+    },
+    "X06": {
+      "code": "X06",
+      "name": "管理资产日均",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0601",
+        "X0602"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0601": {
+      "code": "X0601",
+      "name": "个人金融管理资产日均",
+      "parent_code": "X06",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "F3100",
+        "F3120"
+      ]
+    },
+    "X0602": {
+      "code": "X0602",
+      "name": "企业金融管理资产日均",
+      "parent_code": "X06",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "F3150"
+      ]
+    },
+    "X07": {
+      "code": "X07",
+      "name": "业务量数据",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X08": {
+      "code": "X08",
+      "name": "客户量数据",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X09": {
+      "code": "X09",
+      "name": "风险数据",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X0901",
+        "X0902"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X0901": {
+      "code": "X0901",
+      "name": "年化信贷风险成本率",
+      "parent_code": "X09",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X0902": {
+      "code": "X0902",
+      "name": "本期末不良贷款表内余额",
+      "parent_code": "X09",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X10": {
+      "code": "X10",
+      "name": "生息资产收益率",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X1000",
+        "X1001",
+        "X1002",
+        "X1003",
+        "X1004"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X1000": {
+      "code": "X1000",
+      "name": "司库内部资产收益率_FTP利率",
+      "parent_code": "X10",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "K1278",
+        "K1279",
+        "K1280",
+        "K1281",
+        "K1282",
+        "K1283",
+        "K1284",
+        "K1285",
+        "K1286",
+        "K1287",
+        "K1288",
+        "K1289",
+        "K1290",
+        "K1291",
+        "K1292"
+      ]
+    },
+    "X1001": {
+      "code": "X1001",
+      "name": "司库外部资产收益率",
+      "parent_code": "X10",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "K1001",
+        "K1010"
+      ]
+    },
+    "X1002": {
+      "code": "X1002",
+      "name": "金市资产收益率",
+      "parent_code": "X10",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "K1252",
+        "K1253",
+        "K1254",
+        "K1255",
+        "K1256",
+        "K1257",
+        "K1258",
+        "K1259",
+        "K1260",
+        "K1261",
+        "K1262"
+      ]
+    },
+    "X1003": {
+      "code": "X1003",
+      "name": "个人金融资产收益率",
+      "parent_code": "X10",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "K1200",
+        "K1201",
+        "K1251"
+      ]
+    },
+    "X1004": {
+      "code": "X1004",
+      "name": "企业金融资产收益率",
+      "parent_code": "X10",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "K1250"
+      ]
+    },
+    "X11": {
+      "code": "X11",
+      "name": "付息负债付息率",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X1100",
+        "X1101",
+        "X1102",
+        "X1103",
+        "X1104"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X1100": {
+      "code": "X1100",
+      "name": "司库内部负债付息率_FTP利率",
+      "parent_code": "X11",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X1101": {
+      "code": "X1101",
+      "name": "司库外部负债付息率",
+      "parent_code": "X11",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X1102": {
+      "code": "X1102",
+      "name": "金市负债付息率",
+      "parent_code": "X11",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X1103": {
+      "code": "X1103",
+      "name": "个人金融负债付息率",
+      "parent_code": "X11",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "L3100",
+        "L3120",
+        "L3161",
+        "L3163"
+      ]
+    },
+    "X1104": {
+      "code": "X1104",
+      "name": "企业金融负债付息率",
+      "parent_code": "X11",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "L3150",
+        "L3160",
+        "L3162",
+        "L3164"
+      ]
+    },
+    "X20": {
+      "code": "X20",
+      "name": "产品及业务数据",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X2001",
+        "X2002"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X2001": {
+      "code": "X2001",
+      "name": "个金业务数据",
+      "parent_code": "X20",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "X200101"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X200101": {
+      "code": "X200101",
+      "name": "开鑫贷业务数据",
+      "parent_code": "X2001",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "M1200"
+      ]
+    },
+    "X2002": {
+      "code": "X2002",
+      "name": "企金业务数据",
+      "parent_code": "X20",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X50": {
+      "code": "X50",
+      "name": "HR相关数据",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X5001",
+        "X5002",
+        "X5003",
+        "X5004"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X5001": {
+      "code": "X5001",
+      "name": "HR_各部门人编数据",
+      "parent_code": "X50",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X5002": {
+      "code": "X5002",
+      "name": "HR_平均人数",
+      "parent_code": "X50",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "P1001"
+      ]
+    },
+    "X5003": {
+      "code": "X5003",
+      "name": "HR_人均费用",
+      "parent_code": "X50",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": [
+        "P1101"
+      ]
+    },
+    "X5004": {
+      "code": "X5004",
+      "name": "HR_各项奖金数据",
+      "parent_code": "X50",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    },
+    "X90": {
+      "code": "X90",
+      "name": "备查数据信息",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "X9001"
+      ],
+      "mapped_data_accounts": []
+    },
+    "X9001": {
+      "code": "X9001",
+      "name": "日期相关基础数据",
+      "parent_code": "X90",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "mapped_data_accounts": []
+    }
+  },
+  "data_accounts": {
+    "A1001": {
+      "code": "A1001",
+      "name": "存放央行法准_表内日均",
+      "value_type": "金额",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "A1010": {
+      "code": "A1010",
+      "name": "存放央行超备_表内日均",
+      "value_type": "金额",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "A1020": {
+      "code": "A1020",
+      "name": "存放同业活期资产_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1021": {
+      "code": "A1021",
+      "name": "存放同业定期资产_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1022": {
+      "code": "A1022",
+      "name": "存放同业其他资产_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1030": {
+      "code": "A1030",
+      "name": "拆放同业资产_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1040": {
+      "code": "A1040",
+      "name": "买入返售资产_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1050": {
+      "code": "A1050",
+      "name": "同业存单投资_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1060": {
+      "code": "A1060",
+      "name": "同业货基投资_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1061": {
+      "code": "A1061",
+      "name": "同业债基投资_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A1100": {
+      "code": "A1100",
+      "name": "国债投资_日均",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "A1101": {
+      "code": "A1101",
+      "name": "地方债投资_日均",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "A1102": {
+      "code": "A1102",
+      "name": "政策性金融债投资_日均",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "A1200": {
+      "code": "A1200",
+      "name": "开鑫贷单品联贷自持表内贷款_日均",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "A1201": {
+      "code": "A1201",
+      "name": "开鑫贷分期联贷自持表内贷款_日均",
+      "value_type": "金额",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "A1203": {
+      "code": "A1203",
+      "name": "开鑫贷单品纯自营贷款表内_日均",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "A1204": {
+      "code": "A1204",
+      "name": "开鑫贷分期纯自营贷款表内_日均",
+      "value_type": "金额",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "A1250": {
+      "code": "A1250",
+      "name": "企企贷贷款资产_表内日均",
+      "value_type": "金额",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "A3000": {
+      "code": "A3000",
+      "name": "同业存放活期负债_表内日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A3010": {
+      "code": "A3010",
+      "name": "同业拆入负债_日均",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "A3100": {
+      "code": "A3100",
+      "name": "开心小账户存款_日均",
+      "value_type": "金额",
+      "product_code": "Z0005",
+      "applies_to_all_products": false
+    },
+    "A3120": {
+      "code": "A3120",
+      "name": "其他小小产品存款_日均",
+      "value_type": "金额",
+      "product_code": "Z2001",
+      "applies_to_all_products": false
+    },
+    "A3150": {
+      "code": "A3150",
+      "name": "企小乐存款_日均",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "A3160": {
+      "code": "A3160",
+      "name": "小企业保证金存款_日均",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "A3161": {
+      "code": "A3161",
+      "name": "车车贷单品贷款资产_表内日均",
+      "value_type": "金额",
+      "product_code": "Z0004",
+      "applies_to_all_products": false
+    },
+    "B1001": {
+      "code": "B1001",
+      "name": "存放央行法准_时点",
+      "value_type": "金额",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "B1010": {
+      "code": "B1010",
+      "name": "存放央行超备_表内时点",
+      "value_type": "金额",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "C1001": {
+      "code": "C1001",
+      "name": "存放央行法准利息收入",
+      "value_type": "金额",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "C1010": {
+      "code": "C1010",
+      "name": "存放央行超备利息收入",
+      "value_type": "金额",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "C1200": {
+      "code": "C1200",
+      "name": "开鑫贷单品贷款利息收入",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "C1201": {
+      "code": "C1201",
+      "name": "开鑫贷分期贷款利息收入",
+      "value_type": "金额",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "C1250": {
+      "code": "C1250",
+      "name": "企企贷贷款利息收入",
+      "value_type": "金额",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "C3100": {
+      "code": "C3100",
+      "name": "开心小账户存款_外部利息支出",
+      "value_type": "金额",
+      "product_code": "Z0005",
+      "applies_to_all_products": false
+    },
+    "C3101": {
+      "code": "C3101",
+      "name": "开心小账户存款_内部FTP利息收入",
+      "value_type": "金额",
+      "product_code": "Z0005",
+      "applies_to_all_products": false
+    },
+    "C3120": {
+      "code": "C3120",
+      "name": "其他小小产品存款_外部利息支出",
+      "value_type": "金额",
+      "product_code": "Z2001",
+      "applies_to_all_products": false
+    },
+    "C3121": {
+      "code": "C3121",
+      "name": "其他小小产品存款_内部FTP利息收入",
+      "value_type": "金额",
+      "product_code": "Z2001",
+      "applies_to_all_products": false
+    },
+    "C3150": {
+      "code": "C3150",
+      "name": "企小乐存款_外部利息支出",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "C3151": {
+      "code": "C3151",
+      "name": "企小乐存款_内部FTP利息收入",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "C3160": {
+      "code": "C3160",
+      "name": "小企业保证金存款_外部利息支出",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "C3161": {
+      "code": "C3161",
+      "name": "小企业保证金存款_内部FTP利息收入",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "C4001": {
+      "code": "C4001",
+      "name": "其他其他产品营业收入",
+      "value_type": "金额",
+      "product_code": "Z9999",
+      "applies_to_all_products": false
+    },
+    "C5200": {
+      "code": "C5200",
+      "name": "开鑫贷单品表内风险成本_减值损失",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "C5201": {
+      "code": "C5201",
+      "name": "开鑫贷分期表内风险成本_减值损失",
+      "value_type": "金额",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "C5250": {
+      "code": "C5250",
+      "name": "企企贷表内风险成本_减值损失",
+      "value_type": "金额",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "C6001": {
+      "code": "C6001",
+      "name": "营业税金及附加",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7001": {
+      "code": "C7001",
+      "name": "非IT常规人力薪金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7010": {
+      "code": "C7010",
+      "name": "非IT人力费用_年度奖金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7011": {
+      "code": "C7011",
+      "name": "非IT人力费用_专项奖金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7012": {
+      "code": "C7012",
+      "name": "非IT人力费用_特别奖金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7051": {
+      "code": "C7051",
+      "name": "IT人力费用_常规薪金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7060": {
+      "code": "C7060",
+      "name": "IT人力费用_年度奖金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7061": {
+      "code": "C7061",
+      "name": "IT人力费用_专项奖金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7062": {
+      "code": "C7062",
+      "name": "IT人力费用_特别奖金",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7100": {
+      "code": "C7100",
+      "name": "产品营销费用_直接营销",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7101": {
+      "code": "C7101",
+      "name": "产品营销费用_间接摊销",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7150": {
+      "code": "C7150",
+      "name": "业务运营费用",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7170": {
+      "code": "C7170",
+      "name": "职场费用_非IT",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C7180": {
+      "code": "C7180",
+      "name": "职场费用_IT",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C8200": {
+      "code": "C8200",
+      "name": "一般科技费用",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C8201": {
+      "code": "C8201",
+      "name": "日常费用_非IT",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C8250": {
+      "code": "C8250",
+      "name": "日常费用_IT",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C8500": {
+      "code": "C8500",
+      "name": "其他业务收入",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C8520": {
+      "code": "C8520",
+      "name": "其他业务支出",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "C8550": {
+      "code": "C8550",
+      "name": "营业外收入",
+      "value_type": "金额",
+      "product_code": "Z9100",
+      "applies_to_all_products": false
+    },
+    "C8560": {
+      "code": "C8560",
+      "name": "营业外支出",
+      "value_type": "金额",
+      "product_code": "Z9100",
+      "applies_to_all_products": false
+    },
+    "C9001": {
+      "code": "C9001",
+      "name": "企业所得税费用一般费用",
+      "value_type": "金额",
+      "product_code": "Z9100",
+      "applies_to_all_products": false
+    },
+    "C9002": {
+      "code": "C9002",
+      "name": "企业所得税费用特殊调整",
+      "value_type": "金额",
+      "product_code": "Z9100",
+      "applies_to_all_products": false
+    },
+    "C9003": {
+      "code": "C9003",
+      "name": "车车贷单品贷款利息收入",
+      "value_type": "金额",
+      "product_code": "Z0004",
+      "applies_to_all_products": false
+    },
+    "C9004": {
+      "code": "C9004",
+      "name": "存放同业活期资产利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9005": {
+      "code": "C9005",
+      "name": "存放同业定期资产利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9006": {
+      "code": "C9006",
+      "name": "存放同业其他资产利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9007": {
+      "code": "C9007",
+      "name": "拆放同业资产利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9008": {
+      "code": "C9008",
+      "name": "买入返售资产利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9009": {
+      "code": "C9009",
+      "name": "同业存单投资利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9010": {
+      "code": "C9010",
+      "name": "同业货基投资利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9011": {
+      "code": "C9011",
+      "name": "同业债基投资利息收入",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9012": {
+      "code": "C9012",
+      "name": "国债投资利息收入",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "C9013": {
+      "code": "C9013",
+      "name": "地方债投资利息收入",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "C9014": {
+      "code": "C9014",
+      "name": "政策性金融债投资利息收入",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "C9015": {
+      "code": "C9015",
+      "name": "开鑫贷单品贷款内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "C9016": {
+      "code": "C9016",
+      "name": "企企贷单品贷款内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "C9017": {
+      "code": "C9017",
+      "name": "开鑫贷分期贷款内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "C9018": {
+      "code": "C9018",
+      "name": "车车贷单品贷款内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z0004",
+      "applies_to_all_products": false
+    },
+    "C9019": {
+      "code": "C9019",
+      "name": "存放同业活期资产内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9020": {
+      "code": "C9020",
+      "name": "国债投资内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "C9021": {
+      "code": "C9021",
+      "name": "存放同业定期资产内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9022": {
+      "code": "C9022",
+      "name": "存放同业其他资产内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9023": {
+      "code": "C9023",
+      "name": "拆放同业资产内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9024": {
+      "code": "C9024",
+      "name": "买入返售资产内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9025": {
+      "code": "C9025",
+      "name": "同业存单投资内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9026": {
+      "code": "C9026",
+      "name": "同业货基投资内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9027": {
+      "code": "C9027",
+      "name": "同业债基投资内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "C9028": {
+      "code": "C9028",
+      "name": "地方债投资内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "C9029": {
+      "code": "C9029",
+      "name": "政策性金融债投资内部FTP利息支出",
+      "value_type": "金额",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "E1200": {
+      "code": "E1200",
+      "name": "开鑫贷单品联合贷款_日均总额",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "E1201": {
+      "code": "E1201",
+      "name": "开鑫贷分期联合贷款_日均总额",
+      "value_type": "金额",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "E1250": {
+      "code": "E1250",
+      "name": "企企贷表联合贷款_日均总额",
+      "value_type": "金额",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "F3100": {
+      "code": "F3100",
+      "name": "开心小账户管理资产_日均总额",
+      "value_type": "金额",
+      "product_code": "Z0005",
+      "applies_to_all_products": false
+    },
+    "F3120": {
+      "code": "F3120",
+      "name": "其他小小产品管理资产_日均总额",
+      "value_type": "金额",
+      "product_code": "Z2001",
+      "applies_to_all_products": false
+    },
+    "F3150": {
+      "code": "F3150",
+      "name": "企小乐管理资产_日均总额",
+      "value_type": "金额",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "K1001": {
+      "code": "K1001",
+      "name": "存放央行法准收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "K1010": {
+      "code": "K1010",
+      "name": "存放央行超备收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z9001",
+      "applies_to_all_products": false
+    },
+    "K1200": {
+      "code": "K1200",
+      "name": "开鑫贷单品贷款收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "K1201": {
+      "code": "K1201",
+      "name": "开鑫贷分期贷款收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "K1250": {
+      "code": "K1250",
+      "name": "企企贷贷款收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "K1251": {
+      "code": "K1251",
+      "name": "车车贷单品贷款收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0004",
+      "applies_to_all_products": false
+    },
+    "K1252": {
+      "code": "K1252",
+      "name": "存放同业活期资产收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1253": {
+      "code": "K1253",
+      "name": "存放同业定期资产收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1254": {
+      "code": "K1254",
+      "name": "存放同业其他资产收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1255": {
+      "code": "K1255",
+      "name": "拆放同业资产收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1256": {
+      "code": "K1256",
+      "name": "买入返售资产收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1257": {
+      "code": "K1257",
+      "name": "同业存单投资收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1258": {
+      "code": "K1258",
+      "name": "同业货基投资收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1259": {
+      "code": "K1259",
+      "name": "同业债基投资收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1260": {
+      "code": "K1260",
+      "name": "国债投资收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "K1261": {
+      "code": "K1261",
+      "name": "地方债投资收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "K1262": {
+      "code": "K1262",
+      "name": "政策性金融债投资收益率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "K1278": {
+      "code": "K1278",
+      "name": "开鑫贷单品贷款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "K1279": {
+      "code": "K1279",
+      "name": "企企贷单品贷款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0002",
+      "applies_to_all_products": false
+    },
+    "K1280": {
+      "code": "K1280",
+      "name": "开鑫贷分期贷款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0003",
+      "applies_to_all_products": false
+    },
+    "K1281": {
+      "code": "K1281",
+      "name": "车车贷单品贷款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0004",
+      "applies_to_all_products": false
+    },
+    "K1282": {
+      "code": "K1282",
+      "name": "存放同业活期资产内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1283": {
+      "code": "K1283",
+      "name": "存放同业定期资产内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1284": {
+      "code": "K1284",
+      "name": "存放同业其他资产内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1285": {
+      "code": "K1285",
+      "name": "拆放同业资产内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1286": {
+      "code": "K1286",
+      "name": "买入返售资产内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1287": {
+      "code": "K1287",
+      "name": "同业存单投资内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1288": {
+      "code": "K1288",
+      "name": "同业货基投资内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1289": {
+      "code": "K1289",
+      "name": "同业债基投资内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1002",
+      "applies_to_all_products": false
+    },
+    "K1290": {
+      "code": "K1290",
+      "name": "国债投资内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "K1291": {
+      "code": "K1291",
+      "name": "地方债投资内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "K1292": {
+      "code": "K1292",
+      "name": "政策性金融债投资内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z1001",
+      "applies_to_all_products": false
+    },
+    "L3100": {
+      "code": "L3100",
+      "name": "开心小账户存款付息率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0005",
+      "applies_to_all_products": false
+    },
+    "L3120": {
+      "code": "L3120",
+      "name": "其他小小产品存款付息率_年化",
+      "value_type": "百分比",
+      "product_code": "Z2001",
+      "applies_to_all_products": false
+    },
+    "L3150": {
+      "code": "L3150",
+      "name": "企小乐存款付息率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "L3160": {
+      "code": "L3160",
+      "name": "小企业保证金存款付息率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "L3161": {
+      "code": "L3161",
+      "name": "开心小账户存款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0005",
+      "applies_to_all_products": false
+    },
+    "L3162": {
+      "code": "L3162",
+      "name": "企小乐存款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "L3163": {
+      "code": "L3163",
+      "name": "其他小小产品存款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z2001",
+      "applies_to_all_products": false
+    },
+    "L3164": {
+      "code": "L3164",
+      "name": "小企业保证金存款内部FTP利率_年化",
+      "value_type": "百分比",
+      "product_code": "Z0017",
+      "applies_to_all_products": false
+    },
+    "M1200": {
+      "code": "M1200",
+      "name": "开鑫贷单品表内贷款逾期90+规模占比",
+      "value_type": "金额",
+      "product_code": "Z0001",
+      "applies_to_all_products": false
+    },
+    "P1001": {
+      "code": "P1001",
+      "name": "产品线平均人数",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    },
+    "P1101": {
+      "code": "P1101",
+      "name": "产品线月度人均常规薪酬",
+      "value_type": "金额",
+      "product_code": null,
+      "applies_to_all_products": true
+    }
+  },
+  "dept_roots": [
+    "Y1",
+    "Y2",
+    "Y3",
+    "Y4",
+    "Y5",
+    "Y6",
+    "Y7"
+  ],
+  "dept_nodes": {
+    "Y1": {
+      "code": "Y1",
+      "name": "个人金融部",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "Y10",
+        "Y11",
+        "Y12"
+      ],
+      "direct_products": []
+    },
+    "Y10": {
+      "code": "Y10",
+      "name": "泛开鑫贷",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "Y100",
+        "Y101"
+      ],
+      "direct_products": []
+    },
+    "Y100": {
+      "code": "Y100",
+      "name": "开鑫贷",
+      "parent_code": "Y10",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z0001",
+        "Z0003"
+      ]
+    },
+    "Y101": {
+      "code": "Y101",
+      "name": "开户贷",
+      "parent_code": "Y10",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": []
+    },
+    "Y11": {
+      "code": "Y11",
+      "name": "开心账户",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": false,
+      "children": [
+        "Y110",
+        "Y111"
+      ],
+      "direct_products": []
+    },
+    "Y110": {
+      "code": "Y110",
+      "name": "开心账户存款",
+      "parent_code": "Y11",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z0005"
+      ]
+    },
+    "Y111": {
+      "code": "Y111",
+      "name": "开心账户理财",
+      "parent_code": "Y11",
+      "level": 3,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": []
+    },
+    "Y12": {
+      "code": "Y12",
+      "name": "汽车金融",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z0004"
+      ]
+    },
+    "Y2": {
+      "code": "Y2",
+      "name": "企业金融部",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [
+        "Y20"
+      ],
+      "direct_products": []
+    },
+    "Y20": {
+      "code": "Y20",
+      "name": "小微业务团队",
+      "parent_code": "Y2",
+      "level": 2,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z0002",
+        "Z0017"
+      ]
+    },
+    "Y3": {
+      "code": "Y3",
+      "name": "普惠金融部",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z2001"
+      ]
+    },
+    "Y4": {
+      "code": "Y4",
+      "name": "科技事业部",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": []
+    },
+    "Y5": {
+      "code": "Y5",
+      "name": "金融市场部",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z1001",
+        "Z1002"
+      ]
+    },
+    "Y6": {
+      "code": "Y6",
+      "name": "司库部门",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z9000",
+        "Z9001"
+      ]
+    },
+    "Y7": {
+      "code": "Y7",
+      "name": "其他部门",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": false,
+      "children": [],
+      "direct_products": [
+        "Z9100",
+        "Z9999"
+      ]
+    }
+  },
+  "products": {
+    "Z0001": "开鑫贷单品",
+    "Z0002": "企企贷单品",
+    "Z0003": "开鑫贷分期",
+    "Z0004": "车车贷单品",
+    "Z0005": "开心小账户存款",
+    "Z0017": "企小乐存款",
+    "Z1001": "金市投资业务",
+    "Z1002": "金市资金业务",
+    "Z2001": "其他小小产品",
+    "Z9000": "司库对内业务-内部资产负债",
+    "Z9001": "司库对外业务-外部资产负债",
+    "Z9100": "总行总部",
+    "Z9999": "其他产品无关类别"
+  }
+}
