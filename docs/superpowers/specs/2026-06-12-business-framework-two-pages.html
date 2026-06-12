@@ -330,7 +330,7 @@
         <div>
           <p class="eyebrow">第一页 / 预算管理</p>
           <h1>预算管理主流程：从外部报表到预算输出</h1>
-          <p class="subtitle">外部预算报表通过 Excel 导入进入系统，按机构及产品指标口径完成版本确认、计算汇总，最终形成预算展示、预测输出和分析结果。</p>
+          <p class="subtitle">外部预算报表通过 Excel 导入进入系统，以机构及产品、机构及产品指标表作为核心配置，支持不同机构和产品保留个性化指标，最终形成预算展示、预测输出和分析结果。</p>
         </div>
         <div class="page-number">Page 01</div>
       </header>
@@ -354,15 +354,15 @@
           <section class="node standard">
             <div class="label">
               <span class="num">2</span>
-              <h2>指标口径确认</h2>
-              <p>统一业务口径</p>
+              <h2>机构及产品指标配置</h2>
+              <p>灵活承载个性化指标</p>
             </div>
             <div class="items">
               <span class="item">机构及产品</span>
-              <span class="item">机构及产品指标</span>
-              <span class="item">唯一指标号码</span>
-              <span class="item">预算/实际公式</span>
-              <span class="item">横向/纵向汇总</span>
+              <span class="item">机构及产品指标表</span>
+              <span class="item">个性化指标优先</span>
+              <span class="item">共性指标复用</span>
+              <span class="item">公式与汇总规则</span>
             </div>
           </section>
 
@@ -430,7 +430,9 @@
             <ul>
               <li>当前先以 Excel 报表导入为主。</li>
               <li>管会系统直连属于后期探索，需要跨环境审批和合规评估。</li>
-              <li>机构及产品指标体系是预算管理的统一口径。</li>
+              <li>机构及产品指标表是预算管理的核心配置。</li>
+              <li>这样设置是为了灵活性：不同机构、产品可以有自己的个性化指标。</li>
+              <li>共性指标可以复用，但不强行覆盖个性化指标。</li>
             </ul>
           </section>
         </aside>
@@ -438,7 +440,7 @@
 
       <div class="timeline">
         <div class="step"><strong>导入</strong>业务报送、管会 P0301 等报表</div>
-        <div class="step"><strong>对齐</strong>机构、产品、指标和版本口径</div>
+        <div class="step"><strong>配置</strong>机构及产品、机构及产品指标表</div>
         <div class="step"><strong>确认</strong>导入预览、校验、版本确认</div>
         <div class="step"><strong>计算</strong>事实写入、公式重算、汇总刷新</div>
         <div class="step"><strong>输出</strong>预算报表、预测输出、透视分析</div>
