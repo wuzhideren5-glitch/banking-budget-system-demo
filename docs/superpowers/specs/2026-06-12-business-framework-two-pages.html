@@ -205,6 +205,54 @@
       white-space: nowrap;
     }
 
+    .metric-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: 118px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .metric-label {
+      font-weight: 800;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .metric-desc {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .process-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .process-step {
+      min-height: 48px;
+      padding: 8px 9px;
+      border: 1px solid rgba(23, 32, 51, 0.14);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.78);
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .process-step strong {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
     .base {
       margin-top: 4px;
       padding: 14px 16px;
@@ -321,6 +369,45 @@
       .deck { padding: 0; gap: 0; }
       .page { width: 100%; min-height: 100vh; box-shadow: none; border: none; }
     }
+
+    @media (max-width: 900px) {
+      .deck {
+        padding: 16px;
+      }
+
+      .page {
+        padding: 32px 24px;
+      }
+
+      .header {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .content {
+        grid-template-columns: 1fr;
+      }
+
+      .node {
+        grid-template-columns: 132px 1fr;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .process-steps {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -355,14 +442,17 @@
             <div class="label">
               <span class="num">2</span>
               <h2>机构及产品指标配置</h2>
-              <p>灵活承载个性化指标</p>
+              <p>先定对象，再定指标</p>
             </div>
-            <div class="items">
-              <span class="item">机构及产品</span>
-              <span class="item">机构及产品指标表</span>
-              <span class="item">个性化指标优先</span>
-              <span class="item">共性指标复用</span>
-              <span class="item">公式与汇总规则</span>
+            <div class="metric-stack">
+              <div class="metric-row">
+                <span class="metric-label">机构及产品</span>
+                <span class="metric-desc">确定预算对象：哪个机构、哪个产品需要管理。</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">机构及产品指标表</span>
+                <span class="metric-desc">确定对象下面看哪些指标，并配置公式、汇总和展示口径。</span>
+              </div>
             </div>
           </section>
 
@@ -370,15 +460,12 @@
             <div class="label">
               <span class="num">3</span>
               <h2>数据录入与处理</h2>
-              <p>从文件到预算事实</p>
+              <p>从 Excel 到可用报表</p>
             </div>
-            <div class="items">
-              <span class="item">导入预览</span>
-              <span class="item">数据校验</span>
-              <span class="item">版本确认</span>
-              <span class="item">预算事实写入</span>
-              <span class="item">公式重算</span>
-              <span class="item">汇总刷新</span>
+            <div class="process-steps">
+              <div class="process-step"><strong>1. 导入校验</strong>识别 Excel、预览数据、检查机构产品和指标是否匹配。</div>
+              <div class="process-step"><strong>2. 确认写入</strong>选择年度版本，确认后写入预算事实数据。</div>
+              <div class="process-step"><strong>3. 计算刷新</strong>触发公式重算、横纵汇总和报表汇总刷新。</div>
             </div>
           </section>
 
@@ -426,13 +513,19 @@
             </div>
           </section>
           <section class="card">
-            <h3>讲解重点</h3>
+            <h3>核心配置关系</h3>
             <ul>
-              <li>当前先以 Excel 报表导入为主。</li>
-              <li>管会系统直连属于后期探索，需要跨环境审批和合规评估。</li>
-              <li>机构及产品指标表是预算管理的核心配置。</li>
-              <li>这样设置是为了灵活性：不同机构、产品可以有自己的个性化指标。</li>
-              <li>共性指标可以复用，但不强行覆盖个性化指标。</li>
+              <li>机构及产品是预算管理对象。</li>
+              <li>机构及产品指标表是对象下面的指标清单。</li>
+              <li>数据导入后，要先匹配到对象和指标，才能写入预算事实。</li>
+            </ul>
+          </section>
+          <section class="card">
+            <h3>优劣势与取舍</h3>
+            <ul>
+              <li>优势：不同机构、产品可以保留个性化指标。</li>
+              <li>优势：共性指标可以复用，减少重复配置。</li>
+              <li>取舍：配置前置，指标表需要维护清楚。</li>
             </ul>
           </section>
         </aside>
@@ -440,9 +533,9 @@
 
       <div class="timeline">
         <div class="step"><strong>导入</strong>业务报送、管会 P0301 等报表</div>
-        <div class="step"><strong>配置</strong>机构及产品、机构及产品指标表</div>
-        <div class="step"><strong>确认</strong>导入预览、校验、版本确认</div>
-        <div class="step"><strong>计算</strong>事实写入、公式重算、汇总刷新</div>
+        <div class="step"><strong>匹配</strong>机构及产品、机构及产品指标表</div>
+        <div class="step"><strong>确认</strong>导入预览、数据校验、版本确认</div>
+        <div class="step"><strong>处理</strong>事实写入、公式重算、汇总刷新</div>
         <div class="step"><strong>输出</strong>预算报表、预测输出、透视分析</div>
       </div>
 
