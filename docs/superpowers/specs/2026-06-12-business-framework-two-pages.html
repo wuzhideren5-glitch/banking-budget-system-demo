@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>业务整体框架图：预算管理与部门费用</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5f6b7a;
+      --line: #d7dde8;
+      --paper: #f6f8fb;
+      --white: #ffffff;
+      --blue: #2457a6;
+      --teal: #0f766e;
+      --green: #3f7d20;
+      --amber: #9a6200;
+      --red: #a63f3f;
+      --violet: #6554c0;
+      --shadow: 0 18px 45px rgba(20, 32, 55, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    .deck {
+      display: grid;
+      gap: 28px;
+      padding: 28px;
+    }
+
+    .page {
+      width: min(1280px, 100%);
+      min-height: 720px;
+      margin: 0 auto;
+      background: var(--white);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 34px 38px;
+      page-break-after: always;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 20px;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: start;
+      border-bottom: 2px solid #e8edf5;
+      padding-bottom: 18px;
+    }
+
+    .eyebrow {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+      color: var(--blue);
+      margin: 0 0 6px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 31px;
+      line-height: 1.16;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 760px;
+    }
+
+    .page-number {
+      min-width: 92px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      background: #fafbfe;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-rows: repeat(4, minmax(82px, auto)) auto;
+      gap: 12px;
+    }
+
+    .layer {
+      border: 1px solid var(--line);
+      border-left: 7px solid var(--blue);
+      border-radius: 8px;
+      padding: 13px 16px 13px 15px;
+      background: #ffffff;
+      display: grid;
+      grid-template-columns: 138px 1fr;
+      gap: 16px;
+      align-items: center;
+      position: relative;
+    }
+
+    .layer + .layer::before {
+      content: "";
+      position: absolute;
+      top: -13px;
+      left: 68px;
+      width: 2px;
+      height: 12px;
+      background: #b8c3d4;
+    }
+
+    .layer.source { border-left-color: var(--blue); background: #f7faff; }
+    .layer.rules { border-left-color: var(--teal); background: #f5fbfa; }
+    .layer.process { border-left-color: var(--amber); background: #fffaf0; }
+    .layer.output { border-left-color: var(--green); background: #f7fbf4; }
+
+    .layer-title {
+      display: grid;
+      gap: 5px;
+    }
+
+    .layer-title .num {
+      width: 30px;
+      height: 30px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--blue);
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .source .num { background: var(--blue); }
+    .rules .num { background: var(--teal); }
+    .process .num { background: var(--amber); }
+    .output .num { background: var(--green); }
+
+    .layer h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .layer .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .chip {
+      border: 1px solid rgba(23, 32, 51, 0.13);
+      background: rgba(255, 255, 255, 0.78);
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .base {
+      border: 2px solid #c2cad8;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef3f8 100%);
+    }
+
+    .base-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .base-title h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .base-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .side {
+      display: grid;
+      gap: 13px;
+      align-content: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 15px;
+      background: #fff;
+    }
+
+    .panel h3 {
+      margin: 0 0 9px;
+      font-size: 16px;
+    }
+
+    .panel ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .panel li {
+      margin: 5px 0;
+    }
+
+    .code-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: #f3f5f9;
+      border: 1px solid #e1e6ef;
+      border-radius: 5px;
+      padding: 3px 5px;
+      color: #263349;
+      word-break: break-word;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 7px;
+      border-top: 1px solid var(--line);
+      padding-top: 13px;
+    }
+
+    .step {
+      min-height: 58px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 9px;
+      background: #fff;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .step strong {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 3px;
+      font-size: 13px;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid #e8edf5;
+      padding-top: 10px;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+      .deck {
+        padding: 0;
+        gap: 0;
+      }
+      .page {
+        width: 100%;
+        min-height: 100vh;
+        box-shadow: none;
+        border: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">第一页 / 预算管理</p>
+          <h1>预算管理整体框架：从指标配置到预算输出</h1>
+          <p class="subtitle">围绕机构及产品指标体系，把业务数据、预算版本、公式汇总和输出分析串成一条主流程；预算事实和汇总读模型作为底部数据支撑。</p>
+        </div>
+        <div class="page-number">Page 01</div>
+      </header>
+
+      <div class="main">
+        <div class="flow">
+          <section class="layer source">
+            <div class="layer-title">
+              <span class="num">1</span>
+              <h2>数据来源层</h2>
+              <p class="hint">数据从哪里来</p>
+            </div>
+            <div class="chips">
+              <span class="chip">管会报表</span>
+              <span class="chip">业务报送</span>
+              <span class="chip">机构及产品数据录入</span>
+              <span class="chip">Excel 底稿</span>
+              <span class="chip">历史预算/实际版本</span>
+            </div>
+          </section>
+
+          <section class="layer rules">
+            <div class="layer-title">
+              <span class="num">2</span>
+              <h2>参数规则层</h2>
+              <p class="hint">按什么口径处理</p>
+            </div>
+            <div class="chips">
+              <span class="chip">预算年度/版本</span>
+              <span class="chip">滚动月份 current_month</span>
+              <span class="chip">机构及产品</span>
+              <span class="chip">机构及产品指标</span>
+              <span class="chip">唯一指标号码</span>
+              <span class="chip">预算/实际公式</span>
+              <span class="chip">横向/纵向汇总</span>
+              <span class="chip">展示版本槽位</span>
+            </div>
+          </section>
+
+          <section class="layer process">
+            <div class="layer-title">
+              <span class="num">3</span>
+              <h2>数据处理层</h2>
+              <p class="hint">系统如何处理</p>
+            </div>
+            <div class="chips">
+              <span class="chip">导入预览与校验</span>
+              <span class="chip">版本确认</span>
+              <span class="chip">指标绑定解析</span>
+              <span class="chip">BudgetDataWriter 写入</span>
+              <span class="chip">公式标脏与重算</span>
+              <span class="chip">父节点派生汇总</span>
+              <span class="chip">summary/compare 刷新</span>
+            </div>
+          </section>
+
+          <section class="layer output">
+            <div class="layer-title">
+              <span class="num">4</span>
+              <h2>输出应用层</h2>
+              <p class="hint">最后给谁用</p>
+            </div>
+            <div class="chips">
+              <span class="chip">预算展示报表</span>
+              <span class="chip">机构及产品预测输出</span>
+              <span class="chip">模拟测算</span>
+              <span class="chip">当前年度多版本透视</span>
+              <span class="chip">多年度对比透视</span>
+              <span class="chip">智能报告/PPT</span>
+              <span class="chip">Agent 分析</span>
+            </div>
+          </section>
+
+          <section class="base">
+            <div class="base-title">
+              <h2>底座：数据沉淀与汇总支撑</h2>
+              <span>不是业务操作步骤，是报表和分析稳定读取的数据结果层</span>
+            </div>
+            <div class="chips">
+              <span class="chip">budget_data</span>
+              <span class="chip">budget_summary</span>
+              <span class="chip">budget_pivot_aggregate</span>
+              <span class="chip">compare_budget_summary</span>
+              <span class="chip">compare_pivot_aggregate</span>
+              <span class="chip">operation_log</span>
+            </div>
+          </section>
+        </div>
+
+        <aside class="side">
+          <section class="panel">
+            <h3>当前实现逻辑</h3>
+            <ul>
+              <li>机构及产品指标保存后，同步为运行引用。</li>
+              <li>数据录入确认后，只同步已确认且已绑定指标的单元格。</li>
+              <li>写入预算事实后，触发指标树汇总、预算汇总和透视聚合刷新。</li>
+            </ul>
+          </section>
+          <section class="panel">
+            <h3>代码锚点</h3>
+            <div class="code-list">
+              <code>routers/org_product_metrics.py</code>
+              <code>services/org_product_budget_sync.py</code>
+              <code>budget_data_writer.py</code>
+              <code>services/metric_tree_rollups.py</code>
+              <code>services/budget_summary_rebuild.py</code>
+              <code>services/pivot_aggregate.py</code>
+              <code>routers/budget_output.py</code>
+            </div>
+          </section>
+          <section class="panel">
+            <h3>关键边界</h3>
+            <ul>
+              <li>机构及产品指标体系是唯一主指标体系。</li>
+              <li>预算事实写入必须经过 BudgetDataWriter。</li>
+              <li>输出侧读取汇总和读模型，不用前端临时汇总替代。</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+
+      <div class="timeline">
+        <div class="step"><strong>配置</strong>机构及产品、指标、公式、版本</div>
+        <div class="step"><strong>录入</strong>导入或填写预算/实际/预测</div>
+        <div class="step"><strong>确认</strong>版本确认与指标绑定校验</div>
+        <div class="step"><strong>写入</strong>BudgetDataWriter 落预算事实</div>
+        <div class="step"><strong>计算</strong>公式重算、横纵汇总、summary 刷新</div>
+        <div class="step"><strong>输出</strong>报表、预测、透视、Agent 分析</div>
+      </div>
+
+      <div class="footer-note">建议讲法：主流程讲业务，底座讲系统沉淀；不要把 budget_data / summary 当成业务操作步骤。</div>
+    </section>
+
+    <section class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">第二页 / 部门费用</p>
+          <h1>部门费用整体框架：从费用实际到预测与执行报表</h1>
+          <p class="subtitle">围绕部门、预算科目、BI 映射和预测规则，把费用实际导入、预测计算、人工覆盖和执行报表形成一条闭环。</p>
+        </div>
+        <div class="page-number">Page 02</div>
+      </header>
+
+      <div class="main">
+        <div class="flow">
+          <section class="layer source">
+            <div class="layer-title">
+              <span class="num">1</span>
+              <h2>数据来源层</h2>
+              <p class="hint">费用数据从哪里来</p>
+            </div>
+            <div class="chips">
+              <span class="chip">费用执行明细</span>
+              <span class="chip">BI 报送</span>
+              <span class="chip">部门费用框架</span>
+              <span class="chip">费用预算报送</span>
+              <span class="chip">上年实际/本年预算</span>
+              <span class="chip">成本收入比实际</span>
+            </div>
+          </section>
+
+          <section class="layer rules">
+            <div class="layer-title">
+              <span class="num">2</span>
+              <h2>参数规则层</h2>
+              <p class="hint">费用按什么口径归集</p>
+            </div>
+            <div class="chips">
+              <span class="chip">主体/事业群</span>
+              <span class="chip">费用责任部门</span>
+              <span class="chip">归口管理部门</span>
+              <span class="chip">部门科目</span>
+              <span class="chip">部门预算科目</span>
+              <span class="chip">BI-AI 科目映射</span>
+              <span class="chip">费用预测规则</span>
+              <span class="chip">人工覆盖</span>
+            </div>
+          </section>
+
+          <section class="layer process">
+            <div class="layer-title">
+              <span class="num">3</span>
+              <h2>数据处理层</h2>
+              <p class="hint">系统如何匹配和计算</p>
+            </div>
+            <div class="chips">
+              <span class="chip">导入解析</span>
+              <span class="chip">BI 与部门映射匹配</span>
+              <span class="chip">费用实际 Adapter</span>
+              <span class="chip">预测规则计算</span>
+              <span class="chip">预测重算</span>
+              <span class="chip">人工覆盖恢复</span>
+              <span class="chip">执行报表组装</span>
+              <span class="chip">成本收入比计算</span>
+            </div>
+          </section>
+
+          <section class="layer output">
+            <div class="layer-title">
+              <span class="num">4</span>
+              <h2>输出应用层</h2>
+              <p class="hint">业务最终看什么</p>
+            </div>
+            <div class="chips">
+              <span class="chip">部门费用预测</span>
+              <span class="chip">费用预算执行报表</span>
+              <span class="chip">业务支出成本收入比</span>
+              <span class="chip">投入产出专题概览</span>
+              <span class="chip">Excel 导出结果文件</span>
+            </div>
+          </section>
+
+          <section class="base">
+            <div class="base-title">
+              <h2>底座：数据沉淀与汇总支撑</h2>
+              <span>费用闭环的事实、规则结果、覆盖结果和报表读模型</span>
+            </div>
+            <div class="chips">
+              <span class="chip">expense_actual_detail_raw</span>
+              <span class="chip">expense_forecast_entry</span>
+              <span class="chip">expense_forecast_calc_result</span>
+              <span class="chip">expense_forecast_override</span>
+              <span class="chip">budget_subject_catalog</span>
+              <span class="chip">dept_account</span>
+              <span class="chip">费用报表读模型</span>
+            </div>
+          </section>
+        </div>
+
+        <aside class="side">
+          <section class="panel">
+            <h3>当前实现逻辑</h3>
+            <ul>
+              <li>费用实际导入先加载部门、预算科目、BI 和归口映射上下文。</li>
+              <li>费用预测读取实际数、规则、年度输入、预测值和人工覆盖。</li>
+              <li>费用执行报表综合费用实际、预算汇总、上年实际和预算科目树。</li>
+            </ul>
+          </section>
+          <section class="panel">
+            <h3>代码锚点</h3>
+            <div class="code-list">
+              <code>routers/expense_actual_import.py</code>
+              <code>services/expense_actual_import_apply.py</code>
+              <code>routers/expense_forecast.py</code>
+              <code>services/expense_forecast_recalculation.py</code>
+              <code>routers/expense_budget_execution.py</code>
+              <code>services/expense_budget_execution_report_resolver.py</code>
+              <code>routers/business_cost_income_ratio.py</code>
+            </div>
+          </section>
+          <section class="panel">
+            <h3>关键边界</h3>
+            <ul>
+              <li>费用执行明细是费用实际 Adapter，不替代预算事实表。</li>
+              <li>部门预算科目是费用预测和执行报表的科目口径。</li>
+              <li>人工覆盖保留系统测算值，删除覆盖后可恢复。</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+
+      <div class="timeline">
+        <div class="step"><strong>主数据</strong>部门科目、预算科目、责任部门</div>
+        <div class="step"><strong>映射</strong>BI-AI 科目、归口到费用归属</div>
+        <div class="step"><strong>导入</strong>费用实际、上年实际、本年预算</div>
+        <div class="step"><strong>匹配</strong>费用部门和预算科目口径</div>
+        <div class="step"><strong>预测</strong>规则计算、重算、人工覆盖</div>
+        <div class="step"><strong>报表</strong>费用预测、执行报表、专题分析</div>
+      </div>
+
+      <div class="footer-note">建议讲法：部门费用是一条独立闭环，最后可以进入分析和专题，但录入口径不和预算管理混成一套。</div>
+    </section>
+  </main>
+</body>
+</html>
