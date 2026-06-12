@@ -160,6 +160,71 @@ flowchart LR
 5. 系统执行公式重算、横纵汇总、预算汇总和对比库刷新。
 6. 预算展示报表、预测输出、模拟测算、多维透视和 Agent 读取汇总结果。
 
+### 3.6 当前代码实现逻辑
+
+预算管理主线现在已经不是“多个录入口分别写事实表”，而是围绕 **机构及产品指标体系 -> 运行引用 -> 预算事实 -> 汇总读模型 -> 输出分析** 这一条链路实现。
+
+#### 3.6.1 前端入口
+
+| 业务动作 | 当前前端组件 / API client | 调用的后端接口 |
+| --- | --- | --- |
+| 维护机构及产品指标、公式、横向汇总、纵向汇总、逻辑码 | `apps/web/src/app/components/OrgProductMetricContent.tsx` | `/api/org-product-metrics/bootstrap`、`/api/org-product-metrics/table-catalog`、`/api/org-product-metrics/db-snapshot`、`/api/org-product-metrics/save-table`、`/api/org-product-metrics/save-refresh`、`/api/org-product-metrics/import-report`、`/api/org-product-metrics/export-report` |
+| 录入机构及产品预算/实际/预测数据 | `apps/web/src/app/components/OrgProductDataEntryContent.tsx` | `/api/org-product-data-entry/db-snapshot`、`/api/org-product-data-entry/save-refresh`、`/api/org-product-data-entry/import-workbook`、`/api/org-product-data-entry/budget-sync/preview`、`/api/org-product-data-entry/budget-sync/apply`、`/api/org-product-data-entry/export` |
+| 运行机构及产品预测输出 | `apps/web/src/app/components/OrgProductForecastOutputContent.tsx` | `/api/org-product-output/versions`、`/api/org-product-output/run`、`/api/org-product-output/export`、`/api/org-product-output/commit` |
+| 预算展示报表和展示配置 | `apps/web/src/lib/budgetOutputApi.ts` | `/api/budget-output/display-report`、`/api/budget-output/display-config`、`/api/budget-output/display-report/export-full` |
+| 预算事实刷新跑批 | `apps/web/src/app/components/BudgetActualBatchContent.tsx`、`apps/web/src/lib/budgetActualBatchApi.ts` | `/api/budget-actual-batch/versions`、`/api/budget-actual-batch/preview`、`/api/budget-actual-batch/run`、`/api/budget-actual-batch/history` |
+| 多维透视 | `apps/web/src/app/components/PivotTableContent.tsx`、`apps/web/src/lib/pivotSummaryApi.ts` | `/api/budget-summary/aggregate`、`/api/compare-summary/aggregate`、对应导出接口 |
+
+#### 3.6.2 后端主链路
+
+| 层级 | 当前代码承接 | 实际实现逻辑 |
+| --- | --- | --- |
+| 参数规则层 | `apps/api/app/routers/org_product_metrics.py` | 统一承载机构及产品指标、数据录入、预测输出的大部分 HTTP 接口；导入指标表时会读取“横向汇总”“纵向汇总”“逻辑码”等列，并通过 `_derive_metric_logic_code()`、`_normalize_rollup_flag()` 归一化。 |
+| 参数同步到运行引用 | `apps/api/app/services/org_product_metric_runtime_sync.py` | 将机构及产品指标保存结果同步到 `data_account_metric_node`、`data_account`、`data_account_metric_binding`，保持唯一指标号码、产品前缀、`logic_code`、`horizontal_rollup`、`vertical_rollup` 与运行表一致。 |
+| 数据录入同步预算事实 | `apps/api/app/services/org_product_budget_sync.py` | `plan_org_product_budget_sync()` 只处理 `mapping_status=MANUAL_CONFIRMED` 且已绑定 `data_acct_code` 的行；按月读取预算/实际单元格，校验 `current_month` 窗口，生成 `BudgetDataWriteItem`。`apply_org_product_budget_sync_plan()` 再调用 BudgetDataWriter 写入事实。 |
+| 事实写入约束 | `apps/api/app/budget_data_writer.py` | 预算事实写入统一由 BudgetDataWriter 承载；写入策略会控制公式科目、手工录入、冲突 upsert、`need_calc` 等约束，避免页面或导入流程直接写 `budget_data`。 |
+| 横纵汇总 | `apps/api/app/services/metric_tree_rollups.py` | 读取 `data_account_metric_node` 的 `horizontal_rollup`、`vertical_rollup`、`logic_code` 和绑定关系。横向汇总按相同 `logic_code` 跨产品找来源，纵向汇总按子节点绑定找来源，结果写回父节点运行主键对应事实。 |
+| 预算汇总 | `apps/api/app/services/budget_summary_rebuild.py` | `rebuild_budget_summary_for_version()` 从 `budget_data`、`data_account`、`period`、机构及产品运行产品清单、指标树路径等重建 `budget_summary`；同时按版本 `current_month` 过滤预算/实际口径。 |
+| 透视聚合 | `apps/api/app/services/pivot_aggregate.py` | `rebuild_budget_pivot_aggregate_for_version()` 重建当前年度透视读模型；`list_budget_pivot_aggregate_rows()` 和 `list_compare_pivot_aggregate_rows()` 支撑前端透视查询。 |
+| 对比汇总 | `apps/api/app/services/compare_summary_sync.py` | 根据展示版本槽位和预算汇总结果同步 `compare.db`，形成多年度对比透视可读的 `compare_budget_summary` 和 `compare_pivot_aggregate`。 |
+| 预算展示 | `apps/api/app/routers/budget_output.py`、`apps/api/app/services/budget_output_display.py`、`apps/api/app/services/budget_output_display_config.py` | 展示配置读取 `budget_output_display_item`，展示报表读取预算汇总和展示版本，导出全套预算展示报表。展示配置可从机构及产品指标候选重建，但计算身份仍回到运行引用和预算事实。 |
+
+#### 3.6.3 预算事实同步的实际顺序
+
+```mermaid
+sequenceDiagram
+  participant UI as 机构及产品数据录入页面
+  participant Router as org_product_metrics.py
+  participant Sync as org_product_budget_sync.py
+  participant Writer as BudgetDataWriter
+  participant Rollup as metric_tree_rollups.py
+  participant Summary as budget_summary_rebuild.py
+  participant Pivot as pivot_aggregate.py
+
+  UI->>Router: budget-sync/preview 或 apply
+  Router->>Sync: plan_org_product_budget_sync()
+  Sync->>Sync: 过滤未确认行、未绑定行、空值、非法月份窗口
+  Sync->>Writer: write_budget_data_items()
+  Writer->>Writer: 校验手工/公式、写入 budget_data、标记 need_calc
+  Sync->>Rollup: rebuild_metric_tree_rollups()
+  Rollup->>Writer: 写入 value_source=rollup 的父节点事实
+  Sync->>Summary: rebuild_budget_summary_for_version()
+  Sync->>Pivot: rebuild_budget_pivot_aggregate_for_version()
+  Sync-->>UI: 返回写入单元格、rollup、summary、aggregate 统计
+```
+
+#### 3.6.4 预算刷新跑批逻辑
+
+`预算事实刷新跑批` 不是录入口，而是对已有事实做集中刷新。当前由 `apps/api/app/routers/budget_actual_batch.py` 暴露接口，由 `apps/api/app/services/budget_actual_batch.py` 编排执行：
+
+1. 选择版本、产品范围和预算/实际口径。
+2. 可选执行产品公式重算。
+3. 执行配置驱动的指标树横纵汇总。
+4. 可选重建 `budget_summary`。
+5. 可选重建 `budget_pivot_aggregate`。
+6. 可选同步 `compare.db` 并重建 compare 聚合。
+7. 写入 `operation_log`，记录影响行数和刷新动作。
+
 ## 4. 第 2 页：部门费用整体框架
 
 ### 4.1 框架图
@@ -294,6 +359,85 @@ flowchart LR
 5. 系统读取实际数、规则和人工覆盖，形成部门费用预测。
 6. 费用预算执行报表综合预算、实际、上年同期和预算科目树形成展示。
 7. 成本收入比和投入产出专题读取各自私有状态与映射结果形成专题分析。
+
+### 4.6 当前代码实现逻辑
+
+部门费用主线现在是一个相对独立的费用闭环：**部门/预算科目主数据 -> BI 和归口映射 -> 费用实际导入 -> 费用预测规则与人工覆盖 -> 费用预算执行报表 / 成本收入比 / 投入产出专题**。
+
+#### 4.6.1 前端入口
+
+| 业务动作 | 当前前端组件 / API client | 调用的后端接口 |
+| --- | --- | --- |
+| 部门科目维护 | 部门科目维护页、`apps/web/src/lib/deptCatalogViewModel.ts` | 后端 `apps/api/app/routers/dept_catalog.py` 暴露部门科目接口 |
+| 部门预算科目维护 | `apps/web/src/app/components/BudgetSubjectCatalogContent.tsx`、`apps/web/src/lib/budgetSubjectCatalogViewModel.ts`、`apps/web/src/lib/masterDataApi.ts` | `/api/budget-subject-catalog/*` |
+| BI-AI 科目映射、归口映射 | `apps/web/src/app/components/BiMappingContent.tsx`、`BiAiSubjectMappingTab.tsx`、`ManageDeptOwnerMappingTab.tsx`、`apps/web/src/lib/biMappingApi.ts` | `/api/bi-ai-subject-mapping/*`、归口映射由 `apps/api/app/routers/bi_department_mapping.py` 承载 |
+| 费用执行明细导入 | `apps/web/src/app/components/ExpenseActualImportContent.tsx`、`apps/web/src/lib/expenseActualImportApi.ts` | `/api/expense-actual-import/import-preview`、`/api/expense-actual-import/import-apply`、`/api/expense-actual-import/batches` |
+| 费用预测逻辑配置 | `apps/web/src/app/components/ExpenseForecastRuleContent.tsx`、`apps/web/src/lib/expenseForecastApi.ts` | `/api/expense-forecast/rules`、`/api/expense-forecast/recalculate`、`/api/expense-forecast/rules/import-preview`、`/api/expense-forecast/rules/import-apply` |
+| 部门费用预测 | `apps/web/src/app/components/ExpenseForecastContent.tsx`、`ExpenseForecast*` 子组件、`apps/web/src/lib/expenseForecastApi.ts` | `/api/expense-forecast/meta`、`/api/expense-forecast/view`、`/api/expense-forecast/cell`、`/api/expense-forecast/import-preview`、`/api/expense-forecast/import-apply`、`/api/expense-forecast/override`、`/api/expense-forecast/export` |
+| 费用预算执行报表 | `apps/web/src/app/components/ExpenseBudgetExecutionContent.tsx`、`ExpenseBudgetExecution*` 子组件、`apps/web/src/lib/expenseBudgetExecutionApi.ts` | `/api/expense-budget-execution`、`/api/expense-budget-execution/export` |
+| 成本收入比与投入产出专题 | `apps/web/src/app/components/BusinessCostIncomeRatioAdminContent.tsx`、`InputOutputTopicOverviewContent.tsx`、`apps/web/src/lib/businessCostIncomeApi.ts`、`apps/web/src/lib/inputOutputTopicApi.ts` | `/api/business-cost-income-ratio/*`、`/api/input-output-topic-overview/*` |
+
+#### 4.6.2 后端主链路
+
+| 层级 | 当前代码承接 | 实际实现逻辑 |
+| --- | --- | --- |
+| 部门主数据 | `apps/api/app/routers/dept_catalog.py`、`apps/api/app/services/dept_catalog.py` | 维护 `dept_account`。费用责任部门取 level=2 叶子部门，是费用导入、预测、执行报表的责任归属口径。 |
+| 预算科目主数据 | `apps/api/app/routers/budget_subject_catalog.py`、`apps/api/app/services/budget_subject_catalog.py` | 维护 `budget_subject_catalog`。费用预测和费用执行报表按该预算科目树展示和聚合。 |
+| BI 科目映射 | `apps/api/app/routers/bi_subject_mapping.py`、`apps/api/app/services/bi_ai_subject_mapping.py` | 维护 `bi_ai_subject_mapping`，把 BI 五/六级科目、预算发布口径、费用类别、费用大类映射到系统预算科目。 |
+| 归口映射 | `apps/api/app/services/bi_department_mapping.py` | 维护 `manage_dept_owner_mapping`，把归口管理部门映射到费用归属部门；可从费用实际明细自动生成候选映射。 |
+| 费用实际导入 | `apps/api/app/routers/expense_actual_import.py`、`apps/api/app/services/expense_actual_import_context.py`、`expense_actual_import_parser.py`、`expense_actual_import_apply.py` | 导入预览先加载部门、预算科目、BI 映射、归口映射上下文；解析 Excel 后生成匹配结果；应用时写入 `expense_actual_import_batch` 和 `expense_actual_detail_raw`，并写入 `operation_log`。 |
+| 费用预测视图 | `apps/api/app/routers/expense_forecast.py`、`apps/api/app/services/expense_forecast_view_model.py`、`expense_forecast_data_context.py` | 按年度、版本、费用归属范围加载实际数、预算科目、手工预测、年度输入、规则结果和人工覆盖，组装部门费用预测表。 |
+| 费用预测规则 | `apps/api/app/routers/expense_forecast_rules.py`、`apps/api/app/services/expense_forecast_rule_commands.py`、`expense_forecast_rule_read_model.py`、`expense_forecast_rule_calculation.py`、`expense_forecast_recalculation.py` | 规则保存到 `expense_forecast_rule*`；重算时读取实际数、年度输入、预测值、人工覆盖和指标表达式来源，逐规则计算月度结果，再保存到 `expense_forecast_calc_result`。 |
+| 人工覆盖 | `apps/api/app/services/expense_forecast_override_commands.py`、`expense_forecast_write_commands.py` | 覆盖值写入 `expense_forecast_override`，并同步最终预测值；删除覆盖时恢复系统测算值。 |
+| 费用预算执行报表 | `apps/api/app/routers/expense_budget_execution.py`、`apps/api/app/services/expense_budget_execution_report_resolver.py` | 路由只把 HTTP 参数转换成 report selection。resolver 负责加载运行上下文、费用实际、年度预算、上年实际、预算科目目录，再按 query/monthly/template/subject 等模式组装报表。 |
+| 费用实际 Adapter | `apps/api/app/services/expense_budget_execution_actuals.py` | 只读取 `expense_actual_detail_raw` 中 `import_kind='current_year_actual'` 且 owner/subject 匹配成功的行，按主体、事业群、费用责任部门和预算科目聚合。 |
+| 年度预算来源 | `apps/api/app/services/expense_budget_execution_budget_source.py` | 从年度库 `budget_summary` 读取预算/上年实际口径，并通过费用框架和预算科目口径映射到费用报表。 |
+| 成本收入比 | `apps/api/app/routers/business_cost_income_ratio.py`、`apps/api/app/services/business_cost_income_ratio.py`、`business_cost_income_commands.py` | 维护和读取年度库 `business_cost_income_*` 私有表；手工录入时会校验 item 分区、item id、录入模式和金额单位，再写入 `business_cost_income_value`。 |
+| 投入产出专题 | `apps/api/app/routers/input_output_topic_overview.py`、`apps/api/app/services/input_output_topic_overview.py` | 读取成本收入比当前表和机构产品运行引用，按产品模板、投入/产出/指标分区生成专题报表和 Excel 导出。 |
+
+#### 4.6.3 费用实际导入的实际顺序
+
+```mermaid
+sequenceDiagram
+  participant UI as 费用执行明细导入页面
+  participant Router as expense_actual_import.py
+  participant Context as expense_actual_import_context.py
+  participant Parser as expense_actual_import_parser.py
+  participant Apply as expense_actual_import_apply.py
+  participant DB as common.db
+
+  UI->>Router: import-preview / import-apply
+  Router->>Context: load_expense_actual_import_context()
+  Context->>DB: 读取 dept_account、budget_subject_catalog、bi_ai_subject_mapping、manage_dept_owner_mapping
+  Router->>Parser: parse_actual_file()
+  Parser->>Parser: 匹配费用责任部门、预算科目、BI口径、归口映射
+  Router->>Apply: apply_expense_actual_import_rows()
+  Apply->>DB: 写入 expense_actual_import_batch
+  Apply->>DB: 写入 expense_actual_detail_raw
+  Router->>DB: 写入 operation_log
+```
+
+#### 4.6.4 费用预测和报表的实际顺序
+
+```mermaid
+sequenceDiagram
+  participant Forecast as 部门费用预测
+  participant Rule as 费用预测规则
+  participant Actual as 费用实际 Adapter
+  participant Calc as expense_forecast_recalculation.py
+  participant Report as 费用预算执行报表
+  participant Summary as budget_summary
+
+  Forecast->>Rule: 维护规则、参数、指标表达式
+  Forecast->>Actual: 读取 expense_actual_detail_raw 当前实际
+  Forecast->>Calc: recalculate_expense_forecast_rules()
+  Calc->>Calc: 读取实际数、年度输入、预测值、人工覆盖
+  Calc->>Calc: calculate_expense_forecast_rule_months()
+  Calc->>Forecast: 保存 calc_result，保留覆盖状态
+  Report->>Actual: 读取当前费用实际
+  Report->>Summary: 读取年度预算/上年实际
+  Report->>Report: 组装 query/monthly/template/subject 报表
+```
 
 ## 5. 两页之间的关系
 
