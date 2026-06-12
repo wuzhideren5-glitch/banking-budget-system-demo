@@ -417,7 +417,7 @@
         <div>
           <p class="eyebrow">第一页 / 预算管理</p>
           <h1>预算管理主流程：从外部报表到预算输出</h1>
-          <p class="subtitle">外部预算报表通过 Excel 导入进入系统，以机构及产品、机构及产品指标表作为核心配置，支持不同机构和产品保留个性化指标，最终形成预算展示、预测输出和分析结果。</p>
+          <p class="subtitle">按 PDD 当前口径，预算管理以“机构及产品”和“机构及产品指标”为唯一主指标体系；数据录入确认后写入预算事实，再刷新汇总与输出报表。</p>
         </div>
         <div class="page-number">Page 01</div>
       </header>
@@ -442,16 +442,16 @@
             <div class="label">
               <span class="num">2</span>
               <h2>机构及产品指标配置</h2>
-              <p>先定对象，再定指标</p>
+              <p>PDD：唯一主指标体系</p>
             </div>
             <div class="metric-stack">
               <div class="metric-row">
                 <span class="metric-label">机构及产品</span>
-                <span class="metric-desc">确定预算对象：哪个机构、哪个产品需要管理。</span>
+                <span class="metric-desc">产品维度唯一维护入口，确定机构树、产品树和预算管理对象。</span>
               </div>
               <div class="metric-row">
                 <span class="metric-label">机构及产品指标表</span>
-                <span class="metric-desc">确定对象下面看哪些指标，并配置公式、汇总和展示口径。</span>
+                <span class="metric-desc">唯一指标配置入口，维护指标树、数值类型、公式、汇总和展示顺序。</span>
               </div>
             </div>
           </section>
@@ -460,12 +460,12 @@
             <div class="label">
               <span class="num">3</span>
               <h2>数据录入与处理</h2>
-              <p>从 Excel 到可用报表</p>
+              <p>PDD：录入确认后同步预算事实</p>
             </div>
             <div class="process-steps">
-              <div class="process-step"><strong>1. 导入校验</strong>识别 Excel、预览数据、检查机构产品和指标是否匹配。</div>
-              <div class="process-step"><strong>2. 确认写入</strong>选择年度版本，确认后写入预算事实数据。</div>
-              <div class="process-step"><strong>3. 计算刷新</strong>触发公式重算、横纵汇总和报表汇总刷新。</div>
+              <div class="process-step"><strong>1. 录入与版本确认</strong>在机构/产品指标上下文中录入实际、预算和预测。</div>
+              <div class="process-step"><strong>2. 写入预算事实</strong>已确认单元格通过 BudgetDataWriter 写入 budget_data。</div>
+              <div class="process-step"><strong>3. 重算与预聚合</strong>刷新 budget_summary、budget_pivot_aggregate 和对比库快照。</div>
             </div>
           </section>
 
@@ -491,11 +491,11 @@
               <span class="note">支撑报表、透视和 Agent 稳定取数</span>
             </div>
             <div class="items">
-              <span class="item">预算事实</span>
-              <span class="item">预算汇总</span>
-              <span class="item">透视聚合</span>
-              <span class="item">多年度对比汇总</span>
-              <span class="item">操作审计</span>
+              <span class="item">budget_data 预算事实</span>
+              <span class="item">budget_summary 汇总</span>
+              <span class="item">budget_pivot_aggregate 透视聚合</span>
+              <span class="item">compare_budget_summary 多年度对比</span>
+              <span class="item">operation_log 审计</span>
             </div>
           </section>
         </div>
@@ -515,17 +515,17 @@
           <section class="card">
             <h3>核心配置关系</h3>
             <ul>
-              <li>机构及产品是预算管理对象。</li>
-              <li>机构及产品指标表是对象下面的指标清单。</li>
-              <li>数据导入后，要先匹配到对象和指标，才能写入预算事实。</li>
+              <li>PDD 明确：机构及产品是产品维度唯一维护入口。</li>
+              <li>机构及产品指标是唯一主指标体系和唯一指标配置入口。</li>
+              <li>旧数据科目页面、旧产品科目维护和第二套指标配置入口不再恢复。</li>
             </ul>
           </section>
           <section class="card">
-            <h3>优劣势与取舍</h3>
+            <h3>设计取舍</h3>
             <ul>
-              <li>优势：不同机构、产品可以保留个性化指标。</li>
-              <li>优势：共性指标可以复用，减少重复配置。</li>
-              <li>取舍：配置前置，指标表需要维护清楚。</li>
+              <li>优势：个性化指标优先，不同产品可有不同指标表。</li>
+              <li>优势：运行引用同码同步，后续预算事实和公式取数口径一致。</li>
+              <li>取舍：配置前置，指标树、公式和绑定关系必须先维护清楚。</li>
             </ul>
           </section>
         </aside>
@@ -533,9 +533,9 @@
 
       <div class="timeline">
         <div class="step"><strong>导入</strong>业务报送、管会 P0301 等报表</div>
-        <div class="step"><strong>匹配</strong>机构及产品、机构及产品指标表</div>
-        <div class="step"><strong>确认</strong>导入预览、数据校验、版本确认</div>
-        <div class="step"><strong>处理</strong>事实写入、公式重算、汇总刷新</div>
+        <div class="step"><strong>配置</strong>机构及产品、机构及产品指标</div>
+        <div class="step"><strong>确认</strong>录入/导入、校验、版本确认</div>
+        <div class="step"><strong>处理</strong>BudgetDataWriter 写入、重算、预聚合</div>
         <div class="step"><strong>输出</strong>预算报表、预测输出、透视分析</div>
       </div>
 
@@ -547,7 +547,7 @@
         <div>
           <p class="eyebrow">第二页 / 部门费用</p>
           <h1>部门费用主流程：从 BI 报表到费用预测与执行分析</h1>
-          <p class="subtitle">BI 系统报表和部门预算初始化数据通过 Excel 导入进入系统，经部门、预算科目和映射规则归集，形成费用预测、执行报表和专题分析。</p>
+          <p class="subtitle">按 PDD 当前口径，部门费用围绕费用框架、费用实际明细、BI-AI 映射、预测规则和执行报表读模型形成闭环。</p>
         </div>
         <div class="page-number">Page 02</div>
       </header>
@@ -563,8 +563,9 @@
             <div class="items">
               <span class="item">BI 系统报表</span>
               <span class="item">部门预算初始化导入</span>
-              <span class="item">费用执行明细报表</span>
-              <span class="item">上年实际/本年预算报表</span>
+              <span class="item">本年实际</span>
+              <span class="item">本年预算</span>
+              <span class="item">上年实际</span>
             </div>
           </section>
 
@@ -577,7 +578,7 @@
             <div class="items">
               <span class="item">部门科目</span>
               <span class="item">部门预算科目</span>
-              <span class="item">费用责任部门</span>
+              <span class="item">费用归属部门</span>
               <span class="item">BI-AI 科目映射</span>
               <span class="item">归口映射</span>
             </div>
@@ -590,11 +591,11 @@
               <p>从导入到报表口径</p>
             </div>
             <div class="items">
-              <span class="item">费用实际匹配</span>
-              <span class="item">预测规则计算</span>
-              <span class="item">人工覆盖</span>
-              <span class="item">预算执行口径组装</span>
-              <span class="item">成本收入比计算</span>
+              <span class="item">导入批次与原始明细</span>
+              <span class="item">匹配结果与未匹配预警</span>
+              <span class="item">规则测算与重算</span>
+              <span class="item">手工预测与人工覆盖</span>
+              <span class="item">执行报表读模型组装</span>
             </div>
           </section>
 
@@ -619,12 +620,12 @@
               <span class="note">支撑费用预测、执行报表和专题分析</span>
             </div>
             <div class="items">
-              <span class="item">费用实际明细</span>
-              <span class="item">手工预测</span>
-              <span class="item">规则测算结果</span>
-              <span class="item">人工覆盖结果</span>
-              <span class="item">部门和预算科目主数据</span>
-              <span class="item">费用报表读模型</span>
+              <span class="item">expense_actual_detail_raw</span>
+              <span class="item">bi_ai_subject_mapping</span>
+              <span class="item">expense_forecast_entry</span>
+              <span class="item">expense_forecast_calc_result</span>
+              <span class="item">expense_forecast_override</span>
+              <span class="item">expense_budget_execution_report</span>
             </div>
           </section>
         </div>
@@ -642,21 +643,22 @@
             </div>
           </section>
           <section class="card">
-            <h3>讲解重点</h3>
+            <h3>PDD 处理口径</h3>
             <ul>
-              <li>部门费用的数据来源以 BI 报表和初始化导入为主。</li>
-              <li>费用能否看懂，关键在部门、预算科目和映射规则。</li>
-              <li>费用预测和执行报表是同一条费用闭环的两个输出。</li>
+              <li>费用执行明细按批次导入，原始行、匹配结果和 import_kind 一起保留。</li>
+              <li>BI-AI 映射是当前唯一 BI 科目类维护表。</li>
+              <li>费用预测私有表承载手工预测、规则测算和人工覆盖。</li>
+              <li>执行报表综合预算汇总、费用实际、预算科目和部门树生成读模型。</li>
             </ul>
           </section>
         </aside>
       </div>
 
       <div class="timeline">
-        <div class="step"><strong>导入</strong>BI 报表、部门预算初始化数据</div>
+        <div class="step"><strong>导入</strong>本年实际、本年预算、上年实际</div>
         <div class="step"><strong>映射</strong>部门、预算科目、BI-AI 口径</div>
-        <div class="step"><strong>匹配</strong>费用实际与预算科目归集</div>
-        <div class="step"><strong>预测</strong>规则计算、重算、人工覆盖</div>
+        <div class="step"><strong>匹配</strong>明细匹配、未匹配预警、批次留痕</div>
+        <div class="step"><strong>预测</strong>手工预测、规则测算、人工覆盖</div>
         <div class="step"><strong>输出</strong>费用预测、执行报表、专题分析</div>
       </div>
 
