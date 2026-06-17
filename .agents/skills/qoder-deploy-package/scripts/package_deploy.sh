@@ -3,16 +3,16 @@
 # package_deploy.sh — 一键打包银行预算系统部署包
 #
 # 用法:
-#   bash scripts/package_deploy.sh              # 默认打包
-#   bash scripts/package_deploy.sh --skip-data  # 不含数据库文件（体积更小）
-#   bash scripts/package_deploy.sh --skip-env   # 不含 .env（需手动创建）
+#   bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh              # 默认打包
+#   bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh --skip-data  # 不含数据库文件（体积更小）
+#   bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh --skip-env   # 不含 .env（需手动创建）
 #
-# 产物: releases/qoder-banking-budget-<日期>.zip
+# 产物: archive/releases/qoder-banking-budget-<日期>.zip
 # ============================================================================
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-OUTPUT_DIR="$ROOT_DIR/releases"
+ROOT_DIR="$(cd "$(dirname "$0")/../../../.." && pwd)"
+OUTPUT_DIR="$ROOT_DIR/archive/releases"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 PKG_NAME="qoder-banking-budget-${TIMESTAMP}"
 ZIP_FILE="$OUTPUT_DIR/$PKG_NAME.zip"

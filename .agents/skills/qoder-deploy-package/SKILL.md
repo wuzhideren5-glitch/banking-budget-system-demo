@@ -8,10 +8,10 @@ description: 打包银行预算系统为可部署 ZIP 包（含预构建前端�
 ## Quick start
 
 ```bash
-bash scripts/package_deploy.sh
+bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh
 ```
 
-产物：`releases/qoder-banking-budget-<时间戳>.zip`
+产物：`archive/releases/qoder-banking-budget-<时间戳>.zip`
 
 ## 工作流
 
@@ -19,13 +19,13 @@ bash scripts/package_deploy.sh
 
 ```bash
 # 完整打包（含数据库 + .env）
-bash scripts/package_deploy.sh
+bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh
 
 # 不含数据库（服务器已有数据时）
-bash scripts/package_deploy.sh --skip-data
+bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh --skip-data
 
 # 不含 .env（需手动配置时）
-bash scripts/package_deploy.sh --skip-env
+bash .agents/skills/qoder-deploy-package/scripts/package_deploy.sh --skip-env
 ```
 
 ### 2. 打包前检查清单
@@ -56,7 +56,7 @@ bash scripts/package_deploy.sh --skip-env
 ### 4. 部署到服务器
 
 ```bash
-scp releases/qoder-banking-budget-*.zip user@server:/opt/
+scp archive/releases/qoder-banking-budget-*.zip user@server:/opt/
 ssh user@server
 cd /opt && unzip qoder-banking-budget-*.zip
 cd qoder-banking-budget-*
@@ -106,7 +106,7 @@ qoder-banking-budget-<ts>/
 
 | 问题 | 解决 |
 |------|------|
-| 磁盘不足 | 用 `--skip-data` 跳过数据库；清理 `releases/` 旧包 |
+| 磁盘不足 | 用 `--skip-data` 跳过数据库；清理 `archive/releases/` 旧包 |
 | 前端构建失败 | 检查 `npm install` 是否正常、TypeScript 编译是否通过 |
 | zip 内文件无前缀 | 脚本 `[final]` 步骤自动添加 `qoder-banking-budget-<ts>/` 前缀 |
 | .env 缺失 | 确认 `apps/api/.env` 存在，或用 `--skip-env` 后手动创建 |

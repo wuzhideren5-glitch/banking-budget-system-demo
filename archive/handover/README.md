@@ -4,7 +4,7 @@
 retired product docs, and team-contribution traces. It is not a current product
 doc directory, import-template directory, or runtime source.
 
-当前 `archive/handover/` 历史交接目录精确清单（工作树门禁读取）：`legacy_product_docs`, `retired_product_budget_workbench`, `root_delivery_docs_20260602`, `root_scripts_20260617`, `team_contributions`。
+当前 `archive/handover/` 历史交接目录精确清单（工作树门禁读取）：`legacy_product_docs`, `retired_product_budget_workbench`, `root_delivery_docs_20260602`, `team_contributions`。
 
 ## Current Historical Buckets
 
@@ -20,7 +20,6 @@ doc directory, import-template directory, or runtime source.
 | `retired_product_budget_workbench/` | Retired product-budget-workbench material. |
 | `root_delivery_docs_20260601/` | Root delivery notes moved during the 2026-06-01 cleanup. |
 | `root_delivery_docs_20260602/` | Root delivery notes moved during the 2026-06-02 cleanup. |
-| `root_scripts_20260617/` | Historical root-level packaging scripts moved out of the active root. |
 | `team_contributions/` | Historical team contribution validation and handoff evidence. |
 
 ## Root Files
