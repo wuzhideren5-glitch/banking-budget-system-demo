@@ -172,6 +172,8 @@ async def _load_metric_nodes(db: aiosqlite.Connection) -> dict[str, dict[str, An
     }
 
 
+# Retired: was used by the old _load_payload_rollup_flags that read from
+# org_product_metric_table JSON payloads. Kept for reference only.
 def _iter_payload_nodes(items: list[Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     stack = [item for item in items if isinstance(item, dict)]
@@ -184,37 +186,36 @@ def _iter_payload_nodes(items: list[Any]) -> list[dict[str, Any]]:
 
 
 async def _load_payload_rollup_flags(db: aiosqlite.Connection) -> dict[str, dict[str, bool]]:
+    """Load horizontal/vertical rollup flags from data_account_metric_node.
+
+    Previously read from the retired org_product_metric_table JSON payloads;
+    now reads directly from the canonical metric node table.
+    """
     flags: dict[str, dict[str, bool]] = {}
-    table_exists = await (
+    node_table_exists = await (
         await db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_product_metric_table'"
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_account_metric_node'"
         )
     ).fetchone()
-    if table_exists is None:
+    if node_table_exists is None:
         return flags
     cur = await db.execute(
         """
-        SELECT entity_code, payload_json
-        FROM org_product_metric_table
-        WHERE payload_json IS NOT NULL AND TRIM(payload_json) <> ''
+        SELECT node_code, product_code, horizontal_rollup, vertical_rollup
+        FROM data_account_metric_node
+        WHERE is_active = 1
         """
     )
-    for entity_code, payload_raw in await cur.fetchall():
-        try:
-            payload = json.loads(str(payload_raw or "{}"))
-        except Exception:
+    for node_code, product_code_raw, horizontal_raw, vertical_raw in await cur.fetchall():
+        code = derive_runtime_ref_from_org_product_metric_code(
+            entity_code=str(product_code_raw or "").strip(),
+            metric_code=node_code,
+        )
+        if not code:
             continue
-        metrics = payload.get("metrics") if isinstance(payload, dict) else []
-        for node in _iter_payload_nodes(metrics if isinstance(metrics, list) else []):
-            code = derive_runtime_ref_from_org_product_metric_code(
-                entity_code=entity_code,
-                metric_code=node.get("code"),
-            )
-            if not code:
-                continue
-            current = flags.setdefault(code, {"horizontal": False, "vertical": False})
-            current["horizontal"] = current["horizontal"] or _normalize_rollup_flag(node.get("horizontal_rollup"))
-            current["vertical"] = current["vertical"] or _normalize_rollup_flag(node.get("vertical_rollup"))
+        current = flags.setdefault(code, {"horizontal": False, "vertical": False})
+        current["horizontal"] = current["horizontal"] or _normalize_rollup_flag(horizontal_raw)
+        current["vertical"] = current["vertical"] or _normalize_rollup_flag(vertical_raw)
     return flags
 
 

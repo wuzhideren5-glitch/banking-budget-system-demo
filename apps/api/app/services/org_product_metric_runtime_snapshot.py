@@ -24,7 +24,7 @@ def _valid_table_names(conn: sqlite3.Connection) -> set[str]:
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_product_metric_table_catalog'"
     ).fetchone()
     if not exists:
-        # 测试/空库场景：回退到直接从 functional_group_code 取值
+        # 测试/空库场景：回退到直接从 metric_table_name 取值
         return set()
     _VALID_TABLE_NAMES_CACHE = {
         _clean(row[0])
@@ -116,7 +116,7 @@ def load_org_product_metric_table_rows_from_runtime_tree(
 ) -> list[dict[str, Any]]:
     """Return the former org_product_metric_table rows derived from data_account_metric_node.
 
-    The physical JSON table is retired; functional_group_code now carries the
+    The physical JSON table is retired; metric_table_name now carries the
     visible metric table name for each org/product metric node.
     """
     exists = conn.execute(
@@ -137,13 +137,13 @@ def load_org_product_metric_table_rows_from_runtime_tree(
             SELECT node_code, node_name, parent_code, local_metric_code, logic_code,
                    level, node_type, horizontal_rollup, vertical_rollup,
                    allow_manual_entry, value_type, budget_formula, actual_formula,
-                   product_code, functional_group_code, sort_order, annual_agg_rule
+                   product_code, metric_table_name, sort_order, annual_agg_rule
             FROM data_account_metric_node
             WHERE is_active = 1
               AND COALESCE(product_code, '') <> ''
-              AND COALESCE(functional_group_code, '') <> ''
+              AND COALESCE(metric_table_name, '') <> ''
               AND node_code <> product_code
-            ORDER BY product_code, functional_group_code, level, sort_order, node_code
+            ORDER BY product_code, metric_table_name, level, sort_order, node_code
             """
         ).fetchall()
     finally:
@@ -165,7 +165,7 @@ def load_org_product_metric_table_rows_from_runtime_tree(
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     for row in rows:
         product_code = _upper(row["product_code"])
-        raw_table_name = _clean(row["functional_group_code"])
+        raw_table_name = _clean(row["metric_table_name"])
         if not product_code or not raw_table_name or _is_product_root(raw_table_name):
             continue
         table_name = _resolve_table_name(conn, raw_table_name)

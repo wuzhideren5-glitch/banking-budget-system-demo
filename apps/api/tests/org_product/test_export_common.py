@@ -107,7 +107,7 @@ class ExportCommonTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ws.cell(row=1, column=2).font.color.rgb, "00FF0000")
 
     async def test_main_no_longer_keeps_excel_import_helper_implementations(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("def _normalize_cell", main_source)
         self.assertNotIn("def _color_row", main_source)

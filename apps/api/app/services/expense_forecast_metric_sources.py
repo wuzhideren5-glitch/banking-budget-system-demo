@@ -69,10 +69,11 @@ async def _load_bound_runtime_metric_ref_codes(
                 UPPER(b.data_acct_code) = ?
                 OR UPPER(b.metric_node_code) = ?
                 OR UPPER(COALESCE(n.functional_group_code, '')) = ?
+                OR UPPER(COALESCE(n.metric_table_name, '')) = ?
                 OR UPPER(COALESCE(n.local_metric_code, '')) = ?
               )
         """
-        args: list[Any] = [indicator, indicator, indicator, indicator]
+        args: list[Any] = [indicator, indicator, indicator, indicator, indicator]
         if product:
             sql += " AND UPPER(b.scope_code) = ?"
             args.append(product)

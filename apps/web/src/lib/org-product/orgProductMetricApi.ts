@@ -18,7 +18,10 @@ export type MetricTableCatalogResponse = {
 };
 
 export type BootstrapResponse = {
-  entities: unknown[];
+  items?: Record<string, unknown[]>;
+  table_items?: Record<string, unknown[]>;
+  entities?: unknown[];
+  sources?: Record<string, string>;
 };
 
 export type MetricSaveRefreshResponse = {

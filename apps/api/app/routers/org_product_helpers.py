@@ -1147,6 +1147,34 @@ def _drop_legacy_runtime_identity_fields(item: dict[str, Any]) -> dict[str, Any]
     return item
 
 
+def _ensure_metric_node_has_name(item: dict[str, Any], entity_code: str) -> None:
+    """Auto-fill empty node names so that save never fails due to blank names.
+
+    Rules (same as the sync-layer ``_node_name`` logic):
+    - If ``name`` is present and non-empty → keep it.
+    - If ``name`` is empty but ``code`` exists → use ``code`` as the name.
+    - If both are empty → derive from first child name → ``f"[{child_name}的父节点]"``.
+    - Final fallback → ``"(未命名)"``.
+    """
+    name = _normalize_text(item.get("name"))
+    if name:
+        return
+    code = _normalize_text(item.get("code"))
+    if code:
+        item["name"] = code
+        return
+    children = item.get("children")
+    if isinstance(children, list):
+        for child in children:
+            if not isinstance(child, dict):
+                continue
+            child_name = _normalize_text(child.get("name"))
+            if child_name:
+                item["name"] = f"[{child_name}的父节点]"
+                return
+    item["name"] = "(未命名)"
+
+
 def _sanitize_metric_nodes_for_save(entity_code: str, nodes: list[MetricNodePayload]) -> list[dict[str, Any]]:
     sanitized: list[dict[str, Any]] = []
     for node in nodes:
@@ -1157,6 +1185,7 @@ def _sanitize_metric_nodes_for_save(entity_code: str, nodes: list[MetricNodePayl
         item["horizontal_rollup"] = _normalize_rollup_flag(item.get("horizontal_rollup"))
         item["vertical_rollup"] = _normalize_rollup_flag(item.get("vertical_rollup"))
         item["logic_code"] = _derive_metric_logic_code(entity_code, item.get("code"), item.get("logic_code"))
+        _ensure_metric_node_has_name(item, entity_code)
         sanitized.append(item)
     return dedupe_org_product_metric_payload_nodes(sanitized)
 
@@ -3103,4 +3132,10 @@ def _flatten_org_product_tree(root: dict[str, Any]) -> list[dict[str, str]]:
     walk(root, None)
     return rows
 
+
+# Several org/product routers intentionally share this helper module via
+# `from ...org_product_helpers import *`. Python excludes single-underscore
+# names from star imports unless `__all__` is provided, so expose the shared
+# private helpers explicitly to keep the split router modules wired together.
+__all__ = [name for name in globals() if not name.startswith("__")]
 

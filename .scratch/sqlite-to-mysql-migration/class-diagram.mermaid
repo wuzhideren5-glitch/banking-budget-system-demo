@@ -1,0 +1,110 @@
+classDiagram
+    class DatabasePool {
+        -str host
+        -int port
+        -str user
+        -str password
+        -str db
+        -int minsize
+        -int maxsize
+        -int pool_recycle
+        -int connect_timeout
+        -int read_timeout
+        -str charset
+        -bool autocommit
+        -Pool _pool
+        +__init__(host, port, user, password, db, ...)
+        +async init() None
+        +async close() None
+        +acquire() AsyncContextManager~Connection~
+        +async execute(sql, params) int
+        +async fetch_all(sql, params) list~dict~
+        +async fetch_one(sql, params) dict | None
+        +async fetch_val(sql, params) Any
+        +async execute_many(sql, rows) int
+    }
+
+    class SyncDatabase {
+        -str host
+        -int port
+        -str user
+        -str password
+        -str db
+        -str charset
+        -bool autocommit
+        -Connection conn
+        +__init__(host, port, user, password, db, ...)
+        +__enter__() SyncDatabase
+        +__exit__(...) None
+        +execute(sql, params) int
+        +execute_script(sql) None
+        +fetch_all(sql, params) list~dict~
+        +fetch_one(sql, params) dict | None
+    }
+
+    class db_config {
+        +str DATABASE_NAME
+        +list YEARLY_TABLES
+        +list COMMON_TABLES
+        +list COMPARE_TABLES
+        +async list_budget_years(pool) list~int~
+    }
+
+    class Settings {
+        +str mysql_host
+        +int mysql_port
+        +str mysql_user
+        +str mysql_password
+        +str mysql_database
+        +int pool_minsize
+        +int pool_maxsize
+        +int pool_recycle
+        +int budget_year
+    }
+
+    class BudgetDataWriter {
+        +write_budget_data(items, policy, pool) BudgetDataWriteResult
+        +delete_budget_data(keys, pool) BudgetDataDeleteResult
+    }
+
+    class BudgetDataWriteItem {
+        +str data_acct_code
+        +str product_code
+        +int period_id
+        +int budget_actual
+        +int version_id
+        +float value
+        +str source_ref
+    }
+
+    class BudgetDataWritePolicy {
+        +str name
+        +int need_calc
+        +str value_kind
+        +str invalid_mode
+        +bool allow_formula_runtime_refs
+    }
+
+    class BudgetDataWriteResult {
+        +int saved_cells
+        +int skipped_cells
+        +set written_keys
+        +set affected_products
+        +list errors
+        +list warnings
+    }
+
+    class db_introspection {
+        +async get_table_columns(pool, table) list~dict~
+        +async table_exists(pool, table) bool
+        +async get_tables(pool) list~str~
+    }
+
+    Settings --> DatabasePool : configures
+    Settings --> SyncDatabase : configures
+    DatabasePool --> db_config : uses
+    BudgetDataWriter --> DatabasePool : acquires connection
+    BudgetDataWriter --> BudgetDataWriteItem : processes
+    BudgetDataWriter --> BudgetDataWritePolicy : applies
+    BudgetDataWriter --> BudgetDataWriteResult : returns
+    db_introspection --> DatabasePool : queries INFORMATION_SCHEMA

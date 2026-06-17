@@ -732,13 +732,13 @@ def _confirmed_org_product_metric_digest_rows(
     try:
         source_rows = cur.execute(
             """
-            SELECT node_code, node_name, product_code, functional_group_code, value_type
+            SELECT node_code, node_name, product_code, metric_table_name, value_type
             FROM data_account_metric_node
             WHERE is_active = 1
               AND runtime_account_enabled = 1
               AND COALESCE(product_code, '') <> ''
-              AND COALESCE(functional_group_code, '') <> ''
-            ORDER BY product_code, functional_group_code, node_code
+              AND COALESCE(metric_table_name, '') <> ''
+            ORDER BY product_code, metric_table_name, node_code
             """
         ).fetchall()
     except sqlite3.Error:
@@ -746,7 +746,7 @@ def _confirmed_org_product_metric_digest_rows(
 
     for source in source_rows:
         entity_code = str(source["product_code"] or "").strip().upper()
-        table_name = str(source["functional_group_code"] or "").strip()
+        table_name = str(source["metric_table_name"] or "").strip()
         data_ref = str(source["node_code"] or "").strip().upper()
         if not entity_code or not table_name or not data_ref:
             continue

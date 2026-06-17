@@ -146,6 +146,7 @@ async def load_runtime_metric_bindings(common_path: Path) -> list[dict[str, str]
               COALESCE(n.node_name, ''),
               COALESCE(n.local_metric_code, ''),
               COALESCE(n.functional_group_code, ''),
+              COALESCE(n.metric_table_name, ''),
               b.scope_type,
               b.scope_code,
               b.data_acct_code,
@@ -167,12 +168,13 @@ async def load_runtime_metric_bindings(common_path: Path) -> list[dict[str, str]
             "node_name": str(r[2] or "").strip(),
             "local_metric_code": str(r[3] or "").strip().upper(),
             "functional_group_code": str(r[4] or "").strip().upper(),
-            "scope_type": str(r[5] or "").strip().upper(),
-            "scope_code": str(r[6] or "").strip().upper(),
-            "product_code": str(r[6] or "").strip().upper() if str(r[5] or "").strip().upper() == "PRODUCT" else "",
-            "data_acct_code": str(r[7] or "").strip().upper(),
-            "data_acct_name": str(r[8] or "").strip(),
-            "value_type": str(r[9] or "金额").strip(),
+            "metric_table_name": str(r[5] or "").strip(),
+            "scope_type": str(r[6] or "").strip().upper(),
+            "scope_code": str(r[7] or "").strip().upper(),
+            "product_code": str(r[7] or "").strip().upper() if str(r[6] or "").strip().upper() == "PRODUCT" else "",
+            "data_acct_code": str(r[8] or "").strip().upper(),
+            "data_acct_name": str(r[9] or "").strip(),
+            "value_type": str(r[10] or "金额").strip(),
         }
         for r in rows
     ]
@@ -209,13 +211,13 @@ async def load_org_product_refs_by_runtime_ref_code(common_path: Path) -> dict[s
         try:
             cur = await db.execute(
                 """
-                SELECT node_code, product_code, functional_group_code
+                SELECT node_code, product_code, metric_table_name
                 FROM data_account_metric_node
                 WHERE is_active = 1
                   AND runtime_account_enabled = 1
                   AND COALESCE(product_code, '') <> ''
-                  AND COALESCE(functional_group_code, '') <> ''
-                ORDER BY product_code, functional_group_code, node_code
+                  AND COALESCE(metric_table_name, '') <> ''
+                ORDER BY product_code, metric_table_name, node_code
                 """
             )
             rows = await cur.fetchall()
@@ -254,6 +256,7 @@ def binding_matches_hint(binding: dict[str, str], hint: dict[str, Any]) -> bool:
                 binding.get("metric_node_code", ""),
                 binding.get("local_metric_code", ""),
                 binding.get("functional_group_code", ""),
+                binding.get("metric_table_name", ""),
                 binding.get("node_name", ""),
                 binding.get("data_acct_code", ""),
                 binding.get("data_acct_name", ""),

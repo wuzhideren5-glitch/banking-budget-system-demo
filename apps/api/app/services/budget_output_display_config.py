@@ -216,7 +216,7 @@ async def rebuild_budget_output_display_config_from_org_product_metrics(
             data_acct_code = node_code if node_code in account_codes else None
             row_type = "METRIC" if data_acct_code else "GROUP"
             metric_name = str(row["node_name"] or node_code).strip()
-            table_name = str(row.get("functional_group_code") or "").strip() or "机构及产品指标"
+            table_name = str(row.get("metric_table_name") or "").strip() or "机构及产品指标"
             await db.execute(
                 """
                 INSERT INTO budget_output_display_item(
@@ -377,6 +377,7 @@ async def rebuild_budget_output_display_config_from_excel(
                 "sort_order": node.get("sort_order") or 0,
                 "level": node.get("level") or 1,
                 "functional_group_code": "",
+                "metric_table_name": "",
             }
 
         async def insert_row(

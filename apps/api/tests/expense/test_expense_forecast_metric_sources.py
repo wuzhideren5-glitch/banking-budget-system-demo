@@ -21,6 +21,7 @@ def init_common_db(path: Path) -> None:
             CREATE TABLE data_account_metric_node (
                 node_code TEXT PRIMARY KEY,
                 functional_group_code TEXT,
+                metric_table_name TEXT NOT NULL DEFAULT '',
                 local_metric_code TEXT
             );
             CREATE TABLE data_account_metric_binding (
@@ -37,12 +38,12 @@ def init_common_db(path: Path) -> None:
         )
         db.executemany(
             """
-            INSERT INTO data_account_metric_node(node_code, functional_group_code, local_metric_code)
-            VALUES (?, ?, ?)
+            INSERT INTO data_account_metric_node(node_code, functional_group_code, metric_table_name, local_metric_code)
+            VALUES (?, ?, ?, ?)
             """,
             [
-                ("PRD1.MKT", "MARKETING", "MKT"),
-                ("PRD1.OPS", "OPERATIONS", "OPS"),
+                ("PRD1.MKT", "MARKETING", "", "MKT"),
+                ("PRD1.OPS", "OPERATIONS", "", "OPS"),
             ],
         )
         db.executemany(

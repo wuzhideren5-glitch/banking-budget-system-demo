@@ -436,6 +436,7 @@ class DbBootstrapSchemaTests(unittest.TestCase):
             self.assertIn("product_code", column_names(conn, "data_account_metric_node"))
             self.assertIn("local_metric_code", column_names(conn, "data_account_metric_node"))
             self.assertIn("functional_group_code", column_names(conn, "data_account_metric_node"))
+            self.assertIn("metric_table_name", column_names(conn, "data_account_metric_node"))
             conn.execute(
                 """
                 INSERT INTO data_account(data_acct_code, data_acct_name, value_type)

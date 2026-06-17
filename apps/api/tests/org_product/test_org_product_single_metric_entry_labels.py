@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
 def read_workspace_file(relative_path: str) -> str:
@@ -20,12 +20,12 @@ def read_web_sources() -> str:
 
 def test_frontend_uses_org_product_metrics_as_only_configuration_entry() -> None:
     checked_files = [
-        "apps/web/src/app/components/WorkArea.tsx",
-        "apps/web/src/app/components/FormulaEditorDialog.tsx",
-        "apps/web/src/app/components/BudgetDisplayReportContent.tsx",
-        "apps/web/src/app/components/BusinessCostIncomeRatioAdminContent.tsx",
-        "apps/web/src/app/components/OrgProductMetricContent.tsx",
-        "apps/web/src/app/components/OrgProductDataEntryContent.tsx",
+        "apps/web/src/app/components/common/WorkArea.tsx",
+        "apps/web/src/app/components/common/FormulaEditorDialog.tsx",
+        "apps/web/src/app/components/budget/BudgetDisplayReportContent.tsx",
+        "apps/web/src/app/components/business/BusinessCostIncomeRatioAdminContent.tsx",
+        "apps/web/src/app/components/org-product/OrgProductMetricContent.tsx",
+        "apps/web/src/app/components/org-product/OrgProductDataEntryContent.tsx",
         "apps/web/src/app/workspaceCatalog.tsx",
         "apps/web/src/app/App.tsx",
     ]
@@ -51,8 +51,8 @@ def test_frontend_uses_org_product_metrics_as_only_configuration_entry() -> None
     assert 'label: "机构及产品指标"' in combined
     assert 'id: "data-account"' not in read_workspace_file("apps/web/src/app/workspaceCatalog.tsx")
     assert 'label: "数据科目运行表"' not in read_workspace_file("apps/web/src/app/workspaceCatalog.tsx")
-    assert "listDataAccounts" not in read_workspace_file("apps/web/src/app/components/FormulaEditorDialog.tsx")
-    assert "listDataAccounts" not in read_workspace_file("apps/web/src/app/components/BusinessCostIncomeRatioAdminContent.tsx")
+    assert "listDataAccounts" not in read_workspace_file("apps/web/src/app/components/common/FormulaEditorDialog.tsx")
+    assert "listDataAccounts" not in read_workspace_file("apps/web/src/app/components/business/BusinessCostIncomeRatioAdminContent.tsx")
 
 
 def test_frontend_product_runtime_copy_does_not_reintroduce_product_maintenance_semantics() -> None:
@@ -98,7 +98,7 @@ def test_frontend_product_runtime_copy_does_not_reintroduce_product_maintenance_
 
 def test_backend_product_runtime_response_model_does_not_use_legacy_product_type_name() -> None:
     router_source = read_workspace_file("apps/api/app/routers/org_product_runtime_catalog.py")
-    org_product_metrics_source = read_workspace_file("apps/api/app/routers/org_product_metrics.py")
+    org_product_metrics_source = read_workspace_file("apps/api/app/routers/org_product_tree.py")
     schema_source = read_workspace_file("apps/api/app/schemas.py")
     auth_policy_source = read_workspace_file("apps/api/app/services/auth_access_policy.py")
     combined = f"{router_source}\n{schema_source}"
@@ -118,7 +118,7 @@ def test_backend_product_runtime_modules_do_not_use_legacy_product_catalog_names
     checked_files = [
         "apps/api/app/main.py",
         "apps/api/app/db_bootstrap/current_contracts.py",
-        "apps/api/app/routers/org_product_metrics.py",
+        "apps/api/app/routers/org_product_metric_config.py",
         "apps/api/app/routers/org_product_runtime_catalog.py",
         "apps/api/app/services/org_product_runtime_catalog.py",
     ]
@@ -175,7 +175,7 @@ def test_product_runtime_docs_name_org_product_master_runtime_catalog_not_produc
 
 
 def test_org_product_runtime_validation_surfaces_do_not_use_legacy_product_catalog_names() -> None:
-    assert not (PROJECT_ROOT / "apps/api/test_product_catalog_router.py").exists()
+    assert not (PROJECT_ROOT / "apps/api/tests/scripts/test_product_catalog_router.py").exists()
     assert not (PROJECT_ROOT / "apps/api/scripts/export_org_product_metric_migration_backlog.py").exists()
     assert not (PROJECT_ROOT / "apps/api/test_org_product_metric_migration_backlog.py").exists()
     retired_migration_scripts = [
@@ -189,7 +189,7 @@ def test_org_product_runtime_validation_surfaces_do_not_use_legacy_product_catal
         assert not (PROJECT_ROOT / "apps/api/scripts" / script_name).exists()
 
     full_journey_source = read_workspace_file("apps/api/scripts/full_user_journey.py")
-    simulation_test_source = read_workspace_file("apps/api/test_simulation_api.py")
+    simulation_test_source = read_workspace_file("apps/api/tests/scripts/test_simulation_api.py")
     combined = f"{full_journey_source}\n{simulation_test_source}"
 
     forbidden_phrases = [
@@ -205,7 +205,7 @@ def test_org_product_runtime_validation_surfaces_do_not_use_legacy_product_catal
 
 
 def test_runtime_ref_export_is_runtime_workbook_not_projection_template() -> None:
-    web_api_source = read_workspace_file("apps/web/src/lib/masterDataApi.ts")
+    web_api_source = read_workspace_file("apps/web/src/lib/expense/masterDataApi.ts")
     export_service_source = read_workspace_file("apps/api/app/services/runtime_ref_export.py")
 
     forbidden = [
@@ -228,7 +228,7 @@ def test_runtime_ref_export_is_runtime_workbook_not_projection_template() -> Non
 
 
 def test_data_account_frontend_no_longer_exposes_direct_configuration_helpers() -> None:
-    web_api_source = read_workspace_file("apps/web/src/lib/masterDataApi.ts")
+    web_api_source = read_workspace_file("apps/web/src/lib/expense/masterDataApi.ts")
 
     forbidden_api_helpers = [
         "DataAccountDto",
@@ -285,14 +285,14 @@ def test_workspace_catalog_exposes_single_org_product_configuration_path() -> No
 def test_backend_guidance_does_not_send_users_back_to_projection_or_data_account_config() -> None:
     checked_files = [
         "apps/api/app/services/budget_output_display.py",
-        "apps/api/app/agent_product_intent.py",
-        "apps/api/app/agent_prompt_assets.py",
-        "apps/api/app/agent_query.py",
+        "apps/api/app/agent/agent_product_intent.py",
+        "apps/api/app/agent/agent_prompt_assets.py",
+        "apps/api/app/agent/agent_query.py",
         "apps/api/app/services/expense_forecast_rule_import.py",
         "apps/api/app/routers/templates.py",
         "apps/api/app/routers/dept_catalog.py",
         "apps/api/app/routers/budget_simulation.py",
-        "apps/api/app/routers/org_product_metrics.py",
+        "apps/api/app/routers/org_product_metric_config.py",
         "apps/api/app/services/business_cost_income_commands.py",
     ]
     combined = "\n".join(read_workspace_file(path) for path in checked_files)

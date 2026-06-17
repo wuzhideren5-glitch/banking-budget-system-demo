@@ -2,8 +2,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-API_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(__file__).resolve().parents[3]
+API_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 class Settings(BaseSettings):
@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     feishu_domain: str = "https://open.feishu.cn"
     # 仅内网/排障：跳过 WSS 证书校验（生产环境勿开启）
     feishu_insecure_ssl: bool = False
+
+    # MySQL 数据库连接配置
+    MYSQL_HOST: str = "localhost"
+    MYSQL_PORT: int = 3306
+    MYSQL_USER: str = "root"
+    MYSQL_PASSWORD: str = ""
+    MYSQL_DATABASE: str = "banking_budget"
+    MYSQL_POOL_MINSIZE: int = 2
+    MYSQL_POOL_MAXSIZE: int = 10
+    MYSQL_POOL_RECYCLE: int = 3600
 
 
 settings = Settings()

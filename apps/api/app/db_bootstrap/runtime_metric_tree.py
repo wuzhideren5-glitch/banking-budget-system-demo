@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import re
-import sqlite3
 from pathlib import Path
+
+import pymysql
 
 
 # 05 / 05.01 / 05.01.01.02.001 / 05.01.01.03.01.001 / 05.02.09.02.101
@@ -20,6 +21,7 @@ METRIC_NODE_REQUIRED_COLUMNS = [
     "local_metric_code",
     "logic_code",
     "functional_group_code",
+    "metric_table_name",
     "level",
     "node_type",
     "horizontal_rollup",
@@ -271,6 +273,18 @@ def _ensure_metric_node_v02_columns(conn: sqlite3.Connection) -> None:
     for column_name, column_type in RUNTIME_ACCOUNT_NODE_COLUMNS.items():
         if column_name not in cols:
             conn.execute(f"ALTER TABLE data_account_metric_node ADD COLUMN {column_name} {column_type}")
+    cols = _table_columns(conn, "data_account_metric_node")
+    if "metric_table_name" not in cols:
+        conn.execute("ALTER TABLE data_account_metric_node ADD COLUMN metric_table_name TEXT NOT NULL DEFAULT ''")
+        # Migrate Chinese table names from functional_group_code to metric_table_name
+        conn.execute(
+            """
+            UPDATE data_account_metric_node
+            SET metric_table_name = functional_group_code
+            WHERE functional_group_code NOT GLOB '[0-9]*'
+              AND COALESCE(functional_group_code, '') <> ''
+            """
+        )
     # Always derive logic_code from node_code (strip product prefix, keep dots)
     conn.execute(
         """
@@ -445,6 +459,7 @@ def ensure_runtime_metric_identity_tables(conn: sqlite3.Connection) -> None:
           local_metric_code TEXT,
           logic_code TEXT,
           functional_group_code TEXT,
+          metric_table_name TEXT NOT NULL DEFAULT '',
           level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 8),
           node_type TEXT NOT NULL CHECK (node_type IN ('CATEGORY', 'GROUP', 'METRIC')),
           horizontal_rollup INTEGER NOT NULL DEFAULT 0 CHECK (horizontal_rollup IN (0, 1)),
@@ -462,7 +477,8 @@ def ensure_runtime_metric_identity_tables(conn: sqlite3.Connection) -> None:
           is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
           remark TEXT,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          annual_agg_rule TEXT NOT NULL DEFAULT ''
         );
 
         CREATE INDEX IF NOT EXISTS idx_data_account_metric_node_parent

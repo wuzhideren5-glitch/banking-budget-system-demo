@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,7 @@ from app.agent.agent_memory import ConversationMemoryStore
 from app.agent.agent_query import ReadOnlySqlExecutor
 from app.budget_data_writer import purge_disallowed_budget_data_for_version
 from app.core.config import settings
+from app.core.database import init_pool, get_pool
 from app.integrations.deepseek_client import DeepseekClient
 from app.core.db_paths import budget_db_path, common_db_path, compare_db_path, list_budget_database_files
 from app.formula_refs import extract_runtime_metric_ref_code
@@ -103,11 +105,18 @@ from app.schemas import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_databases()
+    pool = init_pool(settings)
+    await pool.init()
+    logger.info("MySQL pool initialized")
     start_feishu_background(agent_service)
     yield
+    await get_pool().close()
 
 
 app = FastAPI(title="Banking Budget API", lifespan=lifespan)

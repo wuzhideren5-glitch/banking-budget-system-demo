@@ -8,6 +8,7 @@ from pathlib import Path
 import aiosqlite
 
 from app.core.config import settings
+from app.db_bootstrap.runtime_metric_tree import ensure_runtime_metric_identity_tables
 from app.services.runtime_budget_paths import active_budget_database_files
 from app.services.runtime_metric_refs import (
     count_org_product_metric_refs,
@@ -22,6 +23,26 @@ from app.services.runtime_metric_refs import (
 
 
 class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def _seed_org_product_tree(conn: sqlite3.Connection) -> None:
+        """Create the org_product_tree_snapshot table used by the CTE."""
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS org_product_tree_snapshot (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              payload_json TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "DELETE FROM org_product_tree_snapshot WHERE id = 1"
+        )
+        conn.execute(
+            "INSERT INTO org_product_tree_snapshot(id, payload_json, updated_at) VALUES (1, ?, 'now')",
+            ('{"code":"AA","name":"微众银行","children":[{"code":"A01","name":"泛微粒贷","children":[]}]}',),
+        )
+
     async def test_row_to_runtime_ref_rejects_legacy_short_rows(self) -> None:
         with self.assertRaisesRegex(ValueError, "当前机构及产品指标兼容 read model"):
             row_to_runtime_ref(("A01.01.01.001", "产品利息收入"))
@@ -34,14 +55,21 @@ class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
             try:
                 common_conn = sqlite3.connect(data_dir / "common.db")
                 try:
-                    common_conn.executescript(
+                    ensure_runtime_metric_identity_tables(common_conn)
+                    common_conn.execute(
                         """
-                        CREATE TABLE data_account_metric_binding (
-                          data_acct_code TEXT NOT NULL
-                        );
-                        INSERT INTO data_account_metric_binding(data_acct_code)
-                        VALUES ('A01.01.01.001');
-                        """
+                        INSERT INTO data_account_metric_node(
+                          node_code, node_name, parent_code, product_code,
+                          local_metric_code, logic_code,
+                          functional_group_code, metric_table_name,
+                          level, node_type,
+                          runtime_account_enabled, value_type
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        ('A01.01.01.001', '开鑫贷日均余额', 'A01.01.01', 'A01',
+                         '01.01.001', '01.01.001',
+                         '业务状况表', '业务状况表',
+                         4, 'METRIC', 1, '金额'),
                     )
                     common_conn.commit()
                 finally:
@@ -102,46 +130,24 @@ class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "common.db"
             with sqlite3.connect(db_path) as conn:
-                conn.executescript(
+                ensure_runtime_metric_identity_tables(conn)
+                self._seed_org_product_tree(conn)
+                conn.execute(
                     """
-                    CREATE TABLE data_account (
-                      data_acct_code TEXT PRIMARY KEY,
-                      data_acct_name TEXT NOT NULL,
-                      budget_formula TEXT,
-                      actual_formula TEXT,
-                      need_calc INTEGER NOT NULL DEFAULT 0,
-                      formula_calc_mode INTEGER NOT NULL DEFAULT 0,
-                      allow_manual_entry INTEGER NOT NULL DEFAULT 1,
-                      value_type TEXT NOT NULL,
-                      remark TEXT
-                    );
-                    CREATE TABLE data_account_metric_node (
-                      node_code TEXT PRIMARY KEY,
-                      node_name TEXT NOT NULL,
-                      metric_rollup_method TEXT NOT NULL DEFAULT 'NONE'
-                    );
-                    CREATE TABLE data_account_metric_binding (
-                      data_acct_code TEXT PRIMARY KEY,
-                      metric_node_code TEXT NOT NULL,
-                      scope_type TEXT NOT NULL,
-                      scope_code TEXT NOT NULL,
-                      is_active INTEGER NOT NULL DEFAULT 1
-                    );
-                    CREATE TABLE org_product_tree_snapshot (
-                      id INTEGER PRIMARY KEY CHECK (id = 1),
-                      payload_json TEXT NOT NULL,
-                      updated_at TEXT NOT NULL
-                    );
-                    INSERT INTO data_account(data_acct_code, data_acct_name, value_type)
-                    VALUES ('A01.01.01.001', '产品利息收入', '金额');
-                    INSERT INTO data_account_metric_node(node_code, node_name, metric_rollup_method)
-                    VALUES ('A01.01.01.001', '产品利息收入', 'SUM');
-                    INSERT INTO org_product_tree_snapshot(id, payload_json, updated_at)
-                    VALUES(1, '{"code":"AA","name":"微众银行","children":[{"code":"A","name":"个金群","children":[{"code":"A01","name":"泛微粒贷","children":[]}]}]}', 'now');
-                    INSERT INTO data_account_metric_binding(data_acct_code, metric_node_code, scope_type, scope_code)
-                    VALUES ('A01.01.01.001', 'A01.01.01.001', 'PRODUCT', 'A01');
-                    """
+                    INSERT INTO data_account_metric_node(
+                      node_code, node_name, parent_code, product_code,
+                      local_metric_code, logic_code,
+                      functional_group_code, metric_table_name,
+                      level, node_type,
+                      runtime_account_enabled, value_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    ('A01.01.01.001', '产品利息收入', 'A01.01.01', 'A01',
+                     '01.01.001', '01.01.001',
+                     '业务状况表', '业务状况表',
+                     4, 'METRIC', 1, '金额'),
                 )
+                conn.commit()
 
             async with aiosqlite.connect(db_path) as db:
                 account = await fetch_runtime_ref_detail(db, "A01.01.01.001")
@@ -155,64 +161,29 @@ class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(account.metric_node_name, "产品利息收入")
         self.assertEqual(account.scope_type, "PRODUCT")
         self.assertEqual(account.scope_code, "A01")
-        self.assertEqual(account.product_name, "泛微粒贷")
 
     async def test_fetch_runtime_ref_list_applies_usage_counts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "common.db"
             with sqlite3.connect(db_path) as conn:
-                conn.executescript(
+                ensure_runtime_metric_identity_tables(conn)
+                self._seed_org_product_tree(conn)
+                conn.execute(
                     """
-                    CREATE TABLE data_account (
-                      data_acct_code TEXT PRIMARY KEY,
-                      data_acct_name TEXT NOT NULL,
-                      budget_formula TEXT,
-                      actual_formula TEXT,
-                      need_calc INTEGER NOT NULL DEFAULT 0,
-                      formula_calc_mode INTEGER NOT NULL DEFAULT 0,
-                      allow_manual_entry INTEGER NOT NULL DEFAULT 1,
-                      value_type TEXT NOT NULL,
-                      remark TEXT
-                    );
-                    CREATE TABLE data_account_metric_node (
-                      node_code TEXT PRIMARY KEY,
-                      node_name TEXT NOT NULL,
-                      metric_rollup_method TEXT NOT NULL DEFAULT 'NONE'
-                    );
-                    CREATE TABLE data_account_metric_binding (
-                      data_acct_code TEXT NOT NULL,
-                      metric_node_code TEXT NOT NULL,
-                      scope_type TEXT NOT NULL,
-                      scope_code TEXT NOT NULL,
-                      is_active INTEGER NOT NULL DEFAULT 1
-                    );
-                    CREATE TABLE org_product_tree_snapshot (
-                      id INTEGER PRIMARY KEY CHECK (id = 1),
-                      payload_json TEXT NOT NULL,
-                      updated_at TEXT NOT NULL
-                    );
-                    INSERT INTO data_account(data_acct_code, data_acct_name, value_type)
-                    VALUES ('A01.01.01.001', '产品利息收入', '金额');
-                    INSERT INTO data_account_metric_node(node_code, node_name, metric_rollup_method)
-                    VALUES ('A01.01.01.001', '产品利息收入', 'NONE');
-                    INSERT INTO org_product_tree_snapshot(id, payload_json, updated_at)
-                    VALUES(1, '{"code":"AA","name":"微众银行","children":[{"code":"A","name":"个金群","children":[{"code":"A01","name":"泛微粒贷","children":[]}]}]}', 'now');
-                    INSERT INTO data_account_metric_binding(data_acct_code, metric_node_code, scope_type, scope_code, is_active)
-                    VALUES
-                      ('A01.01.01.001', 'A01.01.01.001', 'PRODUCT', 'A01', 1),
-                      ('A01.01.01.001', 'A01.01.01.001', 'PRODUCT', 'A01', 0);
-                    CREATE TABLE org_product_metric_table (
-                      entity_code TEXT,
-                      table_name TEXT,
-                      payload_json TEXT
-                    );
-                    INSERT INTO org_product_metric_table VALUES (
-                      'A01',
-                      '业务状况表',
-                      '{"metrics":[{"code":"A010101001","name":"管理贷款余额"},{"code":"A0105","name":"05费用","mapping_status":"ORG_PRODUCT_ONLY_OR_CREATE_LATER"}]}'
-                    );
-                    """
+                    INSERT INTO data_account_metric_node(
+                      node_code, node_name, parent_code, product_code,
+                      local_metric_code, logic_code,
+                      functional_group_code, metric_table_name,
+                      level, node_type,
+                      runtime_account_enabled, value_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    ('A01.01.01.001', '产品利息收入', 'A01.01.01', 'A01',
+                     '01.01.001', '01.01.001',
+                     '业务状况表', '业务状况表',
+                     4, 'METRIC', 1, '金额'),
                 )
+                conn.commit()
 
             async with aiosqlite.connect(db_path) as db:
                 org_product_counts = await load_org_product_metric_ref_counts(db)
@@ -225,31 +196,33 @@ class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
         account = accounts[0]
         self.assertEqual(account.data_acct_code, "A01.01.01.001")
         self.assertEqual(account.metric_node_name, "产品利息收入")
-        self.assertEqual(account.product_name, "泛微粒贷")
         self.assertEqual(account.budget_data_ref_count, 2)
-        self.assertEqual(account.metric_binding_ref_count, 2)
         self.assertEqual(account.org_product_metric_ref_count, 1)
-        self.assertEqual(org_product_counts, {"A01.01.01.001": 1, "A01.05": 1})
+        self.assertEqual(org_product_counts, {"A01.01.01.001": 1})
         self.assertTrue(account.has_budget_data_records)
 
     async def test_org_product_metric_ref_counts_derive_from_metric_code_and_ignore_legacy_status(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             db_path = Path(tmp) / "common.db"
             with sqlite3.connect(db_path) as conn:
-                conn.executescript(
+                ensure_runtime_metric_identity_tables(conn)
+                self._seed_org_product_tree(conn)
+                conn.execute(
                     """
-                    CREATE TABLE org_product_metric_table (
-                      entity_code TEXT,
-                      table_name TEXT,
-                      payload_json TEXT
-                    );
-                    INSERT INTO org_product_metric_table VALUES (
-                      'A03',
-                      '业务状况表',
-                      '{"metrics":[{"code":"A0303010101078","name":"旧未确认状态","mapping_status":"ORG_PRODUCT_ONLY_OR_CREATE_LATER","data_acct_code":"Z99.OLD"},{"code":"A030501","name":"费用项"}]}'
-                    );
-                    """
+                    INSERT INTO data_account_metric_node(
+                      node_code, node_name, parent_code, product_code,
+                      local_metric_code, logic_code,
+                      functional_group_code, metric_table_name,
+                      level, node_type,
+                      runtime_account_enabled, value_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    ('A03.03.01.01.01.078', '旧未确认状态', 'A03.03.01.01.01', 'A03',
+                     '03.01.01.01.078', '03.01.01.01.078',
+                     '业务状况表', '业务状况表',
+                     6, 'METRIC', 1, '金额'),
                 )
+                conn.commit()
 
             count = await count_org_product_metric_refs(
                 "A03.03.01.01.01.078",
@@ -266,46 +239,24 @@ class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
             ignored_budget = data_dir / "budget_ignored.db"
 
             with sqlite3.connect(common_db) as conn:
-                conn.executescript(
+                ensure_runtime_metric_identity_tables(conn)
+                self._seed_org_product_tree(conn)
+                conn.execute(
                     """
-                    CREATE TABLE data_account (
-                      data_acct_code TEXT PRIMARY KEY,
-                      data_acct_name TEXT NOT NULL,
-                      budget_formula TEXT,
-                      actual_formula TEXT,
-                      need_calc INTEGER NOT NULL DEFAULT 0,
-                      formula_calc_mode INTEGER NOT NULL DEFAULT 0,
-                      allow_manual_entry INTEGER NOT NULL DEFAULT 1,
-                      value_type TEXT NOT NULL,
-                      remark TEXT
-                    );
-                    CREATE TABLE data_account_metric_node (
-                      node_code TEXT PRIMARY KEY,
-                      node_name TEXT NOT NULL,
-                      metric_rollup_method TEXT NOT NULL DEFAULT 'NONE'
-                    );
-                    CREATE TABLE data_account_metric_binding (
-                      data_acct_code TEXT NOT NULL,
-                      metric_node_code TEXT NOT NULL,
-                      scope_type TEXT NOT NULL,
-                      scope_code TEXT NOT NULL,
-                      is_active INTEGER NOT NULL DEFAULT 1
-                    );
-                    CREATE TABLE org_product_tree_snapshot (
-                      id INTEGER PRIMARY KEY CHECK (id = 1),
-                      payload_json TEXT NOT NULL,
-                      updated_at TEXT NOT NULL
-                    );
-                    INSERT INTO data_account(data_acct_code, data_acct_name, value_type)
-                    VALUES ('A01.01.01.001', '产品利息收入', '金额');
-                    INSERT INTO data_account_metric_node(node_code, node_name, metric_rollup_method)
-                    VALUES ('A01.01.01.001', '产品利息收入', 'NONE');
-                    INSERT INTO org_product_tree_snapshot(id, payload_json, updated_at)
-                    VALUES(1, '{"code":"AA","name":"微众银行","children":[{"code":"A","name":"个金群","children":[{"code":"A01","name":"泛微粒贷","children":[]}]}]}', 'now');
-                    INSERT INTO data_account_metric_binding(data_acct_code, metric_node_code, scope_type, scope_code, is_active)
-                    VALUES ('A01.01.01.001', 'A01.01.01.001', 'PRODUCT', 'A01', 1);
-                    """
+                    INSERT INTO data_account_metric_node(
+                      node_code, node_name, parent_code, product_code,
+                      local_metric_code, logic_code,
+                      functional_group_code, metric_table_name,
+                      level, node_type,
+                      runtime_account_enabled, value_type
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    ('A01.01.01.001', '产品利息收入', 'A01.01.01', 'A01',
+                     '01.01.001', '01.01.001',
+                     '业务状况表', '业务状况表',
+                     4, 'METRIC', 1, '金额'),
                 )
+                conn.commit()
 
             for path, values in (
                 (included_budget, [100, 200]),

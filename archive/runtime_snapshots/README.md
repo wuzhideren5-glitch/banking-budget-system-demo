@@ -12,3 +12,11 @@ runs, generated-output evidence, logs, Office temp files, and the retired
 The current runtime state remains under `var/`; current live SQLite databases
 remain under `var/data/`. Do not restore historical DBs into active runtime
 paths unless there is a current recovery plan.
+
+当前 `archive/runtime_snapshots/` 运行快照目录精确清单（工作树门禁读取）：`misplaced_apps_runtime_20260617`。
+
+## Current Snapshot Buckets
+
+| Directory | Historical role |
+| --- | --- |
+| `misplaced_apps_runtime_20260617/` | Misplaced `apps/var` and `apps/resources` runtime copies moved out of the active `apps/` tree. |

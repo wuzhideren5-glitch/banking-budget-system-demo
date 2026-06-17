@@ -159,12 +159,13 @@ class BudgetSimulationMetricResolutionTests(unittest.TestCase):
                       node_name TEXT,
                       local_metric_code TEXT,
                       functional_group_code TEXT,
+                      metric_table_name TEXT NOT NULL DEFAULT '',
                       is_active INTEGER
                     );
                     INSERT INTO data_account_metric_node(
-                      node_code, node_name, local_metric_code, functional_group_code, is_active
+                      node_code, node_name, local_metric_code, functional_group_code, metric_table_name, is_active
                     ) VALUES (
-                      'A01.03.01.03.001', '利息收入', '03.01.03', 'INTEREST_INCOME', 1
+                      'A01.03.01.03.001', '利息收入', '03.01.03', 'INTEREST_INCOME', '', 1
                     );
 
                     CREATE TABLE data_account (
@@ -244,12 +245,13 @@ class BudgetSimulationMetricResolutionTests(unittest.TestCase):
                       node_name TEXT,
                       local_metric_code TEXT,
                       functional_group_code TEXT,
+                      metric_table_name TEXT NOT NULL DEFAULT '',
                       is_active INTEGER
                     );
                     INSERT INTO data_account_metric_node(
-                      node_code, node_name, local_metric_code, functional_group_code, is_active
+                      node_code, node_name, local_metric_code, functional_group_code, metric_table_name, is_active
                     ) VALUES (
-                      'A01.01.01.01.017', '管理贷款日均', '01.01.017', 'MGMT_LOAN_DAILY', 1
+                      'A01.01.01.01.017', '管理贷款日均', '01.01.017', 'MGMT_LOAN_DAILY', '', 1
                     );
 
                     CREATE TABLE data_account (

@@ -11,6 +11,53 @@ from openpyxl import Workbook
 
 from app.core.db_paths import budget_db_path, common_db_path
 from app.routers.org_product_helpers import *
+from app.routers.org_product_helpers import (
+    _ensure_metric_table_catalog,
+    _load_metric_table_catalog_rows,
+    _metric_table_catalog_row_to_dict,
+    _normalize_text,
+    _now_iso,
+    _parse_metric_batch_upload,
+    _parse_metric_upload,
+    _parse_metric_workbook,
+    _parse_metric_workbook_tables,
+    _sanitize_metric_node_dicts_for_response,
+    _sanitize_metric_nodes_for_save,
+    _seed_metric_table_catalog,
+)
+
+def _build_entities_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """将 runtime_tree rows 转换为与 db-snapshot 一致的 entities 列表。"""
+    entities: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        entity_code = row.get("entity_code")
+        entity_name = row.get("entity_name")
+        table_name = row.get("table_name")
+        payload_json = row.get("payload_json")
+        code = str(entity_code or "").strip()
+        if not code:
+            continue
+        ent = entities.setdefault(
+            code,
+            {
+                "entity_code": code,
+                "entity_name": str(entity_name or "").strip(),
+                "tables": [],
+            },
+        )
+        try:
+            table_obj = json.loads(payload_json or "{}")
+        except Exception:
+            table_obj = {}
+        table_obj["name"] = str(table_obj.get("name") or table_name or "").strip() or str(table_name or "").strip()
+        metrics = table_obj.get("metrics") if isinstance(table_obj.get("metrics"), list) else []
+        table_obj["metrics"] = _sanitize_metric_node_dicts_for_response(
+            code,
+            [item for item in metrics if isinstance(item, dict)],
+        )
+        ent["tables"].append(table_obj)
+    return list(entities.values())
+
 
 router = APIRouter()
 
@@ -26,9 +73,22 @@ async def get_org_product_metric_seed():
             items.update(_parse_metric_workbook(PRODUCT_METRIC_FILE))
             table_items.update(_parse_metric_workbook_tables(ORG_METRIC_FILE))
             table_items.update(_parse_metric_workbook_tables(PRODUCT_METRIC_FILE))
+
+            # Excel 分支也附加数据库 entities（供前端补充 orgTree，与 db-snapshot 一致）
+            db_entities: list[dict[str, Any]] = []
+            path = common_db_path()
+            if path.exists():
+                try:
+                    with sqlite3.connect(path) as conn:
+                        rows = load_org_product_metric_table_rows_from_runtime_tree(conn)
+                        db_entities = _build_entities_from_rows(rows)
+                except Exception:
+                    db_entities = []
+
             return {
                 "items": items,
                 "table_items": table_items,
+                "entities": db_entities,
                 "sources": {
                     "org_metric_file": str(ORG_METRIC_FILE),
                     "product_metric_file": str(PRODUCT_METRIC_FILE),
@@ -39,10 +99,10 @@ async def get_org_product_metric_seed():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"读取指标 Excel 失败：{exc}") from exc
 
-    # DB 回退：从 common.db 的 org_product_metric_table 读取已保存的指标
+    # DB 回退：从 common.db 读取已保存的指标
     path = common_db_path()
     if not path.exists():
-        return {"items": {}, "table_items": {}, "sources": {"fallback": "db", "note": "数据库不存在"}}
+        return {"items": {}, "table_items": {}, "entities": [], "sources": {"fallback": "db", "note": "数据库不存在"}}
 
     try:
         with sqlite3.connect(path) as conn:
@@ -50,6 +110,7 @@ async def get_org_product_metric_seed():
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"读取数据库指标失败：{exc}") from exc
 
+    db_entities = _build_entities_from_rows(rows)
     items: dict[str, list[dict[str, Any]]] = {}
     table_items: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
@@ -76,6 +137,7 @@ async def get_org_product_metric_seed():
     return {
         "items": items,
         "table_items": table_items,
+        "entities": db_entities,
         "sources": {"fallback": "db", "note": "Excel 种子文件未找到，已从数据库读取"},
     }
 
@@ -402,4 +464,3 @@ async def get_single_annual_aggregation(
         "month_count": result.month_count,
         "error": result.error,
     }
-

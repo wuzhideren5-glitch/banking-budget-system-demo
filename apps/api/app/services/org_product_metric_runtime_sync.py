@@ -399,16 +399,38 @@ def _existing_node_names(conn: sqlite3.Connection) -> dict[str, str]:
     }
 
 
-def _node_name(code: str, ref_names: dict[str, str], product_names: dict[str, str], existing_names: dict[str, str]) -> str:
-    if code in ref_names:
+def _node_name(
+    code: str,
+    ref_names: dict[str, str],
+    product_names: dict[str, str],
+    existing_names: dict[str, str],
+    child_names: dict[str, str] | None = None,
+) -> str:
+    """Return the best available name for a metric node.
+
+    Priority: explicit name from payload → existing DB name → product name →
+    code as fallback → child-name derivation.
+    Implicit (auto-created) parent nodes always receive a valid name:
+    - If the node has a code, use it as the name (``name = code``).
+    - If code is also empty (degenerate case), derive from a child:
+      ``name = f"[{child_name}的父节点]"``.
+    """
+    if code in ref_names and ref_names[code]:
         return ref_names[code]
-    if code in existing_names:
+    if code in existing_names and existing_names[code]:
         return existing_names[code]
     if _is_product_root(code):
         return product_names.get(code) or code
-    # 中间 GROUP 节点允许以 code 兜底命名。
-    # 严格校验（缺失报错）放在导入预览层，不在同步层阻断。
-    return code
+    # 隐式父节点（GROUP）：优先使用 code 作为名称。
+    if code:
+        return code
+    # 极端情况：code 也为空，从子节点名称派生。
+    if child_names:
+        sample_child_name = next(iter(child_names.values()), "")
+        if sample_child_name:
+            return f"[{sample_child_name}的父节点]"
+    # 最终兜底
+    return "(未命名)"
 
 
 def _all_node_codes(
@@ -452,6 +474,11 @@ def sync_org_product_metric_runtime_refs(
         for ref in refs
         if (parent := parent_by_code.get(ref.code) or _parent_code(ref.code))
     }
+    # Build child→name map so that implicit parents without a name can derive
+    # one from their children (e.g. "[利息收入的父节点]").
+    child_names: dict[str, str] = {
+        ref.code: ref.name for ref in refs if ref.name
+    }
 
     node_count = 0
     for node_code in _all_node_codes(refs, parent_by_code=parent_by_code):
@@ -467,9 +494,9 @@ def sync_org_product_metric_runtime_refs(
             """
             INSERT INTO data_account_metric_node(
               node_code, node_name, parent_code, product_code, local_metric_code, logic_code,
-              functional_group_code, level, node_type, horizontal_rollup, vertical_rollup,
+              functional_group_code, metric_table_name, level, node_type, horizontal_rollup, vertical_rollup,
               sort_order, is_active, remark
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             ON CONFLICT(node_code) DO UPDATE SET
               node_name=excluded.node_name,
               parent_code=excluded.parent_code,
@@ -477,6 +504,7 @@ def sync_org_product_metric_runtime_refs(
               local_metric_code=excluded.local_metric_code,
               logic_code=excluded.logic_code,
               functional_group_code=excluded.functional_group_code,
+              metric_table_name=excluded.metric_table_name,
               level=excluded.level,
               node_type=CASE
                 WHEN excluded.node_type='GROUP' AND data_account_metric_node.node_type='METRIC' THEN 'GROUP'
@@ -490,12 +518,13 @@ def sync_org_product_metric_runtime_refs(
             """,
             (
                 node_code,
-                _node_name(node_code, ref_names, product_names, existing_names),
+                _node_name(node_code, ref_names, product_names, existing_names, child_names=child_names),
                 parent_code,
                 product_code,
                 local_code,
                 logic_code,
                 _normalize_text(table_name),
+                _canonical_metric_table_name(table_name),
                 _level(node_code),
                 node_type,
                 horizontal_rollup,
@@ -541,6 +570,13 @@ def sync_org_product_metric_runtime_refs(
 # ─── 运行指标同步主流程 ───
 
 def sync_existing_org_product_metric_tables(conn: sqlite3.Connection) -> OrgProductMetricRuntimeSyncResult:
+    """One-time migration: sync remaining rows from the retired org_product_metric_table
+    into data_account_metric_node, then DROP the old table.
+
+    NOTE: The old org_product_metric_table has been retired.  This function is
+    kept as a no-op guard for backward compatibility — if the table no longer
+    exists (as expected), it returns immediately.
+    """
     row = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_product_metric_table'"
     ).fetchone()
@@ -580,12 +616,18 @@ def sync_existing_org_product_metric_tables(conn: sqlite3.Connection) -> OrgProd
             created_or_updated_accounts=total.created_or_updated_accounts + result.created_or_updated_accounts,
             created_or_updated_bindings=total.created_or_updated_bindings + result.created_or_updated_bindings,
         )
-    conn.execute("DROP TABLE org_product_metric_table")
+    # Retired table: drop after successful migration.
+    conn.execute("DROP TABLE IF EXISTS org_product_metric_table")
     return total
 
 
 def normalize_org_product_metric_mapping_statuses(conn: sqlite3.Connection) -> int:
-    """Normalize legacy/blank org-product metric mapping statuses."""
+    """Normalize legacy/blank org-product metric mapping statuses.
+
+    NOTE: The old org_product_metric_table has been retired.  This function is
+    kept as a no-op guard for backward compatibility — if the table no longer
+    exists (as expected), it returns 0 immediately.
+    """
     row = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_product_metric_table'"
     ).fetchone()
@@ -933,7 +975,12 @@ def _upsert_metric_payload_node(
 
 
 def purge_legacy_corp_metric_master(conn: sqlite3.Connection) -> int:
-    """Remove retired CORP entity/runtime rows after refs have been normalized to AA."""
+    """Remove retired CORP entity/runtime rows after refs have been normalized to AA.
+
+    NOTE: The old org_product_metric_table has been retired.  The guard for
+    that table is kept for backward compatibility but will be a no-op when the
+    table no longer exists.
+    """
     current_tables = {
         str(row[0])
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -1201,29 +1248,13 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
         key = (entity_code, table_name)
         if key in payloads:
             return payloads[key]
-        row = None
-        if conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_product_metric_table'"
-        ).fetchone():
-            row = conn.execute(
-                """
-                SELECT payload_json
-                FROM org_product_metric_table
-                WHERE entity_code=? AND table_name=?
-                """,
-                key,
-            ).fetchone()
-        if row:
-            try:
-                payload = json.loads(row[0] or "{}")
-            except Exception:
-                payload = {}
-        else:
-            payload = load_org_product_metric_payload_from_runtime_tree(
-                conn,
-                entity_code=entity_code,
-                table_name=table_name,
-            ) or {}
+        # The old org_product_metric_table has been retired;
+        # always load from the canonical runtime tree (data_account_metric_node).
+        payload = load_org_product_metric_payload_from_runtime_tree(
+            conn,
+            entity_code=entity_code,
+            table_name=table_name,
+        ) or {}
         metrics = payload.get("metrics") if isinstance(payload, dict) else []
         if not isinstance(metrics, list):
             metrics = []
@@ -1333,9 +1364,9 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
             """
             INSERT INTO data_account_metric_node(
               node_code, node_name, parent_code, product_code, local_metric_code, logic_code,
-              functional_group_code, level, node_type, horizontal_rollup, vertical_rollup,
+              functional_group_code, metric_table_name, level, node_type, horizontal_rollup, vertical_rollup,
               sort_order, is_active, remark
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 1, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 1, ?)
             ON CONFLICT(node_code) DO UPDATE SET
               node_name=excluded.node_name,
               parent_code=excluded.parent_code,
@@ -1343,6 +1374,7 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
               local_metric_code=excluded.local_metric_code,
               logic_code=excluded.logic_code,
               functional_group_code=excluded.functional_group_code,
+              metric_table_name=excluded.metric_table_name,
               level=excluded.level,
               node_type=excluded.node_type,
               sort_order=excluded.sort_order,
@@ -1356,6 +1388,7 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
                 node.product_code,
                 node.local_metric_code,
                 node.local_metric_code,
+                "业务支出评估" if ".91" in node.node_code else "业务状况表",
                 "业务支出评估" if ".91" in node.node_code else "业务状况表",
                 node.level,
                 node_type,

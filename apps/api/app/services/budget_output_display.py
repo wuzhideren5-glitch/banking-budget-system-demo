@@ -285,13 +285,13 @@ def _is_org_product_fee05_metric_code(entity_code: str, raw_code: Any) -> bool:
 async def _load_org_product_metric_payloads(db: aiosqlite.Connection) -> list[dict[str, Any]]:
     cur = await db.execute(
         """
-        SELECT node_code, node_name, product_code, functional_group_code
+        SELECT node_code, node_name, product_code, metric_table_name
         FROM data_account_metric_node
         WHERE is_active = 1
           AND runtime_account_enabled = 1
           AND COALESCE(product_code, '') <> ''
-          AND COALESCE(functional_group_code, '') <> ''
-        ORDER BY product_code, functional_group_code, node_code
+          AND COALESCE(metric_table_name, '') <> ''
+        ORDER BY product_code, metric_table_name, node_code
         """
     )
     records = await cur.fetchall()
@@ -303,7 +303,7 @@ async def _load_org_product_metric_payloads(db: aiosqlite.Connection) -> list[di
         rows.append(
             {
                 "entity_code": str(record["product_code"] or "").strip().upper(),
-                "table_name": str(record["functional_group_code"] or "").strip(),
+                "table_name": str(record["metric_table_name"] or "").strip(),
                 "metric_code": metric_code,
                 "metric_name": str(record["node_name"] or "").strip(),
                 "metric_node_code": metric_code,

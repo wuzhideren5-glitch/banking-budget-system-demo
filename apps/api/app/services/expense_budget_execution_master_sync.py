@@ -101,13 +101,13 @@ async def _load_confirmed_org_product_metric_subjects() -> dict[str, dict[str, A
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
-            SELECT node_code, node_name, product_code, functional_group_code, value_type
+            SELECT node_code, node_name, product_code, metric_table_name, value_type
             FROM data_account_metric_node
             WHERE is_active = 1
               AND runtime_account_enabled = 1
               AND COALESCE(product_code, '') <> ''
-              AND COALESCE(functional_group_code, '') <> ''
-            ORDER BY product_code, functional_group_code, node_code
+              AND COALESCE(metric_table_name, '') <> ''
+            ORDER BY product_code, metric_table_name, node_code
             """
         )
         rows = await cur.fetchall()

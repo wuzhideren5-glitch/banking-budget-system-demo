@@ -29,6 +29,7 @@ class AgentProductIntentCatalogTests(unittest.TestCase):
                     runtime_account_enabled INTEGER DEFAULT 0,
                     product_code TEXT DEFAULT '',
                     functional_group_code TEXT DEFAULT '',
+                    metric_table_name TEXT NOT NULL DEFAULT '',
                     value_type TEXT DEFAULT ''
                 );
                 CREATE TABLE data_account_metric_binding(
@@ -44,11 +45,11 @@ class AgentProductIntentCatalogTests(unittest.TestCase):
                 CREATE TABLE org_product_tree_snapshot(id INTEGER PRIMARY KEY, payload_json TEXT);
                 CREATE TABLE org_product_metric_table(entity_code TEXT, table_name TEXT, payload_json TEXT);
 
-                INSERT INTO data_account_metric_node(node_code, node_name, parent_code, level, node_type, sort_order, is_active, runtime_account_enabled, product_code, functional_group_code) VALUES
-                    ('A03', '汽车金融', '', 1, 'CATEGORY', 0, 1, 0, '', ''),
-                    ('A03.01', '规模余额指标', 'A03', 2, 'GROUP', 0, 1, 0, '', ''),
-                    ('A03.01.01.001', '汽金管理贷款余额', 'A03.01', 4, 'METRIC', 0, 1, 1, 'A03', '业务状况表'),
-                    ('Z99.01.001', '孤立运行指标节点', '', 3, 'METRIC', 0, 1, 0, '', '');
+                INSERT INTO data_account_metric_node(node_code, node_name, parent_code, level, node_type, sort_order, is_active, runtime_account_enabled, product_code, functional_group_code, metric_table_name) VALUES
+                    ('A03', '汽车金融', '', 1, 'CATEGORY', 0, 1, 0, '', '', ''),
+                    ('A03.01', '规模余额指标', 'A03', 2, 'GROUP', 0, 1, 0, '', '', ''),
+                    ('A03.01.01.001', '汽金管理贷款余额', 'A03.01', 4, 'METRIC', 0, 1, 1, 'A03', '业务状况表', '业务状况表'),
+                    ('Z99.01.001', '孤立运行指标节点', '', 3, 'METRIC', 0, 1, 0, '', '', '');
                 INSERT INTO data_account_metric_binding VALUES
                     ('A03.01.01.001', 'A03.01.01.001', 'PRODUCT', 'A03', 0, 1),
                     ('Z99.01.001', 'Z99.01.001', 'PRODUCT', 'Z99', 0, 1);
@@ -82,6 +83,7 @@ class AgentProductIntentCatalogTests(unittest.TestCase):
                         runtime_account_enabled INTEGER DEFAULT 0,
                         product_code TEXT DEFAULT '',
                         functional_group_code TEXT DEFAULT '',
+                        metric_table_name TEXT NOT NULL DEFAULT '',
                         value_type TEXT DEFAULT ''
                     );
                     CREATE TABLE data_account_metric_binding(data_acct_code TEXT, is_active INTEGER);
@@ -90,9 +92,9 @@ class AgentProductIntentCatalogTests(unittest.TestCase):
                     CREATE TABLE org_product_tree_snapshot(id INTEGER PRIMARY KEY, payload_json TEXT);
                     CREATE TABLE org_product_metric_table(entity_code TEXT, table_name TEXT, payload_json TEXT);
 
-                    INSERT INTO data_account_metric_node(node_code, node_name, parent_code, level, node_type, is_active, runtime_account_enabled, product_code, functional_group_code) VALUES
-                        ('A03.01.01.001', '汽金管理贷款余额', '', 4, 'METRIC', 1, 1, 'A03', '业务状况表'),
-                        ('Z99.01.001', '孤立运行指标节点', '', 3, 'METRIC', 1, 0, '', '');
+                    INSERT INTO data_account_metric_node(node_code, node_name, parent_code, level, node_type, is_active, runtime_account_enabled, product_code, functional_group_code, metric_table_name) VALUES
+                        ('A03.01.01.001', '汽金管理贷款余额', '', 4, 'METRIC', 1, 1, 'A03', '业务状况表', '业务状况表'),
+                        ('Z99.01.001', '孤立运行指标节点', '', 3, 'METRIC', 1, 0, '', '', '');
                     INSERT INTO data_account_metric_binding VALUES ('A03.01.01.001', 1);
                     INSERT INTO data_account VALUES
                         ('A03.01.01.001', '汽金管理贷款余额', '金额'),

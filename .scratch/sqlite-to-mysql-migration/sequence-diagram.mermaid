@@ -1,0 +1,53 @@
+sequenceDiagram
+    participant App as FastAPI App
+    participant Main as main.py (startup)
+    participant Pool as DatabasePool
+    participant MySQL as MySQL 8.0
+    participant Router as Router Layer
+    participant Service as Service Layer
+    participant Writer as BudgetDataWriter
+
+    rect rgb(240, 248, 255)
+        Note over App,MySQL: === 系统启动 ===
+        Main->>Pool: init_pool(settings)
+        Pool->>MySQL: aiomysql.create_pool(host, port, user, password, db="banking_budget")
+        MySQL-->>Pool: pool created (2-10 connections)
+        Pool-->>Main: pool ready
+        Main->>Main: init_db.ensure_database() (同步 PyMySQL)
+        Note over Main: 同步创建表 + seed 数据
+    end
+
+    rect rgb(255, 250, 240)
+        Note over App,MySQL: === 请求处理 ===
+        Router->>Pool: pool.acquire()
+        Pool-->>Router: conn (from pool)
+        Router->>Router: async with conn.cursor(DictCursor) as cur
+        Router->>MySQL: await cur.execute("SELECT ... WHERE budget_year=%s", [2026])
+        MySQL-->>Router: rows (list of dict)
+        Router->>Pool: release conn back to pool
+        Router-->>App: JSONResponse(data=rows)
+    end
+
+    rect rgb(240, 255, 240)
+        Note over App,MySQL: === 写事务（预算数据录入） ===
+        Router->>Service: save cells
+        Service->>Writer: write_budget_data(items, policy, db_path)
+        Note over Writer: db_path → pool
+        Writer->>Pool: pool.acquire()
+        Pool-->>Writer: conn
+        Writer->>Writer: async with conn.cursor() as cur
+        Writer->>MySQL: await conn.begin()
+        Writer->>MySQL: INSERT INTO budget_data (...) VALUES (...)
+        Writer->>MySQL: ON DUPLICATE KEY UPDATE value=...
+        Writer->>MySQL: await conn.commit()
+        Writer->>Pool: release conn
+        Writer-->>Service: write result
+        Service-->>Router: result
+    end
+
+    rect rgb(255, 240, 240)
+        Note over App,MySQL: === 系统关闭 ===
+        App->>Pool: pool.close()
+        Pool->>MySQL: close all connections
+        MySQL-->>Pool: connections closed
+    end

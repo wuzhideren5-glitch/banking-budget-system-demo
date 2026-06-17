@@ -3,7 +3,7 @@
 This directory stores repo-local skills that are intentionally bundled with this
 checkout. It is not a scratch area for old prompts or one-off agent plans.
 
-当前 `.agents/skills/` 本地技能精确清单（工作树门禁读取）：`caveman`, `diagnose`, `git-guardrails-claude-code`, `grill-me`, `grill-with-docs`, `improve-codebase-architecture`, `migrate-to-shoehorn`, `prototype`, `scaffold-exercises`, `setup-matt-pocock-skills`, `setup-pre-commit`, `tdd`, `team-submit-packaging-md`, `to-issues`, `to-prd`, `triage`, `write-a-skill`, `zoom-out`。
+当前 `.agents/skills/` 本地技能精确清单（工作树门禁读取）：`caveman`, `diagnose`, `git-guardrails-claude-code`, `grill-me`, `grill-with-docs`, `improve-codebase-architecture`, `migrate-to-shoehorn`, `prototype`, `qoder-deploy-package`, `scaffold-exercises`, `setup-matt-pocock-skills`, `setup-pre-commit`, `tdd`, `team-submit-packaging-md`, `to-issues`, `to-prd`, `triage`, `write-a-skill`, `zoom-out`。
 
 ## Current Skills
 
@@ -17,6 +17,7 @@ checkout. It is not a scratch area for old prompts or one-off agent plans.
 | `improve-codebase-architecture` | Architecture cleanup and deep-module exploration. |
 | `migrate-to-shoehorn` | Test assertion migration workflow. |
 | `prototype` | Throwaway prototype workflow. |
+| `qoder-deploy-package` | Qoder deployment package workflow for banking-budget runtime zips. |
 | `scaffold-exercises` | Exercise scaffolding workflow. |
 | `setup-matt-pocock-skills` | Repo skill setup workflow. |
 | `setup-pre-commit` | Pre-commit hook setup workflow. |

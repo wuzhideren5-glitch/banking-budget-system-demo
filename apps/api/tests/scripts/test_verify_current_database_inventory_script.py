@@ -768,6 +768,7 @@ class VerifyCurrentDatabaseInventoryScriptTests(unittest.TestCase):
                       local_metric_code TEXT,
                       logic_code TEXT DEFAULT '',
                       functional_group_code TEXT,
+                      metric_table_name TEXT NOT NULL DEFAULT '',
                       horizontal_rollup INTEGER DEFAULT 0,
                       vertical_rollup INTEGER DEFAULT 0,
                       runtime_account_enabled INTEGER DEFAULT 0,
@@ -837,6 +838,7 @@ class VerifyCurrentDatabaseInventoryScriptTests(unittest.TestCase):
                       local_metric_code TEXT,
                       logic_code TEXT DEFAULT '',
                       functional_group_code TEXT,
+                      metric_table_name TEXT NOT NULL DEFAULT '',
                       horizontal_rollup INTEGER DEFAULT 0,
                       vertical_rollup INTEGER DEFAULT 0,
                       runtime_account_enabled INTEGER DEFAULT 0,
@@ -1162,6 +1164,7 @@ class VerifyCurrentDatabaseInventoryScriptTests(unittest.TestCase):
                       runtime_account_enabled INTEGER DEFAULT 0,
                       value_type TEXT DEFAULT '',
                       functional_group_code TEXT DEFAULT '',
+                      metric_table_name TEXT NOT NULL DEFAULT '',
                       level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 8),
                       node_type TEXT NOT NULL CHECK (node_type IN ('CATEGORY', 'GROUP', 'METRIC')),
                       metric_rollup_method TEXT NOT NULL DEFAULT 'NONE' CHECK (metric_rollup_method IN ('SUM', 'FORMULA', 'NONE'))
@@ -1227,6 +1230,7 @@ class VerifyCurrentDatabaseInventoryScriptTests(unittest.TestCase):
                       runtime_account_enabled INTEGER DEFAULT 0,
                       value_type TEXT DEFAULT '',
                       functional_group_code TEXT DEFAULT '',
+                      metric_table_name TEXT NOT NULL DEFAULT '',
                       level INTEGER NOT NULL,
                       node_type TEXT NOT NULL,
                       metric_rollup_method TEXT NOT NULL DEFAULT 'NONE'

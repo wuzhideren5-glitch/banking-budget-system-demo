@@ -175,6 +175,7 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
                   local_metric_code TEXT,
                   logic_code TEXT,
                   functional_group_code TEXT,
+                  metric_table_name TEXT NOT NULL DEFAULT '',
                   level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 8),
                   node_type TEXT NOT NULL CHECK (node_type IN ('CATEGORY', 'GROUP', 'METRIC')),
                   horizontal_rollup INTEGER NOT NULL DEFAULT 0 CHECK (horizontal_rollup IN (0, 1)),
@@ -187,11 +188,11 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
                 );
                 INSERT INTO data_account_metric_node(
                   node_code, node_name, parent_code, product_code, local_metric_code, logic_code,
-                  functional_group_code, level, node_type, horizontal_rollup, vertical_rollup,
+                  functional_group_code, metric_table_name, level, node_type, horizontal_rollup, vertical_rollup,
                   sort_order, is_active
                 ) VALUES(
                   'A01.05.01.01', '待迁移', NULL, 'A01', '05.01.01', '05.01.01',
-                  '业务状况表', 4, 'METRIC', 0, 0, 1, 1
+                  '业务状况表', '业务状况表', 4, 'METRIC', 0, 0, 1, 1
                 );
                 """
             )
@@ -369,13 +370,13 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
                 """
                 INSERT INTO data_account_metric_node(
                   node_code, node_name, parent_code, product_code, local_metric_code,
-                  functional_group_code, level, node_type, runtime_account_enabled,
+                  functional_group_code, metric_table_name, level, node_type, runtime_account_enabled,
                   allow_manual_entry, value_type
                 )
                 VALUES
-                  ('AA', '微众银行', NULL, 'AA', '', '', 1, 'CATEGORY', 0, 1, '金额'),
-                  ('AA.05', '减:业务及管理费', 'AA', 'AA', '05', '业务状况表', 2, 'GROUP', 1, 1, '金额'),
-                  ('AA.05.01', '人力费用', 'AA.05', 'AA', '05.01', '业务状况表', 3, 'METRIC', 1, 1, '金额');
+                  ('AA', '微众银行', NULL, 'AA', '', '', '', 1, 'CATEGORY', 0, 1, '金额'),
+                  ('AA.05', '减:业务及管理费', 'AA', 'AA', '05', '业务状况表', '业务状况表', 2, 'GROUP', 1, 1, '金额'),
+                  ('AA.05.01', '人力费用', 'AA.05', 'AA', '05.01', '业务状况表', '业务状况表', 3, 'METRIC', 1, 1, '金额');
                 """
             )
 
@@ -457,26 +458,45 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
                     }
                 ],
             }
+            # The old org_product_metric_table has been retired; seed the
+            # pre-existing payload data directly into data_account_metric_node
+            # so that the merge function can load it via the runtime tree.
             conn.execute(
                 """
-                CREATE TABLE org_product_metric_table (
-                  entity_code TEXT NOT NULL,
-                  entity_name TEXT NOT NULL,
-                  table_id TEXT NOT NULL,
-                  table_name TEXT NOT NULL,
-                  payload_json TEXT NOT NULL,
-                  updated_at TEXT NOT NULL,
-                  PRIMARY KEY(entity_code, table_name)
-                )
-                """
+                INSERT INTO data_account_metric_node(
+                  node_code, node_name, parent_code, product_code, local_metric_code,
+                  logic_code, functional_group_code, metric_table_name, level, node_type,
+                  horizontal_rollup, vertical_rollup, runtime_account_enabled,
+                  sort_order, is_active, remark, value_type, allow_manual_entry
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("B01", "企业金融", None, "B01", "", "", "业务状况表", "业务状况表",
+                 1, "CATEGORY", 0, 0, 0, 0, 1, "", "金额", 0),
             )
             conn.execute(
                 """
-                INSERT INTO org_product_metric_table
-                  (entity_code, entity_name, table_id, table_name, payload_json, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO data_account_metric_node(
+                  node_code, node_name, parent_code, product_code, local_metric_code,
+                  logic_code, functional_group_code, metric_table_name, level, node_type,
+                  horizontal_rollup, vertical_rollup, runtime_account_enabled,
+                  sort_order, is_active, remark, value_type, allow_manual_entry
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                ("B01", "企业金融", "table-业务状况表", "业务状况表", json.dumps(payload), "2026-06-13T00:00:00Z"),
+                ("B01.05.01.01", "直接费用", "B01.05.01", "B01", "05.01.01", "05.01.01",
+                 "业务状况表", "业务状况表", 4, "GROUP", 0, 0, 0, 0, 1, "", "金额", 0),
+            )
+            conn.execute(
+                """
+                INSERT INTO data_account_metric_node(
+                  node_code, node_name, parent_code, product_code, local_metric_code,
+                  logic_code, functional_group_code, metric_table_name, level, node_type,
+                  horizontal_rollup, vertical_rollup, runtime_account_enabled,
+                  sort_order, is_active, remark, value_type, allow_manual_entry
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                ("B01.05.01.01.03.03.001", "IT职场", "B01.05.01.01.03.03", "B01",
+                 "05.01.01.03.03.001", "05.01.01.03.03.001",
+                 "业务状况表", "业务状况表", 7, "METRIC", 0, 0, 1, 0, 1, "", "金额", 1),
             )
 
             merge_canonical_expense_metric_trees_into_org_product_metrics(conn)
@@ -632,13 +652,13 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
                 );
                 INSERT INTO data_account_metric_node
                   (node_code, node_name, parent_code, product_code, local_metric_code,
-                   functional_group_code, level, node_type, runtime_account_enabled,
+                   functional_group_code, metric_table_name, level, node_type, runtime_account_enabled,
                    allow_manual_entry, value_type)
                 VALUES
-                  ('A01', '产品A', NULL, 'A01', '', '', 1, 'CATEGORY', 0, 1, '金额'),
-                  ('A01.14', '贷款利息收入', 'A01', 'A01', '14', '业务状况表', 2, 'CATEGORY', 0, 1, '金额'),
-                  ('A01.14.01', '自营贷款', 'A01.14', 'A01', '14.01', '业务状况表', 3, 'CATEGORY', 0, 1, '金额'),
-                  ('A01.14.01.03', '利息收入', 'A01.14.01', 'A01', '14.01.03', '业务状况表', 4, 'METRIC', 1, 1, '金额');
+                  ('A01', '产品A', NULL, 'A01', '', '', '', 1, 'CATEGORY', 0, 1, '金额'),
+                  ('A01.14', '贷款利息收入', 'A01', 'A01', '14', '业务状况表', '业务状况表', 2, 'CATEGORY', 0, 1, '金额'),
+                  ('A01.14.01', '自营贷款', 'A01.14', 'A01', '14.01', '业务状况表', '业务状况表', 3, 'CATEGORY', 0, 1, '金额'),
+                  ('A01.14.01.03', '利息收入', 'A01.14.01', 'A01', '14.01.03', '业务状况表', '业务状况表', 4, 'METRIC', 1, 1, '金额');
                 """
             )
 
@@ -667,12 +687,12 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
                 );
                 INSERT INTO data_account_metric_node
                   (node_code, node_name, parent_code, product_code, local_metric_code,
-                   functional_group_code, level, node_type, runtime_account_enabled,
+                   functional_group_code, metric_table_name, level, node_type, runtime_account_enabled,
                    allow_manual_entry, value_type)
                 VALUES
-                  ('A01', '产品A', NULL, 'A01', '', '', 1, 'CATEGORY', 0, 1, '金额'),
-                  ('A01.02', '减:风险成本', 'A01', 'A01', '02', '业务状况表', 2, 'CATEGORY', 0, 1, '金额'),
-                  ('A01.02.03', '付息率', 'A01.02', 'A01', '02.03', '业务状况表', 3, 'METRIC', 1, 1, '百分比');
+                  ('A01', '产品A', NULL, 'A01', '', '', '', 1, 'CATEGORY', 0, 1, '金额'),
+                  ('A01.02', '减:风险成本', 'A01', 'A01', '02', '业务状况表', '业务状况表', 2, 'CATEGORY', 0, 1, '金额'),
+                  ('A01.02.03', '付息率', 'A01.02', 'A01', '02.03', '业务状况表', '业务状况表', 3, 'METRIC', 1, 1, '百分比');
                 """
             )
             existing_payload = {

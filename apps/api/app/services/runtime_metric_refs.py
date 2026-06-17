@@ -304,12 +304,12 @@ async def load_confirmed_org_product_runtime_ref_codes(db: aiosqlite.Connection)
 async def load_org_product_metric_refs_by_runtime_ref_code(db: aiosqlite.Connection) -> dict[str, list[str]]:
     cur = await db.execute(
         """
-        SELECT node_code, node_name, product_code, functional_group_code
+        SELECT node_code, node_name, product_code, metric_table_name
         FROM data_account_metric_node
         WHERE is_active = 1
           AND runtime_account_enabled = 1
           AND COALESCE(product_code, '') <> ''
-          AND COALESCE(functional_group_code, '') <> ''
+          AND COALESCE(metric_table_name, '') <> ''
         """
     )
     refs_by_code: dict[str, list[str]] = {}
@@ -334,12 +334,12 @@ async def load_org_product_metric_refs_by_runtime_ref_code(db: aiosqlite.Connect
 def load_org_product_metric_refs_by_runtime_ref_code_sync(conn: sqlite3.Connection) -> dict[str, tuple[str, ...]]:
     cur = conn.execute(
         """
-        SELECT node_code, node_name, product_code, functional_group_code
+        SELECT node_code, node_name, product_code, metric_table_name
         FROM data_account_metric_node
         WHERE is_active = 1
           AND runtime_account_enabled = 1
           AND COALESCE(product_code, '') <> ''
-          AND COALESCE(functional_group_code, '') <> ''
+          AND COALESCE(metric_table_name, '') <> ''
         """
     )
     refs_by_code: dict[str, list[str]] = {}

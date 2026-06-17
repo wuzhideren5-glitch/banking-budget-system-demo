@@ -10,6 +10,14 @@ from openpyxl import Workbook
 
 from app.core.db_paths import common_db_path
 from app.routers.org_product_helpers import *
+from app.routers.org_product_helpers import (
+    _attachment_content_disposition,
+    _ensure_org_product_tree_table,
+    _flatten_org_product_tree,
+    _now_iso,
+    _parse_org_product_tree_excel,
+    _resolve_org_product_tree_excel_path,
+)
 
 router = APIRouter()
 
@@ -150,4 +158,3 @@ async def export_org_product_tree_excel(payload: OrgProductTreeSavePayload):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"导出 Excel 失败：{exc}") from exc
-

@@ -125,6 +125,11 @@ type MetricEditDraft = {
 type BootstrapResponse = {
   items: Record<string, MetricNode[]>;
   table_items?: Record<string, MetricTable[]>;
+  entities?: Array<{
+    entity_code: string;
+    entity_name: string;
+    tables: { id: string; name: string; metrics: MetricNode[] }[];
+  }>;
   sources: {
     org_metric_file: string;
     product_metric_file: string;
@@ -2620,13 +2625,11 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
       setLoading(true);
       setLoadError("");
       try {
-        const [response, catalogResp, snapResp] = await Promise.all([
+        const [response, catalogResp] = await Promise.all([
           (getOrgProductMetricBootstrap() as unknown as Promise<BootstrapResponse>),
           (getMetricTableCatalog() as unknown as Promise<MetricTableCatalogResponse>),
-          (getOrgProductMetricDbSnapshot() as unknown as Promise<OrgProductMetricDbSnapshotDto>).catch(() => ({
-            entities: [],
-          })),
         ]);
+        const snapResp = { entities: ((response as any).entities ?? []) } as OrgProductMetricDbSnapshotDto;
         if (cancelled) return;
         currentTree = ensureOrgTreeIncludesDbSnapshotEntities(currentTree, snapResp);
         setOrgTree(currentTree);
