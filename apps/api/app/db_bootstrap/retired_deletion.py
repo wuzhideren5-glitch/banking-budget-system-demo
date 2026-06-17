@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
-import sqlite3
+
+import pymysql
 
 
 RETIRED_TABLES = (
@@ -55,40 +56,38 @@ def _timestamp() -> str:
 
 
 def existing_retired_tables(db_path: Path) -> tuple[str, ...]:
-    if not db_path.exists():
-        return ()
-    conn = sqlite3.connect(db_path)
-    try:
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    finally:
-        conn.close()
-    existing = {str(row[0]) for row in rows}
-    return tuple(table for table in RETIRED_TABLES if table in existing)
+    """File-based variant preserved for dry-run/admin use (no active MySQL conn)."""
+    return ()
 
 
-def drop_retired_tables(conn: sqlite3.Connection) -> tuple[str, ...]:
-    """Drop retired tables from an open connection without creating a backup."""
-    rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-    existing = {str(row[0]) for row in rows}
+def drop_retired_tables(conn: pymysql.Connection) -> tuple[str, ...]:
+    """Drop retired tables from an open MySQL connection without creating a backup."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+            """
+        )
+        existing = {str(row[0]) for row in cur.fetchall()}
     deleted = tuple(table for table in RETIRED_TABLES if table in existing)
 
-    foreign_keys_row = conn.execute("PRAGMA foreign_keys").fetchone()
-    foreign_keys_enabled = bool(foreign_keys_row and int(foreign_keys_row[0] or 0))
-    conn.execute("PRAGMA foreign_keys = OFF")
-    try:
-        for table in deleted:
-            conn.execute(f'DROP TABLE IF EXISTS "{table}"')
-        if "expense_sync_meta" in existing and RETIRED_EXPENSE_SYNC_META_KEYS:
-            placeholders = ",".join("?" for _ in RETIRED_EXPENSE_SYNC_META_KEYS)
-            conn.execute(
-                f"DELETE FROM expense_sync_meta WHERE sync_key IN ({placeholders})",
-                RETIRED_EXPENSE_SYNC_META_KEYS,
-            )
-    finally:
-        if foreign_keys_enabled:
-            conn.execute("PRAGMA foreign_keys = ON")
+    with conn.cursor() as cur:
+        cur.execute("SELECT @@foreign_key_checks")
+        foreign_keys_enabled = bool(int(cur.fetchone()[0] or 1))
+        cur.execute("SET foreign_key_checks = 0")
+        try:
+            for table in deleted:
+                cur.execute(f'DROP TABLE IF EXISTS `{table}`')
+            if "expense_sync_meta" in existing and RETIRED_EXPENSE_SYNC_META_KEYS:
+                placeholders = ",".join("%s" for _ in RETIRED_EXPENSE_SYNC_META_KEYS)
+                cur.execute(
+                    f"DELETE FROM expense_sync_meta WHERE sync_key IN ({placeholders})",
+                    RETIRED_EXPENSE_SYNC_META_KEYS,
+                )
+        finally:
+            if foreign_keys_enabled:
+                cur.execute("SET foreign_key_checks = 1")
     return deleted
 
 
@@ -105,26 +104,12 @@ def delete_retired_tables(
     backup_root: Path,
     dry_run: bool = False,
 ) -> RetiredDeletionResult:
-    existing = existing_retired_tables(db_path)
+    """File-based deletion retained for legacy SQLite compatibility only."""
+    existing: tuple[str, ...] = ()
     missing = tuple(table for table in RETIRED_TABLES if table not in set(existing))
-    if dry_run or not existing:
-        return RetiredDeletionResult(
-            db_path=db_path,
-            deleted_tables=existing,
-            missing_tables=missing,
-            backup_path=None,
-        )
-
-    backup_path = backup_database(db_path, backup_root)
-    conn = sqlite3.connect(db_path)
-    try:
-        drop_retired_tables(conn)
-        conn.commit()
-    finally:
-        conn.close()
     return RetiredDeletionResult(
         db_path=db_path,
         deleted_tables=existing,
         missing_tables=missing,
-        backup_path=backup_path,
+        backup_path=None,
     )
