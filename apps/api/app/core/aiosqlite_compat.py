@@ -224,14 +224,11 @@ def _translate_sql(sql: str) -> str:
     # --- date('now') → CURDATE() ---
     sql = _DATE_NOW_RE.sub("CURDATE()", sql)
 
-    # --- MySQL doesn't allow TEXT columns to have DEFAULT values.
-    # Convert "col TEXT ... DEFAULT 'xxx'" to "col VARCHAR(255) ... DEFAULT 'xxx'"
-    sql = re.sub(
-        r"\bTEXT(\s+[^,;]*?DEFAULT\s)",
-        r"VARCHAR(255)\1",
-        sql,
-        flags=re.IGNORECASE,
-    )
+    # --- MySQL doesn't allow TEXT columns in DEFAULT or in UNIQUE/INDEX without
+    # key length. Convert ALL TEXT columns to VARCHAR(255).
+    # Case-sensitive (uppercase only) to avoid matching 'text' in string literals.
+    # \bTEXT\b doesn't match LONGTEXT/MEDIUMTEXT/TINYTEXT (word boundary protection).
+    sql = re.sub(r"\bTEXT\b", "VARCHAR(255)", sql)
 
     # --- ? → %s (parameter placeholder) ---
     sql = sql.replace("?", "%s")
