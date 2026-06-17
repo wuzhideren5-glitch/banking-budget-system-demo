@@ -209,6 +209,24 @@ def _translate_sql(sql: str) -> str:
     # \bTEXT\b doesn't match LONGTEXT/MEDIUMTEXT/TINYTEXT (word boundary protection).
     sql = re.sub(r"\bTEXT\b", "VARCHAR(255)", sql)
 
+    # --- MySQL doesn't support CREATE INDEX IF NOT EXISTS — strip IF NOT EXISTS.
+    # Duplicate index errors (1061) are handled in _execute() / _executescript().
+    sql = re.sub(
+        r"CREATE\s+(UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS",
+        r"CREATE \1INDEX",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
+    # --- MySQL doesn't allow CURRENT_TIMESTAMP as DEFAULT for VARCHAR columns.
+    # Use expression default (NOW()) instead.
+    sql = re.sub(
+        r"DEFAULT\s+CURRENT_TIMESTAMP\b",
+        r"DEFAULT (NOW())",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
     # --- ? → %s (parameter placeholder) ---
     sql = sql.replace("?", "%s")
 
@@ -223,10 +241,18 @@ def _execute(self: pymysql.connections.Connection, sql: str, parameters=()):
     """Mimic sqlite3.Connection.execute(). Translates SQLite SQL to MySQL."""
     sql = _translate_sql(sql)
     cursor = self.cursor()
-    if parameters:
-        cursor.execute(sql, parameters)
-    else:
-        cursor.execute(sql)
+    try:
+        if parameters:
+            cursor.execute(sql, parameters)
+        else:
+            cursor.execute(sql)
+    except pymysql.err.OperationalError as e:
+        # 1061 = duplicate key name (CREATE INDEX IF NOT EXISTS equivalent)
+        # 1060 = duplicate column name (ALTER TABLE ADD COLUMN)
+        if e.args and e.args[0] in (1061, 1060):
+            pass
+        else:
+            raise
     return cursor
 
 
@@ -248,6 +274,9 @@ def _executescript(self: pymysql.connections.Connection, sql_script: str) -> Non
                 try:
                     cur.execute(translated)
                 except (pymysql.err.ProgrammingError, pymysql.err.OperationalError) as e:
+                    # 1061 = duplicate key name, 1060 = duplicate column name
+                    if e.args and e.args[0] in (1061, 1060):
+                        continue
                     print(f"[pymysql_compat] WARN: {str(e)[:100]}")
 
 

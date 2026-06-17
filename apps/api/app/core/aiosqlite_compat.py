@@ -230,6 +230,24 @@ def _translate_sql(sql: str) -> str:
     # \bTEXT\b doesn't match LONGTEXT/MEDIUMTEXT/TINYTEXT (word boundary protection).
     sql = re.sub(r"\bTEXT\b", "VARCHAR(255)", sql)
 
+    # --- MySQL doesn't support CREATE INDEX IF NOT EXISTS — strip IF NOT EXISTS.
+    # Duplicate index errors (1061) are handled in execute() / executescript().
+    sql = re.sub(
+        r"CREATE\s+(UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS",
+        r"CREATE \1INDEX",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
+    # --- MySQL doesn't allow CURRENT_TIMESTAMP as DEFAULT for VARCHAR columns.
+    # Use expression default (NOW()) instead.
+    sql = re.sub(
+        r"DEFAULT\s+CURRENT_TIMESTAMP\b",
+        r"DEFAULT (NOW())",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
     # --- ? → %s (parameter placeholder) ---
     sql = sql.replace("?", "%s")
 
@@ -252,10 +270,17 @@ class _CompatCursor:
     async def execute(self, sql: str, parameters: tuple | list = ()) -> "_CompatCursor":
         sql = _translate_sql(sql)
         self._cur = await self._conn.cursor(aiomysql.DictCursor)
-        if parameters:
-            await self._cur.execute(sql, parameters)
-        else:
-            await self._cur.execute(sql)
+        try:
+            if parameters:
+                await self._cur.execute(sql, parameters)
+            else:
+                await self._cur.execute(sql)
+        except pymysql.err.OperationalError as e:
+            # 1061 = duplicate key name, 1060 = duplicate column name
+            if e.args and e.args[0] in (1061, 1060):
+                pass
+            else:
+                raise
         return self
 
     async def executemany(self, sql: str, seq_of_parameters: list[tuple] | list[list]) -> "_CompatCursor":
@@ -384,8 +409,14 @@ class _CompatConnection:
         statements = [s.strip() for s in sql_script.split(";") if s.strip()]
         for stmt in statements:
             translated = _translate_sql(stmt)
-            async with self._conn.cursor() as cur:
-                await cur.execute(translated)
+            try:
+                async with self._conn.cursor() as cur:
+                    await cur.execute(translated)
+            except (pymysql.err.ProgrammingError, pymysql.err.OperationalError) as e:
+                # 1061 = duplicate key name, 1060 = duplicate column name
+                if e.args and e.args[0] in (1061, 1060):
+                    continue
+                print(f"[aiosqlite_compat] WARN: {str(e)[:100]}")
 
     # --- commit / rollback (no-ops; autocommit is on) ---
     async def commit(self) -> None:
