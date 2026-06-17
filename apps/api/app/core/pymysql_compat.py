@@ -167,15 +167,73 @@ def _translate_sql(sql: str) -> str:
 
     # --- sqlite_master → INFORMATION_SCHEMA.TABLES ---
     sql = _SQLITE_MASTER_RE.sub("INFORMATION_SCHEMA.TABLES", sql)
+
+    # Translate "SELECT type FROM sqlite_master" → "SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES"
+    # (sqlite_master.type column → INFORMATION_SCHEMA.TABLES.TABLE_TYPE column)
+    sql = re.sub(
+        r"SELECT\s+type\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
+        r"SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
+    # Translate "SELECT name FROM sqlite_master" → "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES"
+    sql = re.sub(
+        r"SELECT\s+name\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
+        r"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
     # Fix: "type = 'table'" → "TABLE_TYPE = 'BASE TABLE'"
     sql = re.sub(
-        r"INFORMATION_SCHEMA\.TABLES\s+WHERE\s+type\s*=\s*'table'",
+        r"\btype\s*=\s*'table'",
+        "TABLE_TYPE = 'BASE TABLE'",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"\btype\s*=\s*'view'",
+        "TABLE_TYPE = 'VIEW'",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    # Handle "type IN ('table', 'view')" → "TABLE_TYPE IN ('BASE TABLE', 'VIEW')"
+    sql = re.sub(
+        r"\btype\s+IN\s*\(\s*'table'\s*,\s*'view'\s*\)",
+        "TABLE_TYPE IN ('BASE TABLE', 'VIEW')",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"\btype\s+IN\s*\(\s*'view'\s*,\s*'table'\s*\)",
+        "TABLE_TYPE IN ('VIEW', 'BASE TABLE')",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    # General: translate remaining bare "type =" and "type IN" column references
+    # to TABLE_TYPE (handles parameterized "type = ?" and other IN patterns)
+    sql = re.sub(
+        r"INFORMATION_SCHEMA\.TABLES(.*?)\btype\s*=",
+        r"INFORMATION_SCHEMA.TABLES\1TABLE_TYPE =",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"INFORMATION_SCHEMA\.TABLES(.*?)\btype\s+IN\s*\(",
+        r"INFORMATION_SCHEMA.TABLES\1TABLE_TYPE IN (",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    # Handle "WHERE type = 'table'" that may appear after INFORMATION_SCHEMA.TABLES
+    sql = re.sub(
+        r"INFORMATION_SCHEMA\.TABLES\s+WHERE\s+TABLE_TYPE\s*=\s*'BASE TABLE'",
         "INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'",
         sql,
         flags=re.IGNORECASE,
     )
     sql = re.sub(
-        r"INFORMATION_SCHEMA\.TABLES\s+WHERE\s+type\s*=\s*'view'",
+        r"INFORMATION_SCHEMA\.TABLES\s+WHERE\s+TABLE_TYPE\s*=\s*'VIEW'",
         "INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = DATABASE()",
         sql,
         flags=re.IGNORECASE,
@@ -278,6 +336,7 @@ def _executescript(self: pymysql.connections.Connection, sql_script: str) -> Non
                     if e.args and e.args[0] in (1061, 1060):
                         continue
                     print(f"[pymysql_compat] WARN: {str(e)[:100]}")
+                    print(f"[pymysql_compat] SQL: {translated[:300]}")
 
 
 pymysql.connections.Connection.execute = _execute  # type: ignore
