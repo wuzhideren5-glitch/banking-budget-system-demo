@@ -116,7 +116,7 @@ def _translate_sql(sql: str) -> str:
             "SELECT CONCAT('CREATE TABLE ', COLUMN_NAME, ' ', COLUMN_TYPE, "
             "IF(IS_NULLABLE='YES',' NULL',' NOT NULL'), "
             "IF(COLUMN_DEFAULT IS NOT NULL, CONCAT(' DEFAULT ', COLUMN_DEFAULT), ''), "
-            "IF(COLUMN_KEY='PRI',' PRIMARY KEY','')) AS sql "
+            "IF(COLUMN_KEY='PRI',' PRIMARY KEY','')) AS `sql` "
             "FROM INFORMATION_SCHEMA.COLUMNS "
             "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s "
             "ORDER BY ORDINAL_POSITION"

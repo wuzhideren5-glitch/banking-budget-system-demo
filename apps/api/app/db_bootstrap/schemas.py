@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS period (
   `year` VARCHAR(8) NOT NULL,
   month VARCHAR(8) NOT NULL,
   quarter VARCHAR(8) NOT NULL,
-  year_month VARCHAR(16) NOT NULL UNIQUE,
+  `year_month` VARCHAR(16) NOT NULL UNIQUE,
   days INT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
