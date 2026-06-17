@@ -20,6 +20,10 @@ Normalization rules:
   * Normalize DEFAULT values: ``DEFAULT '0'`` → ``DEFAULT 0``
   * Lowercase for case-insensitive matching
   * Collapse whitespace
+
+For marker matching, use ``marker_matches()`` instead of plain ``in`` — it
+auto-splits combined markers (column definition + CHECK constraint) so that
+SQLite-style inline markers match MySQL's table-level CHECK constraints.
 """
 from __future__ import annotations
 
@@ -164,6 +168,11 @@ def normalize_ddl(text: str) -> str:
     #        "level_number integer not null check (...)"
     t = t.replace(",", " ")
 
+    # Normalize spaces around parentheses: "foo(id)" → "foo (id)"
+    # This ensures "references foo(id)" matches "references foo (id)"
+    # Also normalizes "CHECK(col)" → "CHECK (col)" etc.
+    t = re.sub(r"(\w)\(", r"\1 (", t)
+
     # Lowercase for case-insensitive matching
     t = t.lower()
 
@@ -171,3 +180,69 @@ def normalize_ddl(text: str) -> str:
     t = " ".join(t.split())
 
     return t
+
+
+def marker_matches(normalized_sql: str, normalized_marker: str) -> bool:
+    """Check if a normalized marker appears in normalized DDL text.
+
+    If the marker doesn't match as a single substring but contains a ``check``
+    or ``references`` clause, it is split into a column-definition part and a
+    constraint part. Both parts must independently appear in the DDL.
+    This handles the SQLite-vs-MySQL difference where SQLite places CHECK and
+    REFERENCES inline with the column definition while MySQL places them as
+    separate table-level constraints.
+
+    Args:
+        normalized_sql: Normalized DDL text (from ``normalize_ddl``).
+        normalized_marker: Normalized marker text (from ``normalize_ddl``).
+
+    Returns:
+        True if the marker matches the DDL, False otherwise.
+    """
+    # Direct substring match — works for most markers
+    if normalized_marker in normalized_sql:
+        return True
+
+    # Auto-split combined "column TYPE ... CHECK (...)" markers.
+    # In MySQL's SHOW CREATE TABLE, CHECK is at table level (separated from
+    # the column by other column definitions), so a combined marker won't
+    # match as a single substring.
+    for split_kw in (" check ", " references "):
+        if split_kw in normalized_marker:
+            parts = normalized_marker.split(split_kw, 1)
+            if len(parts) == 2:
+                col_part = parts[0].strip()
+                constraint_part = split_kw.strip() + " " + parts[1].strip()
+                if col_part in normalized_sql and constraint_part in normalized_sql:
+                    return True
+
+    return False
+
+
+def find_missing_markers(
+    table_sql: str,
+    markers: tuple[str, ...],
+) -> list[str]:
+    """Return markers that are missing from the DDL text.
+
+    This is the recommended replacement for the old pattern::
+
+        normalized_sql = " ".join(table_sql.split())
+        missing = [m for m in markers if m not in normalized_sql]
+
+    It normalizes both DDL and markers, then uses ``marker_matches()`` for
+    cross-database-aware matching.
+
+    Args:
+        table_sql: Raw DDL text (from sqlite_master.sql or SHOW CREATE TABLE).
+        markers: Tuple of marker strings written in SQLite-style DDL syntax.
+
+    Returns:
+        List of markers that could not be found in the DDL.
+    """
+    normalized_sql = normalize_ddl(table_sql)
+    return [
+        marker
+        for marker in markers
+        if not marker_matches(normalized_sql, normalize_ddl(marker))
+    ]

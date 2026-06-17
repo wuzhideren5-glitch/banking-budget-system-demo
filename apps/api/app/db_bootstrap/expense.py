@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
-from app.db_bootstrap._ddl_normalize import normalize_ddl
+from app.db_bootstrap._ddl_normalize import normalize_ddl, find_missing_markers
 from typing import Protocol
 
 
@@ -421,12 +421,7 @@ def ensure_expense_forecast_schema_sync(conn: sqlite3.Connection) -> None:
 
 def _missing_sql_markers(table_sql: str, markers: tuple[str, ...]) -> list[str]:
     """Check if all markers appear in the DDL text, using cross-database normalization."""
-    normalized_sql = normalize_ddl(table_sql)
-    return [
-        marker
-        for marker in markers
-        if normalize_ddl(marker) not in normalized_sql
-    ]
+    return find_missing_markers(table_sql, markers)
 
 
 async def ensure_department_expense_master_schema(db: AsyncSqlExecutor) -> None:
@@ -538,11 +533,10 @@ async def _assert_current_bi_mapping_contract(db: AsyncSqlExecutor) -> None:
                 + ", ".join(missing)
             )
         table_sql = await _table_sql(db, table_name)
-        missing_markers = [
-            marker
-            for marker in BI_MAPPING_REQUIRED_SQL_MARKERS.get(table_name, ())
-            if normalize_ddl(marker) not in normalize_ddl(table_sql)
-        ]
+        missing_markers = find_missing_markers(
+            table_sql,
+            BI_MAPPING_REQUIRED_SQL_MARKERS.get(table_name, ()),
+        )
         if missing_markers:
             raise RuntimeError(
                 f"BI映射表 {table_name} 缺少当前唯一约束，系统不再自动迁移："
@@ -560,11 +554,10 @@ def _assert_current_bi_mapping_contract_sync(conn: sqlite3.Connection) -> None:
                 + ", ".join(missing)
             )
         table_sql = _table_sql_sync(conn, table_name)
-        missing_markers = [
-            marker
-            for marker in BI_MAPPING_REQUIRED_SQL_MARKERS.get(table_name, ())
-            if normalize_ddl(marker) not in normalize_ddl(table_sql)
-        ]
+        missing_markers = find_missing_markers(
+            table_sql,
+            BI_MAPPING_REQUIRED_SQL_MARKERS.get(table_name, ()),
+        )
         if missing_markers:
             raise RuntimeError(
                 f"BI映射表 {table_name} 缺少当前唯一约束，系统不再自动迁移："
@@ -588,10 +581,10 @@ async def _assert_current_bi_ai_subject_mapping_contract(db: AsyncSqlExecutor) -
             + ", ".join(obsolete)
         )
     table_sql = await _table_sql(db, table_name)
-    missing_markers = [
-        marker for marker in BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS
-        if normalize_ddl(marker) not in normalize_ddl(table_sql)
-    ]
+    missing_markers = find_missing_markers(
+        table_sql,
+        BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS,
+    )
     if missing_markers:
         raise RuntimeError(
             f"BI-AI科目映射表 {table_name} 缺少当前唯一约束，系统不再自动迁移："
@@ -615,10 +608,10 @@ def _assert_current_bi_ai_subject_mapping_contract_sync(conn: sqlite3.Connection
             + ", ".join(obsolete)
         )
     table_sql = _table_sql_sync(conn, table_name)
-    missing_markers = [
-        marker for marker in BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS
-        if normalize_ddl(marker) not in normalize_ddl(table_sql)
-    ]
+    missing_markers = find_missing_markers(
+        table_sql,
+        BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS,
+    )
     if missing_markers:
         raise RuntimeError(
             f"BI-AI科目映射表 {table_name} 缺少当前唯一约束，系统不再自动迁移："
