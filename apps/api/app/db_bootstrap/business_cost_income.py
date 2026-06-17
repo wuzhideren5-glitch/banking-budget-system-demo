@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
+from app.db_bootstrap._ddl_normalize import normalize_ddl
 from typing import Protocol
 
 from app.db_bootstrap.bcir_enabled_state_0519 import bcir_indicator_enabled, bcir_item_enabled
@@ -424,8 +425,13 @@ def _quote_identifier(identifier: str) -> str:
 
 
 def _missing_sql_markers(table_sql: str, markers: tuple[str, ...]) -> list[str]:
-    normalized_sql = " ".join(table_sql.split())
-    return [marker for marker in markers if marker not in normalized_sql]
+    """Check if all markers appear in the DDL text, using cross-database normalization."""
+    normalized_sql = normalize_ddl(table_sql)
+    return [
+        marker
+        for marker in markers
+        if normalize_ddl(marker) not in normalized_sql
+    ]
 
 
 def _table_columns_sync(conn: sqlite3.Connection, table_name: str) -> set[str]:

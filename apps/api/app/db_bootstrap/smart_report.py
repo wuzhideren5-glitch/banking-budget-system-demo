@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
+from app.db_bootstrap._ddl_normalize import normalize_ddl
 
 
 SMART_REPORT_REQUIRED_COLUMNS = {
@@ -88,8 +89,13 @@ def _table_sql(conn: sqlite3.Connection, table_name: str) -> str:
 
 
 def _missing_sql_markers(table_sql: str, markers: tuple[str, ...]) -> list[str]:
-    normalized_sql = " ".join(table_sql.split())
-    return [marker for marker in markers if marker not in normalized_sql]
+    """Check if all markers appear in the DDL text, using cross-database normalization."""
+    normalized_sql = normalize_ddl(table_sql)
+    return [
+        marker
+        for marker in markers
+        if normalize_ddl(marker) not in normalized_sql
+    ]
 
 
 def ensure_smart_report_schema_sync(conn: sqlite3.Connection) -> None:

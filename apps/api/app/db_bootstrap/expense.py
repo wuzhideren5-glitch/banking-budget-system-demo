@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
+from app.db_bootstrap._ddl_normalize import normalize_ddl
 from typing import Protocol
 
 
@@ -346,11 +347,11 @@ async def _table_columns(db: AsyncSqlExecutor, table_name: str) -> list[str]:
 
 async def _assert_current_expense_forecast_contract(db: AsyncSqlExecutor) -> None:
     columns = set(await _table_columns(db, "expense_forecast_rule"))
-    table_sql = await _table_sql(db, "expense_forecast_rule")
+    table_sql = (await _table_sql(db, "expense_forecast_rule")).lower()
     if columns and (
         "metric_source_priority" not in columns
         or "driver_source_priority" in columns
-        or "DRIVER_EXPR" in table_sql
+        or "driver_expr" in table_sql
         or "driver_first" in table_sql
     ):
         raise RuntimeError("费用预测规则发现旧 driver 合同，系统不再自动迁移")
@@ -362,7 +363,7 @@ async def _assert_current_expense_forecast_contract(db: AsyncSqlExecutor) -> Non
         if await cur.fetchone():  # type: ignore[attr-defined]
             raise RuntimeError("费用预测规则参数发现旧 driver 参数组，系统不再自动迁移")
 
-    variable_sql = await _table_sql(db, "expense_forecast_rule_variable")
+    variable_sql = (await _table_sql(db, "expense_forecast_rule_variable")).lower()
     if "driver_module" in variable_sql:
         raise RuntimeError("费用预测规则变量发现旧 driver_module 来源，系统不再自动迁移")
 
@@ -391,11 +392,11 @@ def _table_columns_sync(conn: sqlite3.Connection, table_name: str) -> list[str]:
 
 def _assert_current_expense_forecast_contract_sync(conn: sqlite3.Connection) -> None:
     columns = set(_table_columns_sync(conn, "expense_forecast_rule"))
-    table_sql = _table_sql_sync(conn, "expense_forecast_rule")
+    table_sql = _table_sql_sync(conn, "expense_forecast_rule").lower()
     if columns and (
         "metric_source_priority" not in columns
         or "driver_source_priority" in columns
-        or "DRIVER_EXPR" in table_sql
+        or "driver_expr" in table_sql
         or "driver_first" in table_sql
     ):
         raise RuntimeError("费用预测规则发现旧 driver 合同，系统不再自动迁移")
@@ -407,7 +408,7 @@ def _assert_current_expense_forecast_contract_sync(conn: sqlite3.Connection) -> 
         if row:
             raise RuntimeError("费用预测规则参数发现旧 driver 参数组，系统不再自动迁移")
 
-    variable_sql = _table_sql_sync(conn, "expense_forecast_rule_variable")
+    variable_sql = _table_sql_sync(conn, "expense_forecast_rule_variable").lower()
     if "driver_module" in variable_sql:
         raise RuntimeError("费用预测规则变量发现旧 driver_module 来源，系统不再自动迁移")
 
@@ -419,8 +420,13 @@ def ensure_expense_forecast_schema_sync(conn: sqlite3.Connection) -> None:
 
 
 def _missing_sql_markers(table_sql: str, markers: tuple[str, ...]) -> list[str]:
-    normalized_sql = " ".join(table_sql.split())
-    return [marker for marker in markers if marker not in normalized_sql]
+    """Check if all markers appear in the DDL text, using cross-database normalization."""
+    normalized_sql = normalize_ddl(table_sql)
+    return [
+        marker
+        for marker in markers
+        if normalize_ddl(marker) not in normalized_sql
+    ]
 
 
 async def ensure_department_expense_master_schema(db: AsyncSqlExecutor) -> None:
@@ -535,7 +541,7 @@ async def _assert_current_bi_mapping_contract(db: AsyncSqlExecutor) -> None:
         missing_markers = [
             marker
             for marker in BI_MAPPING_REQUIRED_SQL_MARKERS.get(table_name, ())
-            if marker not in table_sql
+            if normalize_ddl(marker) not in normalize_ddl(table_sql)
         ]
         if missing_markers:
             raise RuntimeError(
@@ -557,7 +563,7 @@ def _assert_current_bi_mapping_contract_sync(conn: sqlite3.Connection) -> None:
         missing_markers = [
             marker
             for marker in BI_MAPPING_REQUIRED_SQL_MARKERS.get(table_name, ())
-            if marker not in table_sql
+            if normalize_ddl(marker) not in normalize_ddl(table_sql)
         ]
         if missing_markers:
             raise RuntimeError(
@@ -583,7 +589,8 @@ async def _assert_current_bi_ai_subject_mapping_contract(db: AsyncSqlExecutor) -
         )
     table_sql = await _table_sql(db, table_name)
     missing_markers = [
-        marker for marker in BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS if marker not in table_sql
+        marker for marker in BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS
+        if normalize_ddl(marker) not in normalize_ddl(table_sql)
     ]
     if missing_markers:
         raise RuntimeError(
@@ -609,7 +616,8 @@ def _assert_current_bi_ai_subject_mapping_contract_sync(conn: sqlite3.Connection
         )
     table_sql = _table_sql_sync(conn, table_name)
     missing_markers = [
-        marker for marker in BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS if marker not in table_sql
+        marker for marker in BI_AI_SUBJECT_MAPPING_REQUIRED_SQL_MARKERS
+        if normalize_ddl(marker) not in normalize_ddl(table_sql)
     ]
     if missing_markers:
         raise RuntimeError(
