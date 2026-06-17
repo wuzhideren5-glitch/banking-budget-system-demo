@@ -3,8 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Awaitable, Callable
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.budget_data_writer import delete_budget_data_for_version
 from app.db_bootstrap.budget_version import ensure_budget_version_schema
 from app.schemas import (

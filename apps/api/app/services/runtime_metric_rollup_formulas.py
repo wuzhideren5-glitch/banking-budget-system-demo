@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 @dataclass(frozen=True)
 class RuntimeMetricRollupFormulaSyncResult:
     created: int = 0

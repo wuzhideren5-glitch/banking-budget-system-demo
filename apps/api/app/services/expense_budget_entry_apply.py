@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.expense_budget_entry_parser import ParsedBudgetEntryRow
 
 

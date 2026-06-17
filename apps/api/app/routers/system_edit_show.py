@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import settings

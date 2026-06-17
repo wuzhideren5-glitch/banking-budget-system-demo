@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from pathlib import Path
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.db_bootstrap.expense import ensure_expense_forecast_schema
 
 

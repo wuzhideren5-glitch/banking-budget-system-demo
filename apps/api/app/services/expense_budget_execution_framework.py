@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import load_workbook
 import xlrd
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import Any, Awaitable, Callable
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook

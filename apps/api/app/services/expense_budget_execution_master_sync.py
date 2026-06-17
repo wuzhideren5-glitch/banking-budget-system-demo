@@ -7,10 +7,10 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.core.db_paths import common_db_path
 from app.services.expense_budget_execution_framework import (
     ParsedFramework,

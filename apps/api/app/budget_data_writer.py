@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.budget_window import budget_actual_allowed_for_month
 from app.runtime_metric_identity import product_code_from_runtime_metric_ref
 from app.db_bootstrap.budget_version import ensure_budget_version_schema

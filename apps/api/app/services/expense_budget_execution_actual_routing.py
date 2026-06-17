@@ -4,8 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.core.db_paths import common_db_path
 from app.services.expense_budget_execution_budget_rollup import normalize_budget_subject_name
 from app.services.expense_budget_execution_framework import text

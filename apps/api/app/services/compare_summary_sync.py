@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
 from app.core.config import settings

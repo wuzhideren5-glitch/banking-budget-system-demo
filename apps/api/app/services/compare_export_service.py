@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi.responses import StreamingResponse
 
 from app.core.db_paths import common_db_path

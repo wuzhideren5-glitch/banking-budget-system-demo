@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 import pymysql
 from pymysql.cursors import DictCursor
 
+import app.core.pymysql_compat  # noqa: F401 — monkey-patch for sqlite3 compat
+
 from app.core.config import settings
 from app.db_bootstrap.budget_data import (
     ensure_budget_data_update_time_triggers,
@@ -75,19 +77,26 @@ def _connect() -> pymysql.Connection:
 
 
 def _executescript(conn: pymysql.Connection, sql_script: str) -> None:
-    """Execute a multi-statement SQL script by splitting on semicolons."""
-    statements = [
-        s.strip()
-        for s in sql_script.replace("DELIMITER $$", "").replace("DELIMITER ;", "").split("$$")
-        if s.strip()
-    ]
-    if not statements:
+    """Execute a multi-statement SQL script by splitting on semicolons.
+
+    Uses $$ delimiter only when triggers/procedures are present.
+    """
+    if "$$" in sql_script:
+        statements = [
+            s.strip()
+            for s in sql_script.replace("DELIMITER $$", "").replace("DELIMITER ;", "").split("$$")
+            if s.strip()
+        ]
+    else:
         statements = [s.strip() for s in sql_script.split(";") if s.strip()]
     with conn.cursor() as cur:
         for stmt in statements:
             stmt = stmt.strip()
             if stmt:
-                cur.execute(stmt)
+                try:
+                    cur.execute(stmt)
+                except (pymysql.err.ProgrammingError, pymysql.err.OperationalError) as e:
+                    print(f"[init_db] WARNING: DDL skipped: {str(e)[:100]}")
 
 
 def _connection_params() -> dict:

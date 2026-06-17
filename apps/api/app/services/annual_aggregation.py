@@ -19,9 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 # ── 规则常量 ──────────────────────────────────────────────
 RULE_SUM = "SUM"
 RULE_AVG = "AVG"

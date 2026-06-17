@@ -8,7 +8,7 @@ from typing import Any, Awaitable, Callable
 import re
 import unicodedata
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter

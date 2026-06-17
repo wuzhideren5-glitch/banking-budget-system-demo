@@ -6,8 +6,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.db_bootstrap.budget_version import ensure_budget_version_schema
 from app.core.db_paths import common_db_path
 from app.services.expense_budget_execution_actual_routing import route_actual_subject_by_caliber

@@ -5,9 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 VerifyPassword = Callable[[str | None, str], bool]
 SessionIdFactory = Callable[[], str]
 

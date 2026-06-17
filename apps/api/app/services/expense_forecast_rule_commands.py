@@ -5,9 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 @dataclass(frozen=True)
 class SavedExpenseForecastRuleDefinition:
     rule_id: int

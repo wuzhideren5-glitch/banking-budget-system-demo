@@ -1,8 +1,7 @@
 """Map budget release caliber names to budget subject catalog names."""
 from __future__ import annotations
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.core.db_paths import common_db_path
 from app.services.expense_budget_execution_framework import text
 

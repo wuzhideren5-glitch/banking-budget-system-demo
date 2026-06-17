@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 import re
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from typing import Any, Mapping
 
 from app.metric_tree_paths import metric_display_level

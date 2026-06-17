@@ -7,11 +7,12 @@ import json
 import math
 import re
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
 from app.core.config import settings

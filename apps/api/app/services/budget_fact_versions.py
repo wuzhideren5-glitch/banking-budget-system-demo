@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.db_bootstrap.budget_version import ensure_budget_version_schema, ensure_budget_version_schema_sync
 from app.schemas import BudgetFactVersionOption
 

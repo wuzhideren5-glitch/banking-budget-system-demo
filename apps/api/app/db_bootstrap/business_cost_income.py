@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from typing import Protocol
 
 from app.db_bootstrap.bcir_enabled_state_0519 import bcir_indicator_enabled, bcir_item_enabled

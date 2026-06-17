@@ -6,8 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.expense_forecast_data_context import (
     load_expense_forecast_budget_subject_rows,
     load_expense_forecast_scope_rows,

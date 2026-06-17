@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 async def _table_exists(db: aiosqlite.Connection, table_name: str) -> bool:
     cur = await db.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",

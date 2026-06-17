@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
 from app.db_bootstrap.report_display import ensure_budget_output_display_item_schema

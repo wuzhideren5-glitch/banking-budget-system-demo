@@ -4,8 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.expense_forecast_write_commands import (
     update_month_forecast_override_system_value,
     upsert_month_forecast_calc_result,

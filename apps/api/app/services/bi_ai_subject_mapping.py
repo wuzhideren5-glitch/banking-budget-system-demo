@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import load_workbook
 
 from app.db_bootstrap.expense import ensure_bi_ai_subject_mapping_schema

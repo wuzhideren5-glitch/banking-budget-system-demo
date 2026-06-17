@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.db_bootstrap.business_cost_income import ensure_business_cost_income_schema_async
 from app.core.db_paths import budget_db_path, common_db_path
 from app.services.business_cost_income_derived import (

@@ -4,7 +4,7 @@ from io import BytesIO
 from typing import Awaitable, Callable
 from urllib.parse import quote
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 

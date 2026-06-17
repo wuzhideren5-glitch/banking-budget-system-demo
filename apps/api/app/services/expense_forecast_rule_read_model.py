@@ -5,8 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.runtime_metric_refs import load_org_product_metric_refs_by_runtime_ref_code
 
 

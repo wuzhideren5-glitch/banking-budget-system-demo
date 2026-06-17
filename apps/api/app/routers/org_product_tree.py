@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException

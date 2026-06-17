@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.db_bootstrap.budget_version import ensure_budget_version_schema
 from app.db_bootstrap.report_display import ensure_budget_output_display_item_schema
 from app.core.db_paths import common_db_path

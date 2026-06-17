@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 
 from app.services.org_product_runtime_catalog import drop_retired_product_type_object
 

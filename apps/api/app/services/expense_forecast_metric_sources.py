@@ -4,9 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 def _text(value: Any) -> str:
     if value is None:
         return ""

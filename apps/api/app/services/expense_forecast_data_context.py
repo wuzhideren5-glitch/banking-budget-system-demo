@@ -5,8 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Literal
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.department_expense_contracts import DEPT_OWNER_LEVEL
 
 ScopeType = Literal["entity", "group", "owner"]

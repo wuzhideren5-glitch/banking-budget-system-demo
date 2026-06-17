@@ -5,8 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.db_bootstrap.expense import ensure_bi_mapping_schema
 from app.core.db_paths import common_db_path
 from app.services.department_expense_contracts import DEPT_OWNER_LEVEL

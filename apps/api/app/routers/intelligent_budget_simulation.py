@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

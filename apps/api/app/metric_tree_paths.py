@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from typing import Any, Iterable
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 def _normalize_codes(values: Iterable[str] | None) -> list[str]:
     if values is None:
         return []

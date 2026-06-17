@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Awaitable, Callable
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
 from app.schemas import SystemDatabaseCreateRequest, SystemDatabaseRow, SystemPeriodYearDto

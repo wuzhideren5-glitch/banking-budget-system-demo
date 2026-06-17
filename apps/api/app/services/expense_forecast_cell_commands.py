@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.expense_forecast_data_context import build_expense_forecast_effective_manage_departments
 from app.services.expense_forecast_write_commands import (
     delete_month_forecast_override,

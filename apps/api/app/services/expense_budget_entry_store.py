@@ -3,8 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.schemas import ExpenseBudgetEntryBatchRow, ExpenseBudgetEntryRow
 from app.services.expense_budget_entry_amounts import (
     expense_budget_adjusted_amount,

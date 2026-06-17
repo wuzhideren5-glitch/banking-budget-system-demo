@@ -6,8 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.schemas import SimulationBaselineRequestItem, SimulationBaselineRow
 from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
 

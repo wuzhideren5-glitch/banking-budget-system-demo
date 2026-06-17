@@ -5,8 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.budget_data_writer import (
     BudgetDataWriteItem,
     FORMULA_RESULT_POLICY,

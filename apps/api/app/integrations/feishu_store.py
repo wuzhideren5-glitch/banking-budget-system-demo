@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from datetime import datetime, timezone
 from pathlib import Path
 

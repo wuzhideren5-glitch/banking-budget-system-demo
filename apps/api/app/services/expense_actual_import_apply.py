@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.expense_actual_import_batches import normalize_import_kind
 from app.services.expense_actual_import_parser import ParsedActualDetailRow, build_preview_response
 from app.schemas import ExpenseActualImportManageDepartmentWarning

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import Workbook
 
 from app.schemas import ExpenseActualImportBatchRow

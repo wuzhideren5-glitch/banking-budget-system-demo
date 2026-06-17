@@ -6,8 +6,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.services.bi_ai_manage_department import (
     build_bi_mapping_manage_departments_index,
     build_effective_manage_department_by_subject,

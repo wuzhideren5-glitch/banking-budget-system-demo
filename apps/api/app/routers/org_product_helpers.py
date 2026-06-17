@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 import unicodedata
 from collections import defaultdict
 from typing import Any

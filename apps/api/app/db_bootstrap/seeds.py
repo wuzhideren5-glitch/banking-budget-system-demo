@@ -4,6 +4,7 @@ from __future__ import annotations
 import calendar
 import json
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from typing import Any

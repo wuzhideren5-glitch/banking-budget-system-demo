@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Awaitable, Callable
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter
 
 from app.core.db_paths import common_db_path

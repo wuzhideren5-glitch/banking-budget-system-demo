@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import ast
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
 from app.formula_refs import (

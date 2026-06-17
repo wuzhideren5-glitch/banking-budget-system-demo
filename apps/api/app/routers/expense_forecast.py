@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from typing import Any, Awaitable, Callable, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile

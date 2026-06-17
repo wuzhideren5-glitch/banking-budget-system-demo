@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from pathlib import Path
 import re
 from typing import Any, Sequence
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.core.db_paths import common_db_path
 from app.schemas import RuntimeMetricRefRow
 from app.services.runtime_budget_paths import active_budget_database_files

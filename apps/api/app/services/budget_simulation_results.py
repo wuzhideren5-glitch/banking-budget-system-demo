@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.schemas import SimulationInputItem, SimulationResultRow
 from app.services.budget_simulation_metrics import (
     DATA_METRIC_VALUE_HINTS,

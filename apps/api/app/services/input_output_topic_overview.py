@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-import aiosqlite
+import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 

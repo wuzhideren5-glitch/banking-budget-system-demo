@@ -3,9 +3,7 @@ from __future__ import annotations
 import re
 from typing import Protocol
 
-import aiosqlite
-
-
+import app.core.aiosqlite_compat as aiosqlite
 DISPLAY_ROW_KEY_PATTERN = re.compile(r"^(TOTAL|OVERVIEW|PRODUCT\.[^.]+)(?:\.\d{2})+$")
 
 

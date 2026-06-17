@@ -4,8 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-import aiosqlite
-
+import app.core.aiosqlite_compat as aiosqlite
 from app.core.db_paths import budget_db_path, common_db_path
 from app.services.business_cost_income_derived import (
     effective_bcir_item_entry_mode,
