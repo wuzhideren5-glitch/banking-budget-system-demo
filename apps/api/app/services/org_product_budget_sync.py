@@ -55,7 +55,7 @@ class OrgProductBudgetSyncApplyResult:
 async def _infer_budget_year(common_path: Path, period_ids: set[int]) -> int | None:
     if not period_ids or not common_path.exists():
         return None
-    import aiosqlite
+    import app.core.aiosqlite_compat as aiosqlite
 
     placeholders = ",".join("?" for _ in period_ids)
     async with aiosqlite.connect(common_path) as db:

@@ -5,7 +5,6 @@ import logging
 from datetime import datetime, timezone
 
 import pymysql
-from pymysql.cursors import DictCursor
 
 import app.core.pymysql_compat  # noqa: F401 — monkey-patch for sqlite3 compat
 
@@ -71,7 +70,6 @@ def _connect() -> pymysql.Connection:
         password=settings.MYSQL_PASSWORD,
         database=settings.MYSQL_DATABASE,
         charset="utf8mb4",
-        cursorclass=DictCursor,
         autocommit=False,
     )
 
@@ -108,7 +106,6 @@ def _connection_params() -> dict:
         "password": settings.MYSQL_PASSWORD,
         "database": settings.MYSQL_DATABASE,
         "charset": "utf8mb4",
-        "cursorclass": DictCursor,
         "autocommit": False,
     }
 
@@ -162,7 +159,7 @@ def _init_budget_tables(conn: pymysql.Connection) -> None:
     with conn.cursor() as cur:
         cur.execute("SELECT COUNT(*) AS cnt FROM version")
         row = cur.fetchone()
-        if row["cnt"] == 0:
+        if row[0] == 0:
             now = _iso_now()
             cur.execute(
                 "INSERT INTO version (budget_year, version_date_time, version_name, current_month) VALUES (%s, %s, %s, %s)",
@@ -242,7 +239,7 @@ def ensure_databases() -> None:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) AS cnt FROM users")
                 row = cur.fetchone()
-                if int(row["cnt"] or 0) == 0:
+                if int(row[0] or 0) == 0:
                     now = _iso_now()
                     cur.execute(
                         """
@@ -275,7 +272,7 @@ def ensure_databases() -> None:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) AS cnt FROM version")
                 row = cur.fetchone()
-                if row["cnt"] == 0:
+                if row[0] == 0:
                     cur.execute(
                         "INSERT INTO version (budget_year, version_date_time, version_name, current_month) VALUES (%s, %s, %s, %s)",
                         (settings.budget_year, now, "V2024.04.01", 1),
@@ -286,7 +283,7 @@ def ensure_databases() -> None:
                     SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'budget_data'
                 """)
-                budget_data_cols = {str(r["COLUMN_NAME"]) for r in cur.fetchall()}
+                budget_data_cols = {str(r[0]) for r in cur.fetchall()}
             if budget_data_cols:
                 ensure_budget_data_update_time_triggers(conn)
             ensure_budget_read_model_schema(conn)

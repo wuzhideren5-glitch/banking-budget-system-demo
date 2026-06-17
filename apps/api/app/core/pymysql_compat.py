@@ -103,6 +103,25 @@ def _translate_sql(sql: str) -> str:
     if _PRAGMA_FK_ON_RE.match(stripped):
         return "SELECT 1"
 
+    # --- SELECT sql FROM sqlite_master WHERE ... name = ? → SHOW CREATE TABLE equivalent ---
+    # SQLite's sqlite_master.sql stores the CREATE TABLE statement. MySQL doesn't have
+    # an equivalent column, so we build a DDL-like string from INFORMATION_SCHEMA.
+    # This is used by contract-checking code that pattern-matches on the SQL text.
+    _sql_master_re = re.compile(
+        r"SELECT\s+sql\s+FROM\s+sqlite_master\s+WHERE\s+type\s*=\s*'table'\s+AND\s+name\s*=\s*\?",
+        re.IGNORECASE,
+    )
+    if _sql_master_re.search(sql):
+        return (
+            "SELECT CONCAT('CREATE TABLE ', COLUMN_NAME, ' ', COLUMN_TYPE, "
+            "IF(IS_NULLABLE='YES',' NULL',' NOT NULL'), "
+            "IF(COLUMN_DEFAULT IS NOT NULL, CONCAT(' DEFAULT ', COLUMN_DEFAULT), ''), "
+            "IF(COLUMN_KEY='PRI',' PRIMARY KEY','')) AS sql "
+            "FROM INFORMATION_SCHEMA.COLUMNS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s "
+            "ORDER BY ORDINAL_POSITION"
+        )
+
     # --- PRAGMA table_info(table) → INFORMATION_SCHEMA.COLUMNS ---
     m = _PRAGMA_TI_RE.search(sql)
     if m:
@@ -168,16 +187,16 @@ def _translate_sql(sql: str) -> str:
     )
     # "name = 'foo'" on INFORMATION_SCHEMA.TABLES → "TABLE_NAME = 'foo'"
     sql = re.sub(
-        r"(INFORMATION_SCHEMA\.TABLES[^W]*WHERE[^']*)name\s*=",
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s*=",
         r"\1TABLE_NAME =",
         sql,
-        flags=re.IGNORECASE,
+        flags=re.IGNORECASE | re.DOTALL,
     )
     sql = re.sub(
-        r"(INFORMATION_SCHEMA\.TABLES[^W]*WHERE[^']*)tbl_name\s*=",
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\btbl_name\s*=",
         r"\1TABLE_NAME =",
         sql,
-        flags=re.IGNORECASE,
+        flags=re.IGNORECASE | re.DOTALL,
     )
 
     # --- AUTOINCREMENT → AUTO_INCREMENT ---

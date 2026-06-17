@@ -45,7 +45,6 @@ class DatabasePool:
         maxsize: int = 10,
         pool_recycle: int = 3600,
         connect_timeout: int = 10,
-        read_timeout: int = 30,
         charset: str = "utf8mb4",
         autocommit: bool = True,
     ):
@@ -59,7 +58,6 @@ class DatabasePool:
             "maxsize": maxsize,
             "pool_recycle": pool_recycle,
             "connect_timeout": connect_timeout,
-            "read_timeout": read_timeout,
             "charset": charset,
             "autocommit": autocommit,
         }

@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS dept_account (
 
 CREATE TABLE IF NOT EXISTS period (
   period_id INT AUTO_INCREMENT PRIMARY KEY,
-  year VARCHAR(8) NOT NULL,
+  `year` VARCHAR(8) NOT NULL,
   month VARCHAR(8) NOT NULL,
   quarter VARCHAR(8) NOT NULL,
   year_month VARCHAR(16) NOT NULL UNIQUE,
@@ -277,10 +277,10 @@ CREATE TABLE IF NOT EXISTS users (
   update_time VARCHAR(64)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS databases (
+CREATE TABLE IF NOT EXISTS `databases` (
   id INT AUTO_INCREMENT PRIMARY KEY,
   data_file_name VARCHAR(255) NOT NULL UNIQUE,
-  year INT NOT NULL,
+  `year` INT NOT NULL,
   create_time VARCHAR(64) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -289,7 +289,7 @@ CREATE TABLE IF NOT EXISTS edit_show_version (
   data_file_id INT NOT NULL,
   version_id INT NOT NULL,
   edit_show_sign INT NOT NULL CHECK (edit_show_sign BETWEEN 0 AND 5),
-  FOREIGN KEY (data_file_id) REFERENCES databases(id)
+  FOREIGN KEY (data_file_id) REFERENCES `databases`(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_sessions (
@@ -607,7 +607,7 @@ CREATE TABLE IF NOT EXISTS budget_summary (
   dept_level3 VARCHAR(255),
   data_code_name VARCHAR(255) NOT NULL,
   product_code_name VARCHAR(255),
-  year VARCHAR(8) NOT NULL,
+  `year` VARCHAR(8) NOT NULL,
   month VARCHAR(8) NOT NULL,
   quarter VARCHAR(8) NOT NULL,
   budget_actual TINYINT(1) NOT NULL,
@@ -636,7 +636,7 @@ CREATE TABLE IF NOT EXISTS budget_pivot_aggregate (
   dept_level3 VARCHAR(255),
   data_code_name VARCHAR(255) NOT NULL,
   product_code_name VARCHAR(255),
-  year VARCHAR(8) NOT NULL,
+  `year` VARCHAR(8) NOT NULL,
   month VARCHAR(8) NOT NULL,
   quarter VARCHAR(8) NOT NULL,
   budget_actual TINYINT(1) NOT NULL CHECK (budget_actual IN (0, 1)),
@@ -701,7 +701,7 @@ CREATE TABLE IF NOT EXISTS compare_budget_summary (
   dept_level3 VARCHAR(255),
   data_code_name VARCHAR(255) NOT NULL,
   product_code_name VARCHAR(255),
-  year VARCHAR(8) NOT NULL,
+  `year` VARCHAR(8) NOT NULL,
   month VARCHAR(8) NOT NULL,
   quarter VARCHAR(8) NOT NULL,
   budget_actual TINYINT(1) NOT NULL CHECK (budget_actual IN (0, 1)),
@@ -735,7 +735,7 @@ CREATE TABLE IF NOT EXISTS compare_pivot_aggregate (
   dept_level3 VARCHAR(255),
   data_code_name VARCHAR(255) NOT NULL,
   product_code_name VARCHAR(255),
-  year VARCHAR(8) NOT NULL,
+  `year` VARCHAR(8) NOT NULL,
   month VARCHAR(8) NOT NULL,
   quarter VARCHAR(8) NOT NULL,
   budget_actual TINYINT(1) NOT NULL CHECK (budget_actual IN (0, 1)),
