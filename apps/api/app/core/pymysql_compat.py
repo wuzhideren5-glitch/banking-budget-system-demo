@@ -276,6 +276,15 @@ def _translate_sql(sql: str) -> str:
         flags=re.IGNORECASE,
     )
 
+    # --- MySQL doesn't support CREATE TRIGGER IF NOT EXISTS (MariaDB-only).
+    # Strip IF NOT EXISTS; callers should use DROP TRIGGER IF EXISTS first.
+    sql = re.sub(
+        r"CREATE\s+TRIGGER\s+IF\s+NOT\s+EXISTS",
+        r"CREATE TRIGGER",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
     # --- MySQL doesn't allow CURRENT_TIMESTAMP as DEFAULT for VARCHAR columns.
     # Use expression default (NOW()) instead.
     sql = re.sub(

@@ -157,16 +157,25 @@ def ensure_budget_data_value_contract(conn: pymysql.Connection) -> None:
 
 
 def ensure_budget_data_update_time_triggers(conn: pymysql.Connection) -> None:
-    """Ensure budget_data update_time is maintained at DB level (MySQL trigger)."""
+    """Ensure budget_data update_time is maintained at DB level (MySQL trigger).
+
+    MySQL does not support ``CREATE TRIGGER IF NOT EXISTS`` (MariaDB-only).
+    We use ``DROP TRIGGER IF EXISTS`` followed by ``CREATE TRIGGER`` for
+    idempotent behaviour.
+    """
     if not _table_exists(conn, "budget_data"):
         return
     ensure_budget_data_fact_contract(conn)
     ensure_budget_data_value_contract(conn)
     with conn.cursor() as cur:
+        # Drop existing triggers (idempotent — safe if they don't exist)
+        cur.execute("DROP TRIGGER IF EXISTS trg_budget_data_set_update_time_insert")
+        cur.execute("DROP TRIGGER IF EXISTS trg_budget_data_set_update_time_update")
+
         # MySQL BEFORE INSERT trigger
         cur.execute(
             """
-            CREATE TRIGGER IF NOT EXISTS trg_budget_data_set_update_time_insert
+            CREATE TRIGGER trg_budget_data_set_update_time_insert
             BEFORE INSERT ON budget_data
             FOR EACH ROW
             BEGIN
@@ -179,7 +188,7 @@ def ensure_budget_data_update_time_triggers(conn: pymysql.Connection) -> None:
         # MySQL BEFORE UPDATE trigger
         cur.execute(
             """
-            CREATE TRIGGER IF NOT EXISTS trg_budget_data_set_update_time_update
+            CREATE TRIGGER trg_budget_data_set_update_time_update
             BEFORE UPDATE ON budget_data
             FOR EACH ROW
             BEGIN

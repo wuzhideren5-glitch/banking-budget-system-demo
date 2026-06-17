@@ -658,7 +658,9 @@ ON budget_pivot_aggregate(version_id, grain);
 
 DELIMITER $$
 
-CREATE TRIGGER IF NOT EXISTS trg_budget_data_set_update_time_insert
+DROP TRIGGER IF EXISTS trg_budget_data_set_update_time_insert$$
+
+CREATE TRIGGER trg_budget_data_set_update_time_insert
 BEFORE INSERT ON budget_data
 FOR EACH ROW
 BEGIN
@@ -667,7 +669,9 @@ BEGIN
   END IF;
 END$$
 
-CREATE TRIGGER IF NOT EXISTS trg_budget_data_set_update_time_update
+DROP TRIGGER IF EXISTS trg_budget_data_set_update_time_update$$
+
+CREATE TRIGGER trg_budget_data_set_update_time_update
 BEFORE UPDATE ON budget_data
 FOR EACH ROW
 BEGIN
