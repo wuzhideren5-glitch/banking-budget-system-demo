@@ -203,6 +203,16 @@ def _translate_sql(sql: str) -> str:
     # --- date('now') → CURDATE() ---
     sql = _DATE_NOW_RE.sub("CURDATE()", sql)
 
+    # --- MySQL doesn't allow TEXT columns to have DEFAULT values.
+    # Convert "col TEXT ... DEFAULT 'xxx'" to "col VARCHAR(255) ... DEFAULT 'xxx'"
+    # This handles CREATE TABLE, ALTER TABLE ADD COLUMN, etc.
+    sql = re.sub(
+        r"\bTEXT(\s+[^,;]*?DEFAULT\s)",
+        r"VARCHAR(255)\1",
+        sql,
+        flags=re.IGNORECASE,
+    )
+
     # --- ? → %s (parameter placeholder) ---
     sql = sql.replace("?", "%s")
 

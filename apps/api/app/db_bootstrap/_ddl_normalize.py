@@ -162,6 +162,10 @@ def normalize_ddl(text: str) -> str:
         flags=re.IGNORECASE,
     )
 
+    # Remove MySQL 9.x charset prefix on string literals in CHECK constraints
+    # e.g., _utf8mb4'analysis' → 'analysis'
+    t = re.sub(r"_utf8mb4'", "'", t, flags=re.IGNORECASE)
+
     # Remove commas entirely so that MySQL's comma-separated table-level
     # constraints can match SQLite-style inline markers.
     # e.g., "level_number integer not null, check (...)" matches
