@@ -1,0 +1,90 @@
+<h2>整体系统框架图：组织方式选择</h2>
+<p class="subtitle">目标是做给业务方看的框架图：能讲清“先做什么、数据怎么走、系统由哪些模块承接”。建议先选一个主组织方式，后续再把工作流图、数据流图、参数清单补齐。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. 业务闭环总览</div>
+        <div class="mockup-body">
+          <div class="mock-nav">主数据/规则配置</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px;">
+            <div class="placeholder">参数录入</div>
+            <div>→</div>
+            <div class="placeholder">计算处理</div>
+            <div>→</div>
+            <div class="placeholder">报表输出</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px;">
+            <div class="placeholder">模拟测算</div>
+            <div>→</div>
+            <div class="placeholder">多维分析</div>
+            <div>→</div>
+            <div class="placeholder">智能助手</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 业务闭环总览</h3>
+      <p>用“配置 → 录入 → 计算 → 输出 → 分析/智能体”的业务链条讲清系统。最适合领导汇报和需求评审。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. 数据分层架构</div>
+        <div class="mockup-body">
+          <div class="placeholder">外部来源：管会报表 / 业务报送 / Excel</div>
+          <div style="text-align:center;margin:8px;">↓</div>
+          <div class="placeholder">数据接入与校验：导入、映射、预览、审计</div>
+          <div style="text-align:center;margin:8px;">↓</div>
+          <div class="placeholder">核心事实与规则：指标体系 / budget_data / 公式 / 汇总</div>
+          <div style="text-align:center;margin:8px;">↓</div>
+          <div class="placeholder">输出服务：展示报表 / 透视 / 预测输出 / Agent</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 数据分层架构</h3>
+      <p>按数据来源、处理、存储、输出分层。最适合解释“数据怎么流、口径怎么控、为什么不会乱”。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. 双主线框架</div>
+        <div class="mockup-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div class="mock-nav">预算管理主线</div>
+              <div class="placeholder">机构及产品</div>
+              <div class="placeholder">指标与公式</div>
+              <div class="placeholder">数据录入</div>
+              <div class="placeholder">预测输出/预算展示</div>
+            </div>
+            <div>
+              <div class="mock-nav">部门费用主线</div>
+              <div class="placeholder">部门/预算科目</div>
+              <div class="placeholder">BI映射/费用实际</div>
+              <div class="placeholder">费用预测</div>
+              <div class="placeholder">费用执行报表</div>
+            </div>
+          </div>
+          <div style="text-align:center;margin-top:10px;">共同进入：多维分析 / 智能报告 / 智能助手</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 双主线框架</h3>
+      <p>把“预算管理”和“部门费用预算管理”并列讲，再由多维分析和智能体统一承接。最适合展示系统全貌。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>我的建议</h3>
+  <p>用 C 作为总框架首页，再展开 A 的工作流脑图和 B 的数据流脑图。这样业务方先看懂系统全貌，再看具体流程和数据流转。</p>
+</div>

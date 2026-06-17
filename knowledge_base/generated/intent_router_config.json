@@ -1,7 +1,0 @@
-{
-  "semantic_budget_threshold_high": 0.78,
-  "semantic_budget_threshold_mid": 0.65,
-  "enable_llm_arbiter": true,
-  "trace_enabled": true,
-  "trace_max_query_chars": 200
-}

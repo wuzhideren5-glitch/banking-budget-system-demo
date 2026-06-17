@@ -1,0 +1,7 @@
+domain,term,normalized_type,normalized_code,normalized_name,confidence,requires_confirmation,notes
+dept_account,个金条线,dept_account,Y1,个人金融事业群,0.88,true,当前部门科目别名
+org_product,汽金,org_product,A03,汽车金融,0.92,true,当前机构及产品别名
+data_account,汽金贷款利息收入,data_account,A03.03.01.01.01.078,汽金贷款利息收入,1.00,false,当前机构及产品指标运行引用别名示例
+metric_node,汽车金融净利息收入,metric_node,A03.03.02,净利息收入,1.00,false,当前指标树节点别名示例
+metric,预实差,builtin_metric,m_budget_actual_gap,预算实际差异,0.98,false,默认映射到指标库定义
+time,去年同期,builtin_time_rule,YOY_SAME_PERIOD,同比同周期,0.93,false,由时间解析器进一步展开

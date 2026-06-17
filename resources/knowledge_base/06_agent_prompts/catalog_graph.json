@@ -1,0 +1,2146 @@
+{
+  "schema_version": "2.0.0",
+  "generated_at": "2026-05-31T00:00:00+08:00",
+  "source_db_path": "/Users/penghui/Downloads/kevinchen_20260507_新增预算预测驱动因素模块(2)/var/data/common.db",
+  "counts": {
+    "metric_nodes": 14804,
+    "metric_bindings": 10935,
+    "data_accounts": 10935,
+    "departments": 37,
+    "products": 19
+  },
+  "primary_axes": {
+    "metric_nodes": "org_product_metric_table.metrics[].metric_node_code synced runtime",
+    "data_accounts": "org_product_metric_table.metrics[].data_acct_code synced runtime",
+    "metric_bindings": "org_product_metric_table confirmed refs synced to runtime",
+    "departments": "dept_account.dept_code",
+    "products": "org_product_tree_snapshot runtime products"
+  },
+  "products": [
+    {
+      "product_code": "CORP",
+      "product_name": "微众银行",
+      "parent_code": null,
+      "level": 1
+    },
+    {
+      "product_code": "A",
+      "product_name": "个金群",
+      "parent_code": "CORP",
+      "level": 2
+    },
+    {
+      "product_code": "B",
+      "product_name": "企金群",
+      "parent_code": "CORP",
+      "level": 2
+    },
+    {
+      "product_code": "C",
+      "product_name": "数字金融",
+      "parent_code": "CORP",
+      "level": 2
+    },
+    {
+      "product_code": "D",
+      "product_name": "国际业务",
+      "parent_code": "CORP",
+      "level": 2
+    },
+    {
+      "product_code": "E",
+      "product_name": "小鹅导流",
+      "parent_code": "CORP",
+      "level": 2
+    },
+    {
+      "product_code": "F",
+      "product_name": "司库及其他",
+      "parent_code": "CORP",
+      "level": 2
+    },
+    {
+      "product_code": "A01",
+      "product_name": "泛微粒贷",
+      "parent_code": "A",
+      "level": 3
+    },
+    {
+      "product_code": "A02",
+      "product_name": "微账户",
+      "parent_code": "A",
+      "level": 3
+    },
+    {
+      "product_code": "A03",
+      "product_name": "汽车金融",
+      "parent_code": "A",
+      "level": 3
+    },
+    {
+      "product_code": "A04",
+      "product_name": "财富",
+      "parent_code": "A",
+      "level": 3
+    },
+    {
+      "product_code": "A05",
+      "product_name": "小鹅",
+      "parent_code": "A",
+      "level": 3
+    },
+    {
+      "product_code": "B01",
+      "product_name": "企业金融",
+      "parent_code": "B",
+      "level": 3
+    },
+    {
+      "product_code": "B02",
+      "product_name": "金融市场",
+      "parent_code": "B",
+      "level": 3
+    },
+    {
+      "product_code": "C01",
+      "product_name": "国内业务",
+      "parent_code": "C",
+      "level": 3
+    },
+    {
+      "product_code": "C02",
+      "product_name": "国内研发",
+      "parent_code": "C",
+      "level": 3
+    },
+    {
+      "product_code": "D01",
+      "product_name": "国际业务",
+      "parent_code": "D",
+      "level": 3
+    },
+    {
+      "product_code": "E01",
+      "product_name": "小鹅导流",
+      "parent_code": "E",
+      "level": 3
+    },
+    {
+      "product_code": "F01",
+      "product_name": "司库及其他",
+      "parent_code": "F",
+      "level": 3
+    }
+  ],
+  "departments": [
+    {
+      "dept_code": "Y1",
+      "dept_name": "个人金融事业群",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y10",
+      "dept_name": "科技孙",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y2",
+      "dept_name": "企业及机构金融事业群",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y3",
+      "dept_name": "科技及智能事业群",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y4",
+      "dept_name": "国际发展部",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y5",
+      "dept_name": "资源管理及管控职能群",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y6",
+      "dept_name": "其他",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y7",
+      "dept_name": "历史架构",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y8",
+      "dept_name": "虚拟部门",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y9",
+      "dept_name": "科技子",
+      "parent_code": null,
+      "level": 1,
+      "is_leaf": 0
+    },
+    {
+      "dept_code": "Y1001",
+      "dept_name": "科技孙",
+      "parent_code": "Y10",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y101",
+      "dept_name": "消费者金融业务",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y102",
+      "dept_name": "反洗钱工作办公室",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y103",
+      "dept_name": "汽车金融部",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y104",
+      "dept_name": "财富及养老金融部",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y105",
+      "dept_name": "财富产品部",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y106",
+      "dept_name": "财富数字产品部",
+      "parent_code": "Y1",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y201",
+      "dept_name": "企业金融业务",
+      "parent_code": "Y2",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y202",
+      "dept_name": "金融市场及同业部",
+      "parent_code": "Y2",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y203",
+      "dept_name": "企金风险部",
+      "parent_code": "Y2",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y301",
+      "dept_name": "科技业务",
+      "parent_code": "Y3",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y401",
+      "dept_name": "国际发展部",
+      "parent_code": "Y4",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y501",
+      "dept_name": "风险及运营管理部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y502",
+      "dept_name": "法律合规部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y503",
+      "dept_name": "消费者权益保护部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y504",
+      "dept_name": "办公室",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y505",
+      "dept_name": "采购及资产管理部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y506",
+      "dept_name": "资产负债管理及企划部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y507",
+      "dept_name": "财务会计部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y508",
+      "dept_name": "人力资源部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y509",
+      "dept_name": "审计部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y510",
+      "dept_name": "公司治理部",
+      "parent_code": "Y5",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y601",
+      "dept_name": "总监室",
+      "parent_code": "Y6",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y602",
+      "dept_name": "行长室",
+      "parent_code": "Y6",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y701",
+      "dept_name": "历史架构",
+      "parent_code": "Y7",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y801",
+      "dept_name": "虚拟部门",
+      "parent_code": "Y8",
+      "level": 2,
+      "is_leaf": 1
+    },
+    {
+      "dept_code": "Y901",
+      "dept_name": "科技子",
+      "parent_code": "Y9",
+      "level": 2,
+      "is_leaf": 1
+    }
+  ],
+  "metric_family_summary": [
+    {
+      "product_code": "A",
+      "node_count": 711,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "A01",
+      "node_count": 855,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "A02",
+      "node_count": 847,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "A03",
+      "node_count": 807,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "A04",
+      "node_count": 816,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "A05",
+      "node_count": 797,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "B",
+      "node_count": 711,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "B01",
+      "node_count": 838,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "B02",
+      "node_count": 887,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "C",
+      "node_count": 711,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "C01",
+      "node_count": 785,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "C02",
+      "node_count": 780,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "CORP",
+      "node_count": 778,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "D",
+      "node_count": 711,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "D01",
+      "node_count": 780,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "E",
+      "node_count": 711,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "E01",
+      "node_count": 780,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "F",
+      "node_count": 711,
+      "leaf_count": 0,
+      "functional_groups": 0
+    },
+    {
+      "product_code": "F01",
+      "node_count": 788,
+      "leaf_count": 0,
+      "functional_groups": 0
+    }
+  ],
+  "sample_metric_nodes": [
+    {
+      "node_code": "A.03",
+      "node_name": "收入指标",
+      "product_code": "A",
+      "level": 2,
+      "node_type": "CATEGORY",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05",
+      "node_name": "费用指标",
+      "product_code": "A",
+      "level": 2,
+      "node_type": "CATEGORY",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.02.01",
+      "node_name": "收益率/收息率",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01",
+      "node_name": "利息收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.02",
+      "node_name": "净利息收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03",
+      "node_name": "FTP收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.04",
+      "node_name": "手续费收入/净手续费收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.06",
+      "node_name": "营业外收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09",
+      "node_name": "其他收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.01",
+      "node_name": "利息支出/资金成本",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.08.01",
+      "node_name": "净收入",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.02",
+      "node_name": "人力费用",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03",
+      "node_name": "非人力费用",
+      "product_code": "A",
+      "level": 3,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.01.01",
+      "node_name": "贷款及融资资产",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.02.01",
+      "node_name": "贷款及融资资产",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.03.01",
+      "node_name": "存款负债",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.04.01",
+      "node_name": "存款负债",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.02.01.03",
+      "node_name": "金融市场收益率",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01.01",
+      "node_name": "贷款及产品利息收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01.02",
+      "node_name": "金融市场利息收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01.03",
+      "node_name": "FTP收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.02.01",
+      "node_name": "贷款及产品利息收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.02.02",
+      "node_name": "手续费及服务收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.01",
+      "node_name": "FTP收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.02",
+      "node_name": "手续费及服务收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.03",
+      "node_name": "其他经营收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.04",
+      "node_name": "其他收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.04.01",
+      "node_name": "手续费及服务收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.04.02",
+      "node_name": "其他收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.05.01",
+      "node_name": "其他经营收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.06.01",
+      "node_name": "其他经营收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.01",
+      "node_name": "贷款及产品利息收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.02",
+      "node_name": "金融市场利息收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.03",
+      "node_name": "手续费及服务收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.04",
+      "node_name": "其他经营收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.05",
+      "node_name": "其他收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.01.02",
+      "node_name": "存款及客户利息支出",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.02.02",
+      "node_name": "存款及客户利息支出",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.09.01",
+      "node_name": "存款及客户利息支出",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.01.01",
+      "node_name": "业务运营费用",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.01.02",
+      "node_name": "费用结果指标",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.02.01",
+      "node_name": "人力费用",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.01",
+      "node_name": "科技及系统费用",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.02",
+      "node_name": "办公职场及资产费用",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.03",
+      "node_name": "业务运营费用",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.04",
+      "node_name": "综合费用",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.08.01.01",
+      "node_name": "净收入",
+      "product_code": "A",
+      "level": 4,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.01.01.01",
+      "node_name": "贷款及融资明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.02.01.01",
+      "node_name": "产品线贷款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.02.01.02",
+      "node_name": "贷款及融资明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.03.01.01",
+      "node_name": "产品及保证金存款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.03.01.02",
+      "node_name": "产品线存款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.03.01.03",
+      "node_name": "客户存款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.04.01.01",
+      "node_name": "产品及保证金存款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.04.01.02",
+      "node_name": "产品线存款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.01.04.01.03",
+      "node_name": "客户存款",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.02.01.03.01",
+      "node_name": "投资/同业收益率",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01.01.01",
+      "node_name": "贷款/产品利息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01.02.01",
+      "node_name": "投资/同业利息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.01.03.01",
+      "node_name": "FTP收入明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.02.01.01",
+      "node_name": "贷款/产品利息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.02.02.01",
+      "node_name": "服务/渠道收入",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.01.01",
+      "node_name": "FTP收入明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.02.01",
+      "node_name": "服务/渠道收入",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.03.04.01",
+      "node_name": "其他收入明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.04.01.01",
+      "node_name": "服务/渠道收入",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.04.02.01",
+      "node_name": "其他收入明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.01.01",
+      "node_name": "贷款/产品利息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.02.01",
+      "node_name": "投资/同业利息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.03.01",
+      "node_name": "服务/渠道收入",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.03.09.05.01",
+      "node_name": "其他收入明细",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.01.02.01",
+      "node_name": "存款/产品付息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.02.02.01",
+      "node_name": "存款/产品付息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.04.09.01.01",
+      "node_name": "存款/产品付息",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.01.02.01",
+      "node_name": "直接/间接费用",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.01.01",
+      "node_name": "IT费用",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.02.01",
+      "node_name": "办公/资产费用",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.05.03.04.01",
+      "node_name": "其他费用",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.07.02.01.01",
+      "node_name": "所得税一般费用",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    },
+    {
+      "node_code": "A.08.01.01.01",
+      "node_name": "净收入结果",
+      "product_code": "A",
+      "level": 5,
+      "node_type": "GROUP",
+      "functional_group_code": null
+    }
+  ],
+  "sample_bindings": [
+    {
+      "data_acct_code": "A.00",
+      "data_acct_name": "个金群统一业务指标树",
+      "value_type": "金额",
+      "metric_node_code": "A.00",
+      "metric_node_name": "统一业务指标树",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.017",
+      "data_acct_name": "个金群管理贷款日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.017",
+      "metric_node_name": "管理贷款日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.021",
+      "data_acct_name": "个金群债转",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.021",
+      "metric_node_name": "债转",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.022",
+      "data_acct_name": "个金群银承保函",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.022",
+      "metric_node_name": "银承保函",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.042",
+      "data_acct_name": "个金群一般性贷款_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.042",
+      "metric_node_name": "一般性贷款_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.044",
+      "data_acct_name": "个金群福费廷_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.044",
+      "metric_node_name": "福费廷_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.046",
+      "data_acct_name": "个金群贷款资产_表内日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.046",
+      "metric_node_name": "贷款资产_表内日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.059",
+      "data_acct_name": "个金群表内贷款日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.059",
+      "metric_node_name": "表内贷款日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.060",
+      "data_acct_name": "个金群联合贷款日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.060",
+      "metric_node_name": "联合贷款日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.061",
+      "data_acct_name": "个金群资产流转日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.061",
+      "metric_node_name": "资产流转日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.01.01.063",
+      "data_acct_name": "个金群表联合贷款_日均总额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.01.01.063",
+      "metric_node_name": "表联合贷款_日均总额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.003",
+      "data_acct_name": "个金群PL债券投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.003",
+      "metric_node_name": "PL债券投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.008",
+      "data_acct_name": "个金群二级资本债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.008",
+      "metric_node_name": "二级资本债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.009",
+      "data_acct_name": "个金群信用债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.009",
+      "metric_node_name": "信用债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.011",
+      "data_acct_name": "个金群国债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.011",
+      "metric_node_name": "国债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.012",
+      "data_acct_name": "个金群地方债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.012",
+      "metric_node_name": "地方债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.013",
+      "data_acct_name": "个金群政金债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.013",
+      "metric_node_name": "政金债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.014",
+      "data_acct_name": "个金群铁道债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.014",
+      "metric_node_name": "铁道债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.015",
+      "data_acct_name": "个金群银行债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.015",
+      "metric_node_name": "银行债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.016",
+      "data_acct_name": "个金群非银债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.016",
+      "metric_node_name": "非银债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.039",
+      "data_acct_name": "个金群信用债投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.039",
+      "metric_node_name": "信用债投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.01.040",
+      "data_acct_name": "个金群政策性金融债投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.01.040",
+      "metric_node_name": "政策性金融债投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.02.004",
+      "data_acct_name": "个金群PL同业存单投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.02.004",
+      "metric_node_name": "PL同业存单投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.02.025",
+      "data_acct_name": "个金群同业存单投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.02.025",
+      "metric_node_name": "同业存单投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.03.005",
+      "data_acct_name": "个金群债基投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.03.005",
+      "metric_node_name": "债基投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.03.006",
+      "data_acct_name": "个金群货基投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.03.006",
+      "metric_node_name": "货基投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.03.037",
+      "data_acct_name": "个金群同业货基投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.03.037",
+      "metric_node_name": "同业货基投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.03.038",
+      "data_acct_name": "个金群同业债基投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.03.038",
+      "metric_node_name": "同业债基投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.04.007",
+      "data_acct_name": "个金群ABS投资_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.04.007",
+      "metric_node_name": "ABS投资_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.04.018",
+      "data_acct_name": "个金群ABN",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.04.018",
+      "metric_node_name": "ABN",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.04.019",
+      "data_acct_name": "个金群ABS",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.04.019",
+      "metric_node_name": "ABS",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.02.04.041",
+      "data_acct_name": "个金群资产支持证券（ABS）日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.02.04.041",
+      "metric_node_name": "资产支持证券（ABS）日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.024",
+      "data_acct_name": "个金群买入返售_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.024",
+      "metric_node_name": "买入返售_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.027",
+      "data_acct_name": "个金群存放同业_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.027",
+      "metric_node_name": "存放同业_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.028",
+      "data_acct_name": "个金群拆放同业_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.028",
+      "metric_node_name": "拆放同业_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.031",
+      "data_acct_name": "个金群存放同业活期资产_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.031",
+      "metric_node_name": "存放同业活期资产_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.032",
+      "data_acct_name": "个金群存放同业定期资产_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.032",
+      "metric_node_name": "存放同业定期资产_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.033",
+      "data_acct_name": "个金群存放同业其他资产_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.033",
+      "metric_node_name": "存放同业其他资产_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.034",
+      "data_acct_name": "个金群拆放同业资产_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.034",
+      "metric_node_name": "拆放同业资产_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.01.035",
+      "data_acct_name": "个金群买入返售资产_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.01.035",
+      "metric_node_name": "买入返售资产_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.02.026",
+      "data_acct_name": "个金群央行存放_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.02.026",
+      "metric_node_name": "央行存放_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.02.029",
+      "data_acct_name": "个金群存放央行法准_表内日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.02.029",
+      "metric_node_name": "存放央行法准_表内日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.03.02.030",
+      "data_acct_name": "个金群存放央行超备_表内日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.03.02.030",
+      "metric_node_name": "存放央行超备_表内日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.047",
+      "data_acct_name": "个金群同业存放活期负债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.047",
+      "metric_node_name": "同业存放活期负债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.048",
+      "data_acct_name": "个金群同业存放定期负债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.048",
+      "metric_node_name": "同业存放定期负债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.049",
+      "data_acct_name": "个金群同业拆入负债_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.049",
+      "metric_node_name": "同业拆入负债_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.050",
+      "data_acct_name": "个金群卖出回购日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.050",
+      "metric_node_name": "卖出回购日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.051",
+      "data_acct_name": "个金群发行同业存单日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.051",
+      "metric_node_name": "发行同业存单日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.052",
+      "data_acct_name": "个金群向中央银行借款日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.052",
+      "metric_node_name": "向中央银行借款日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.053",
+      "data_acct_name": "个金群交易性金融负债日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.053",
+      "metric_node_name": "交易性金融负债日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.04.01.054",
+      "data_acct_name": "个金群付息负债日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.04.01.054",
+      "metric_node_name": "付息负债日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.05.01.023",
+      "data_acct_name": "个金群管理资产日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.05.01.023",
+      "metric_node_name": "管理资产日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.05.01.064",
+      "data_acct_name": "个金群管理资产_日均总额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.05.01.064",
+      "metric_node_name": "管理资产_日均总额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.05.01.066",
+      "data_acct_name": "个金群代销理财日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.05.01.066",
+      "metric_node_name": "代销理财日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.001",
+      "data_acct_name": "个金群产品利息收入_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.001",
+      "metric_node_name": "产品利息收入_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.002",
+      "data_acct_name": "个金群产品贷款利息收入_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.002",
+      "metric_node_name": "产品贷款利息收入_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.020",
+      "data_acct_name": "个金群资产日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.020",
+      "metric_node_name": "资产日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.043",
+      "data_acct_name": "个金群日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.043",
+      "metric_node_name": "日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.045",
+      "data_acct_name": "个金群纯自营贷款表内_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.045",
+      "metric_node_name": "纯自营贷款表内_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.055",
+      "data_acct_name": "个金群活期储蓄存款_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.055",
+      "metric_node_name": "活期储蓄存款_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.056",
+      "data_acct_name": "个金群定期储蓄存款_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.056",
+      "metric_node_name": "定期储蓄存款_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.057",
+      "data_acct_name": "个金群单位活期存款_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.057",
+      "metric_node_name": "单位活期存款_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.058",
+      "data_acct_name": "个金群单位定期存款_日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.058",
+      "metric_node_name": "单位定期存款_日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.01.06.01.065",
+      "data_acct_name": "个金群各项存款日均",
+      "value_type": "金额",
+      "metric_node_code": "A.01.01.06.01.065",
+      "metric_node_name": "各项存款日均",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.01.056",
+      "data_acct_name": "个金群微粒贷利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.01.056",
+      "metric_node_name": "微粒贷利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.01.057",
+      "data_acct_name": "个金群分付利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.01.057",
+      "metric_node_name": "分付利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.01.058",
+      "data_acct_name": "个金群汽金贷款利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.01.058",
+      "metric_node_name": "汽金贷款利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.01.059",
+      "data_acct_name": "个金群财富贷款利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.01.059",
+      "metric_node_name": "财富贷款利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.01.061",
+      "data_acct_name": "个金群小鹅花钱利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.01.061",
+      "metric_node_name": "小鹅花钱利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.015",
+      "data_acct_name": "个金群管理贷款",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.015",
+      "metric_node_name": "管理贷款",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.016",
+      "data_acct_name": "个金群管理贷款余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.016",
+      "metric_node_name": "管理贷款余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.036",
+      "data_acct_name": "个金群表内贷款时点余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.036",
+      "metric_node_name": "表内贷款时点余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.037",
+      "data_acct_name": "个金群联合贷款时点余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.037",
+      "metric_node_name": "联合贷款时点余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.038",
+      "data_acct_name": "个金群资产流转时点余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.038",
+      "metric_node_name": "资产流转时点余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.065",
+      "data_acct_name": "个金群票据贴现利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.065",
+      "metric_node_name": "票据贴现利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.01.02.066",
+      "data_acct_name": "个金群贸易融资利息收入_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.01.02.066",
+      "metric_node_name": "贸易融资利息收入_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.006",
+      "data_acct_name": "个金群二级资本债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.006",
+      "metric_node_name": "二级资本债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.007",
+      "data_acct_name": "个金群信用债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.007",
+      "metric_node_name": "信用债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.009",
+      "data_acct_name": "个金群国债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.009",
+      "metric_node_name": "国债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.010",
+      "data_acct_name": "个金群地方债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.010",
+      "metric_node_name": "地方债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.011",
+      "data_acct_name": "个金群政金债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.011",
+      "metric_node_name": "政金债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.012",
+      "data_acct_name": "个金群铁道债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.012",
+      "metric_node_name": "铁道债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.013",
+      "data_acct_name": "个金群银行债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.013",
+      "metric_node_name": "银行债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.014",
+      "data_acct_name": "个金群非银债_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.014",
+      "metric_node_name": "非银债_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.01.034",
+      "data_acct_name": "个金群投资损益",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.01.034",
+      "metric_node_name": "投资损益",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.02.024",
+      "data_acct_name": "个金群同业存单投资_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.02.024",
+      "metric_node_name": "同业存单投资_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.03.003",
+      "data_acct_name": "个金群债基投资_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.03.003",
+      "metric_node_name": "债基投资_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.03.004",
+      "data_acct_name": "个金群货基投资_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.03.004",
+      "metric_node_name": "货基投资_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.04.005",
+      "data_acct_name": "个金群ABS投资_余额",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.04.005",
+      "metric_node_name": "ABS投资_余额",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    },
+    {
+      "data_acct_code": "A.01.02.02.04.033",
+      "data_acct_name": "个金群资产管理及资金监管（ABN）",
+      "value_type": "金额",
+      "metric_node_code": "A.01.02.02.04.033",
+      "metric_node_name": "资产管理及资金监管（ABN）",
+      "scope_type": "PRODUCT",
+      "scope_code": "A",
+      "product_code": "A",
+      "functional_group_code": null
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Current-code searches should not scan historical evidence or local caches.
+archive/
+node_modules/
+apps/web/node_modules/
+.venv/
+.venv*/
+apps/api/.venv/
+apps/api/.venv*/
+var/output/
+var/logs/
+var/pids/
+var/test-runs/
+resources/knowledge_base/generated/*_trace.jsonl
+resources/knowledge_base/generated/*_events.jsonl

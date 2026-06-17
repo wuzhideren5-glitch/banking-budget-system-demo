@@ -1,5 +1,0 @@
-entity_type,entity_code,entity_name,source_table,parent_code,level,value_type,description,status,last_verified_at
-data_account,A1001,贷款余额,data_account,,1,金额,用于零售贷款余额分析,active,2026-04-12T00:00:00Z
-report_account,X01,资产总览,report_account,,1,,报告科目一级节点,active,2026-04-12T00:00:00Z
-dept_account,Y1,零售金融部,dept_account,,1,,部门一级节点,active,2026-04-12T00:00:00Z
-product_type,Z0001,个人经营贷,product_type,,1,,零售产品示例,active,2026-04-12T00:00:00Z

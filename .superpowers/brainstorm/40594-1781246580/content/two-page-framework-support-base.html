@@ -1,0 +1,36 @@
+<h2>两页框架图：四层主流程 + 数据底座</h2>
+<p class="subtitle">按你的判断，“事实汇总”不再作为主流程的一步，而是放到底部作为数据沉淀与汇总支撑层。业务主流程更顺，技术干货也保留。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">第 1 页：预算管理整体框架</div>
+    <div class="mockup-body">
+      <div class="placeholder"><strong>1. 数据来源层</strong><br>管会报表、业务报送、机构及产品数据录入、Excel 底稿、历史预算/实际版本</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>2. 参数规则层</strong><br>预算年度、预算版本、滚动月份、机构及产品、机构及产品指标、公式、横向/纵向汇总、展示配置</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>3. 数据处理层</strong><br>导入校验、版本确认、BudgetDataWriter 写入、公式重算、指标树汇总、summary/compare 刷新</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>4. 输出应用层</strong><br>预算展示报表、预测输出、模拟测算、多维透视、智能报告/PPT、Agent 分析</div>
+      <div style="margin-top:12px;border-top:2px solid #6b7280;padding-top:10px;">
+        <div class="placeholder"><strong>底座：数据沉淀与汇总支撑</strong><br>budget_data、budget_summary、budget_pivot_aggregate、compare_budget_summary、compare_pivot_aggregate、operation_log</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">第 2 页：部门费用整体框架</div>
+    <div class="mockup-body">
+      <div class="placeholder"><strong>1. 数据来源层</strong><br>费用执行明细、BI 报送、部门费用框架、费用预算报送、上年实际、本年预算、成本收入比实际</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>2. 参数规则层</strong><br>主体、事业群、费用责任部门、归口管理部门、部门预算科目、BI-AI 映射、费用预测规则</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>3. 数据处理层</strong><br>导入解析、映射匹配、费用实际 Adapter、预测重算、人工覆盖、执行报表组装、成本收入比计算</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>4. 输出应用层</strong><br>部门费用预测、费用预算执行报表、业务支出成本收入比、投入产出专题、Excel 导出</div>
+      <div style="margin-top:12px;border-top:2px solid #6b7280;padding-top:10px;">
+        <div class="placeholder"><strong>底座：数据沉淀与汇总支撑</strong><br>expense_actual_detail_raw、expense_forecast_entry、expense_forecast_calc_result、expense_forecast_override、budget_subject_catalog、dept_account、费用报表读模型</div>
+      </div>
+    </div>
+  </div>
+</div>

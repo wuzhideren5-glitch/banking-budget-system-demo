@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "description": "自然语言 -> 部门科目/产品科目 默认锁定规则；可随 common.db 变更调整。更具体的规则应排在列表前部。",
+  "rules": [
+    {
+      "id": "auto_finance",
+      "keywords": ["汽车金融", "车贷", "车车贷", "Y103", "A03"],
+      "departments": [{ "code": "Y103", "name": "汽车金融部" }],
+      "products": [{ "code": "A03", "name": "汽车金融" }]
+    },
+    {
+      "id": "retail_loan",
+      "keywords": ["泛微粒贷", "微粒贷", "开鑫贷", "消费金融", "Y101", "A01"],
+      "departments": [{ "code": "Y101", "name": "消费者金融业务" }],
+      "products": [{ "code": "A01", "name": "泛微粒贷" }]
+    },
+    {
+      "id": "corp_finance_dept",
+      "keywords": ["企业金融", "企金", "企业金融业务", "对公", "Y201", "B01"],
+      "departments": [{ "code": "Y201", "name": "企业金融业务" }],
+      "products": [{ "code": "B01", "name": "企业金融" }]
+    },
+    {
+      "id": "financial_market",
+      "keywords": ["金融市场", "金市", "同业", "Y202", "B02"],
+      "departments": [{ "code": "Y202", "name": "金融市场及同业部" }],
+      "products": [{ "code": "B02", "name": "金融市场" }]
+    },
+    {
+      "id": "account_product",
+      "keywords": ["微账户", "开心账户", "开心小账户", "A02"],
+      "departments": [{ "code": "Y101", "name": "消费者金融业务" }],
+      "products": [{ "code": "A02", "name": "微账户" }]
+    },
+    {
+      "id": "retail_finance",
+      "keywords": ["个人金融", "个金", "Y1"],
+      "departments": [{ "code": "Y1", "name": "个人金融事业群" }],
+      "products": [
+        { "code": "A01", "name": "泛微粒贷" },
+        { "code": "A02", "name": "微账户" },
+        { "code": "A03", "name": "汽车金融" },
+        { "code": "A04", "name": "财富" },
+        { "code": "A05", "name": "小鹅" }
+      ]
+    }
+  ]
+}

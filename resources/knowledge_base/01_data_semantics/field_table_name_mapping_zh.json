@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "description": "数据库表名和字段名中文映射，用于面向用户的结果展示与说明。",
+  "table_name_mapping": {
+    "budget_data": "预算明细表",
+    "budget_summary": "预算汇总表",
+    "version": "版本表",
+    "period": "期间表",
+    "data_account": "机构产品指标运行引用表",
+    "data_account_metric_node": "机构及产品指标运行节点表",
+    "data_account_metric_binding": "机构产品指标运行绑定表",
+    "dept_account": "部门科目表",
+    "org_product": "机构及产品表"
+  },
+  "field_name_mapping": {
+    "month": "月份",
+    "year": "年度",
+    "quarter": "季度",
+    "budget_actual": "预算/实际口径",
+    "budget_value": "预算值",
+    "actual_value": "实际值",
+    "total_value": "金额合计",
+    "value": "金额",
+    "dept_level1": "一级部门",
+    "dept_level2": "二级部门",
+    "dept_level3": "三级部门",
+    "data_code_name": "机构及产品指标运行引用",
+    "product_code_name": "产品科目",
+    "version_name": "预算版本",
+    "version_id": "版本编号",
+    "metric_level1": "一级指标",
+    "metric_level2": "二级指标",
+    "metric_level3": "三级指标",
+    "metric_level4": "四级指标",
+    "metric_level5": "五级指标"
+  }
+}

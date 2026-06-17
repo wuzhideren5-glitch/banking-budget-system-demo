@@ -1,9 +1,60 @@
+# Dependencies and local environments
 node_modules/
+apps/web/node_modules/
+.venv*/
+apps/api/.venv*/
+archive/**/node_modules/
+archive/**/.venv*/
+
+# Build and cache outputs
 dist/
-backend/.venv/
+apps/web/dist/
+.vite/
+apps/web/.vite/
+resources/knowledge_base/generated/*_trace.jsonl
+resources/knowledge_base/generated/*_events.jsonl
+output/
+outputs/
+exports/
+tmp/
 __pycache__/
 *.pyc
+
+# Root-level historical handoff clutter belongs under archive/
+/\.hermes/
+/releases/
+/TeamSubmit_*/
+/TeamSubmit_*.zip
+/*.zip
+/*.xls
+/*.xlsx
+/DELIVERY_NOTE_*.md
+/交付说明_*.md
+
+# Local runtime state
+var/*
+!var/.gitkeep
+!var/README.md
+!var/data/
+var/data/*
+!var/data/.gitkeep
+!var/logs/
+var/logs/*
+!var/logs/.gitkeep
+!var/pids/
+var/pids/*
+!var/pids/.gitkeep
+!var/output/
+var/output/*
+!var/output/.gitkeep
+
+# Logs, pid files, and OS/editor noise
+*.log
+*.pid
 .DS_Store
-data/*.db
+.~*
+
+# Local secrets
 .env
+apps/api/.env
 backend/.env

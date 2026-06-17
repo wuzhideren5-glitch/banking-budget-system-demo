@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-05-31T23:00:00+08:00",
+  "source_db": {
+    "common_db_path": "var/data/common.db",
+    "budget_db_path": "var/data/budget_2026.db"
+  },
+  "table_counts": {
+    "data_account": 10935,
+    "data_account_metric_node": 14804,
+    "data_account_metric_binding": 10935,
+    "budget_output_display_item": 1274,
+    "dept_account": 37,
+    "org_product": 19,
+    "budget_subject_catalog": 58,
+    "period": 180
+  },
+  "notes": [
+    "Current snapshot excludes retired report_account and report_data_mapping tables.",
+    "Business metric identity comes from data_account_metric_node, data_account_metric_binding, and data_account."
+  ]
+}

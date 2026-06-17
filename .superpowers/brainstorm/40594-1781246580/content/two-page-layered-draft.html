@@ -1,0 +1,51 @@
+<h2>两页框架图草图：预算管理 / 部门费用</h2>
+<p class="subtitle">每页都采用统一的数据分层：来源层 → 参数规则层 → 数据处理层 → 事实汇总层 → 输出分析层。这样两条业务线分开讲，但结构一致。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">第 1 页：预算管理数据分层</div>
+    <div class="mockup-body">
+      <div class="placeholder"><strong>1. 数据来源层</strong><br>管会报表、机构及产品数据录入、业务报送、Excel 底稿</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>2. 参数规则层</strong><br>机构及产品、机构及产品指标、公式配置、版本/月份窗口、展示配置</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>3. 数据处理层</strong><br>导入校验、版本确认、BudgetDataWriter 写入、公式重算、横向/纵向汇总</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>4. 事实汇总层</strong><br>budget_data、budget_summary、budget_pivot_aggregate、compare 汇总</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>5. 输出分析层</strong><br>预算展示报表、机构及产品预测输出、模拟测算、多维分析、智能报告/PPT、Agent</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">第 2 页：部门费用数据分层</div>
+    <div class="mockup-body">
+      <div class="placeholder"><strong>1. 数据来源层</strong><br>费用执行明细、BI 报送、费用框架、部门预算报送、成本收入比实际</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>2. 参数规则层</strong><br>部门科目、部门预算科目、BI-AI 科目映射、归口映射、费用预测规则</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>3. 数据处理层</strong><br>导入匹配、映射校验、预测规则计算、人工覆盖、费用执行报表解析</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>4. 事实汇总层</strong><br>expense_actual_detail_raw、expense_forecast_*、budget_subject_catalog、费用报表读模型</div>
+      <div style="text-align:center;margin:6px;">↓</div>
+      <div class="placeholder"><strong>5. 输出分析层</strong><br>部门费用预测、费用预算执行报表、业务支出成本收入比、投入产出专题概览</div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve-five-layers" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>确认五层结构</h3>
+      <p>两页统一使用：数据来源层、参数规则层、数据处理层、事实汇总层、输出分析层。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="rename-layers" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>调整层级名称</h3>
+      <p>保留数据分层思路，但把层级名称改得更业务化或更技术化。</p>
+    </div>
+  </div>
+</div>

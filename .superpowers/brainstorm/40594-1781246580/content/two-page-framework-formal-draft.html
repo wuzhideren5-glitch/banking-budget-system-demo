@@ -1,0 +1,69 @@
+<h2>正式框架稿：两页数据分层</h2>
+<p class="subtitle">本版按“业务可读 + 后续可细化设计”的口径组织。每一页都能独立讲清：数据从哪里来、参数规则怎么配置、系统如何处理、沉淀到哪里、最后输出什么。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">第 1 页：预算管理整体框架</div>
+    <div class="mockup-body">
+      <div class="placeholder">
+        <strong>1. 数据来源层</strong><br>
+        管会报表、业务报送、机构及产品数据录入、Excel 底稿、历史预算/实际版本
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 录入/导入/版本选择</div>
+      <div class="placeholder">
+        <strong>2. 参数规则层</strong><br>
+        预算年度、预算版本、滚动月份、机构及产品、机构及产品指标、唯一指标号码、预算/实际公式、横向汇总、纵向汇总、逻辑码、展示版本槽位
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 校验/绑定/规则解析</div>
+      <div class="placeholder">
+        <strong>3. 数据处理层</strong><br>
+        导入预览、数据校验、版本确认、BudgetDataWriter 写入、公式标脏、公式重算、父节点派生、预算汇总、对比库刷新
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 形成事实与读模型</div>
+      <div class="placeholder">
+        <strong>4. 事实汇总层</strong><br>
+        budget_data、budget_summary、budget_pivot_aggregate、compare_budget_summary、compare_pivot_aggregate、operation_log
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 展示/导出/分析</div>
+      <div class="placeholder">
+        <strong>5. 输出分析层</strong><br>
+        预算展示报表、机构及产品预测输出、模拟测算、多维透视、智能分析报告、智能演示 PPT、Agent 分析
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">第 2 页：部门费用整体框架</div>
+    <div class="mockup-body">
+      <div class="placeholder">
+        <strong>1. 数据来源层</strong><br>
+        费用执行明细、BI 报送、部门费用框架、费用预算报送、上年实际、本年预算、成本收入比实际
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 导入/映射/口径选择</div>
+      <div class="placeholder">
+        <strong>2. 参数规则层</strong><br>
+        主体、事业群、费用责任部门、归口管理部门、部门预算科目、BI-AI 科目映射、归口映射、费用预测规则、规则参数、指标表达式、人工覆盖
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 匹配/计算/汇总</div>
+      <div class="placeholder">
+        <strong>3. 数据处理层</strong><br>
+        导入解析、匹配校验、费用实际 Adapter、规则计算、预测重算、人工覆盖、预算执行口径组装、成本收入比计算
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 形成费用闭环状态</div>
+      <div class="placeholder">
+        <strong>4. 事实汇总层</strong><br>
+        expense_actual_detail_raw、expense_forecast_entry、expense_forecast_calc_result、expense_forecast_override、budget_subject_catalog、dept_account、费用报表读模型
+      </div>
+      <div style="text-align:center;margin:5px;">↓ 报表/分析/专题</div>
+      <div class="placeholder">
+        <strong>5. 输出分析层</strong><br>
+        部门费用预测、费用预算执行报表、业务支出成本收入比维护、投入产出专题概览、导出结果文件
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>建议交付形式</h3>
+  <p>正文用两页分层框架图；每页下方配一条“工作顺序”：来源数据 → 参数配置 → 导入校验 → 计算汇总 → 报表输出。附录再放参数清单和数据流脑图，避免主图过密。</p>
+</div>

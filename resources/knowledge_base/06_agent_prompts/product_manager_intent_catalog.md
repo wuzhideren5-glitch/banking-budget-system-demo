@@ -1,0 +1,538 @@
+<!-- 本快照由当前 common.db 的机构及产品指标主表生成 -->
+
+- generated_at: 2026-05-31T00:00:00+08:00
+- source_db: `/Users/penghui/Downloads/kevinchen_20260507_新增预算预测驱动因素模块(2)/var/data/common.db`
+- counts: metric_nodes=14804, metric_bindings=10935, data_accounts=10935, departments=37, products=19
+
+## 一、当前查询主轴
+- 指标身份：`metric_nodes`，来源为“机构及产品指标”主表 `org_product_metric_table.metrics[].metric_node_code` 的已确认引用；运行时同步到 `data_account_metric_node.node_code`，但不得从运行表反向生成配置。
+- 取数明细：`data_accounts` 是预算查询接口保留的明细字段名，正式编码来源为“机构及产品指标”主表 `org_product_metric_table.metrics[].data_acct_code` 的已确认引用；运行时同步到 `data_account.data_acct_code` 和绑定表，不能作为独立维护体系。
+- 产品范围：`products`，来源为“机构及产品”主表 `org_product_tree_snapshot` 展开的运行产品清单；指标编码前缀必须与产品范围一致。
+- 部门范围：`departments`，来源为 `dept_account.dept_code`。
+- 相似指标查询使用 `functional_group_code`；它不是指标身份，不能替代 `metric_node_code`。
+
+## 二、产品科目树
+- CORP 微众银行
+  - A 个金群, parent=CORP
+  - B 企金群, parent=CORP
+  - C 数字金融, parent=CORP
+  - D 国际业务, parent=CORP
+  - E 小鹅导流, parent=CORP
+  - F 司库及其他, parent=CORP
+    - A01 泛微粒贷, parent=A
+    - A02 微账户, parent=A
+    - A03 汽车金融, parent=A
+    - A04 财富, parent=A
+    - A05 小鹅, parent=A
+    - B01 企业金融, parent=B
+    - B02 金融市场, parent=B
+    - C01 国内业务, parent=C
+    - C02 国内研发, parent=C
+    - D01 国际业务, parent=D
+    - E01 小鹅导流, parent=E
+    - F01 司库及其他, parent=F
+
+## 三、部门科目树
+- Y1 个人金融事业群 (branch)
+- Y10 科技孙 (branch)
+- Y2 企业及机构金融事业群 (branch)
+- Y3 科技及智能事业群 (branch)
+- Y4 国际发展部 (branch)
+- Y5 资源管理及管控职能群 (branch)
+- Y6 其他 (branch)
+- Y7 历史架构 (branch)
+- Y8 虚拟部门 (branch)
+- Y9 科技子 (branch)
+  - Y1001 科技孙 (leaf, parent=Y10)
+  - Y101 消费者金融业务 (leaf, parent=Y1)
+  - Y102 反洗钱工作办公室 (leaf, parent=Y1)
+  - Y103 汽车金融部 (leaf, parent=Y1)
+  - Y104 财富及养老金融部 (leaf, parent=Y1)
+  - Y105 财富产品部 (leaf, parent=Y1)
+  - Y106 财富数字产品部 (leaf, parent=Y1)
+  - Y201 企业金融业务 (leaf, parent=Y2)
+  - Y202 金融市场及同业部 (leaf, parent=Y2)
+  - Y203 企金风险部 (leaf, parent=Y2)
+  - Y301 科技业务 (leaf, parent=Y3)
+  - Y401 国际发展部 (leaf, parent=Y4)
+  - Y501 风险及运营管理部 (leaf, parent=Y5)
+  - Y502 法律合规部 (leaf, parent=Y5)
+  - Y503 消费者权益保护部 (leaf, parent=Y5)
+  - Y504 办公室 (leaf, parent=Y5)
+  - Y505 采购及资产管理部 (leaf, parent=Y5)
+  - Y506 资产负债管理及企划部 (leaf, parent=Y5)
+  - Y507 财务会计部 (leaf, parent=Y5)
+  - Y508 人力资源部 (leaf, parent=Y5)
+  - Y509 审计部 (leaf, parent=Y5)
+  - Y510 公司治理部 (leaf, parent=Y5)
+  - Y601 总监室 (leaf, parent=Y6)
+  - Y602 行长室 (leaf, parent=Y6)
+  - Y701 历史架构 (leaf, parent=Y7)
+  - Y801 虚拟部门 (leaf, parent=Y8)
+  - Y901 科技子 (leaf, parent=Y9)
+
+## 四、机构及产品指标树按产品摘要
+- A 个金群: nodes=711, leaves=0, functional_groups=0
+  - A 个金群 [CATEGORY]
+    - A.00 统一业务指标树 [CATEGORY] (local=00)
+    - A.01 规模余额指标 [CATEGORY] (local=01)
+    - A.09 验收E2E指标根 [GROUP] (local=09)
+    - A.02 利率费率指标 [CATEGORY] (local=02)
+    - A.03 收入指标 [CATEGORY] (local=03)
+    - A.04 成本支出指标 [CATEGORY] (local=04)
+    - A.05 费用指标 [CATEGORY] (local=05)
+    - A.06 风险指标 [CATEGORY] (local=06)
+    - A.07 税费指标 [CATEGORY] (local=07)
+    - A.08 利润损益结果 [CATEGORY] (local=08)
+      - A.01.01 资产日均 [GROUP] (local=01.01)
+      - A.01.02 资产余额 [GROUP] (local=01.02)
+      - A.01.03 负债日均 [GROUP] (local=01.03)
+- A01 泛微粒贷: nodes=855, leaves=0, functional_groups=0
+  - A01 泛微粒贷 [CATEGORY]
+    - A01.00 统一业务指标树 [CATEGORY] (local=00)
+    - A01.01 规模余额指标 [CATEGORY] (local=01)
+    - A01.09 验收E2E指标根 [GROUP] (local=09)
+    - A01.02 利率费率指标 [CATEGORY] (local=02)
+    - A01.03 收入指标 [CATEGORY] (local=03)
+    - A01.04 成本支出指标 [CATEGORY] (local=04)
+    - A01.05 费用指标 [CATEGORY] (local=05)
+    - A01.06 风险指标 [CATEGORY] (local=06)
+    - A01.07 税费指标 [CATEGORY] (local=07)
+    - A01.08 利润损益结果 [CATEGORY] (local=08)
+      - A01.01.01 资产日均 [GROUP] (local=01.01)
+      - A01.01.02 资产余额 [GROUP] (local=01.02)
+      - A01.01.03 负债日均 [GROUP] (local=01.03)
+- A02 微账户: nodes=847, leaves=0, functional_groups=0
+  - A02 微账户 [CATEGORY]
+    - A02.00 统一业务指标树 [CATEGORY] (local=00)
+    - A02.01 规模余额指标 [CATEGORY] (local=01)
+    - A02.09 验收E2E指标根 [GROUP] (local=09)
+    - A02.02 利率费率指标 [CATEGORY] (local=02)
+    - A02.03 收入指标 [CATEGORY] (local=03)
+    - A02.04 成本支出指标 [CATEGORY] (local=04)
+    - A02.05 费用指标 [CATEGORY] (local=05)
+    - A02.06 风险指标 [CATEGORY] (local=06)
+    - A02.07 税费指标 [CATEGORY] (local=07)
+    - A02.08 利润损益结果 [CATEGORY] (local=08)
+      - A02.01.01 资产日均 [GROUP] (local=01.01)
+      - A02.01.02 资产余额 [GROUP] (local=01.02)
+      - A02.01.03 负债日均 [GROUP] (local=01.03)
+- A03 汽车金融: nodes=807, leaves=0, functional_groups=0
+  - A03 汽车金融 [CATEGORY]
+    - A03.00 统一业务指标树 [CATEGORY] (local=00)
+    - A03.01 规模余额指标 [CATEGORY] (local=01)
+    - A03.09 验收E2E指标根 [GROUP] (local=09)
+    - A03.02 利率费率指标 [CATEGORY] (local=02)
+    - A03.03 收入指标 [CATEGORY] (local=03)
+    - A03.04 成本支出指标 [CATEGORY] (local=04)
+    - A03.05 费用指标 [CATEGORY] (local=05)
+    - A03.06 风险指标 [CATEGORY] (local=06)
+    - A03.07 税费指标 [CATEGORY] (local=07)
+    - A03.08 利润损益结果 [CATEGORY] (local=08)
+      - A03.01.01 资产日均 [GROUP] (local=01.01)
+      - A03.01.02 资产余额 [GROUP] (local=01.02)
+      - A03.01.03 负债日均 [GROUP] (local=01.03)
+- A04 财富: nodes=816, leaves=0, functional_groups=0
+  - A04 财富 [CATEGORY]
+    - A04.00 统一业务指标树 [CATEGORY] (local=00)
+    - A04.01 规模余额指标 [CATEGORY] (local=01)
+    - A04.09 验收E2E指标根 [GROUP] (local=09)
+    - A04.02 利率费率指标 [CATEGORY] (local=02)
+    - A04.03 收入指标 [CATEGORY] (local=03)
+    - A04.04 成本支出指标 [CATEGORY] (local=04)
+    - A04.05 费用指标 [CATEGORY] (local=05)
+    - A04.06 风险指标 [CATEGORY] (local=06)
+    - A04.07 税费指标 [CATEGORY] (local=07)
+    - A04.08 利润损益结果 [CATEGORY] (local=08)
+      - A04.01.01 资产日均 [GROUP] (local=01.01)
+      - A04.01.02 资产余额 [GROUP] (local=01.02)
+      - A04.01.03 负债日均 [GROUP] (local=01.03)
+- A05 小鹅: nodes=797, leaves=0, functional_groups=0
+  - A05 小鹅 [CATEGORY]
+    - A05.00 统一业务指标树 [CATEGORY] (local=00)
+    - A05.01 规模余额指标 [CATEGORY] (local=01)
+    - A05.09 验收E2E指标根 [GROUP] (local=09)
+    - A05.02 利率费率指标 [CATEGORY] (local=02)
+    - A05.03 收入指标 [CATEGORY] (local=03)
+    - A05.04 成本支出指标 [CATEGORY] (local=04)
+    - A05.05 费用指标 [CATEGORY] (local=05)
+    - A05.06 风险指标 [CATEGORY] (local=06)
+    - A05.07 税费指标 [CATEGORY] (local=07)
+    - A05.08 利润损益结果 [CATEGORY] (local=08)
+      - A05.01.01 资产日均 [GROUP] (local=01.01)
+      - A05.01.02 资产余额 [GROUP] (local=01.02)
+      - A05.01.03 负债日均 [GROUP] (local=01.03)
+- B 企金群: nodes=711, leaves=0, functional_groups=0
+  - B 企金群 [CATEGORY]
+    - B.00 统一业务指标树 [CATEGORY] (local=00)
+    - B.01 规模余额指标 [CATEGORY] (local=01)
+    - B.09 验收E2E指标根 [GROUP] (local=09)
+    - B.02 利率费率指标 [CATEGORY] (local=02)
+    - B.03 收入指标 [CATEGORY] (local=03)
+    - B.04 成本支出指标 [CATEGORY] (local=04)
+    - B.05 费用指标 [CATEGORY] (local=05)
+    - B.06 风险指标 [CATEGORY] (local=06)
+    - B.07 税费指标 [CATEGORY] (local=07)
+    - B.08 利润损益结果 [CATEGORY] (local=08)
+      - B.01.01 资产日均 [GROUP] (local=01.01)
+      - B.01.02 资产余额 [GROUP] (local=01.02)
+      - B.01.03 负债日均 [GROUP] (local=01.03)
+- B01 企业金融: nodes=838, leaves=0, functional_groups=0
+  - B01 企业金融 [CATEGORY]
+    - B01.00 统一业务指标树 [CATEGORY] (local=00)
+    - B01.01 规模余额指标 [CATEGORY] (local=01)
+    - B01.09 验收E2E指标根 [GROUP] (local=09)
+    - B01.02 利率费率指标 [CATEGORY] (local=02)
+    - B01.03 收入指标 [CATEGORY] (local=03)
+    - B01.04 成本支出指标 [CATEGORY] (local=04)
+    - B01.05 费用指标 [CATEGORY] (local=05)
+    - B01.06 风险指标 [CATEGORY] (local=06)
+    - B01.07 税费指标 [CATEGORY] (local=07)
+    - B01.08 利润损益结果 [CATEGORY] (local=08)
+      - B01.01.01 资产日均 [GROUP] (local=01.01)
+      - B01.01.02 资产余额 [GROUP] (local=01.02)
+      - B01.01.03 负债日均 [GROUP] (local=01.03)
+- B02 金融市场: nodes=887, leaves=0, functional_groups=0
+  - B02 金融市场 [CATEGORY]
+    - B02.00 统一业务指标树 [CATEGORY] (local=00)
+    - B02.01 规模余额指标 [CATEGORY] (local=01)
+    - B02.09 验收E2E指标根 [GROUP] (local=09)
+    - B02.02 利率费率指标 [CATEGORY] (local=02)
+    - B02.03 收入指标 [CATEGORY] (local=03)
+    - B02.04 成本支出指标 [CATEGORY] (local=04)
+    - B02.05 费用指标 [CATEGORY] (local=05)
+    - B02.06 风险指标 [CATEGORY] (local=06)
+    - B02.07 税费指标 [CATEGORY] (local=07)
+    - B02.08 利润损益结果 [CATEGORY] (local=08)
+      - B02.01.01 资产日均 [GROUP] (local=01.01)
+      - B02.01.02 资产余额 [GROUP] (local=01.02)
+      - B02.01.03 负债日均 [GROUP] (local=01.03)
+- C 数字金融: nodes=711, leaves=0, functional_groups=0
+  - C 数字金融 [CATEGORY]
+    - C.00 统一业务指标树 [CATEGORY] (local=00)
+    - C.01 规模余额指标 [CATEGORY] (local=01)
+    - C.09 验收E2E指标根 [GROUP] (local=09)
+    - C.02 利率费率指标 [CATEGORY] (local=02)
+    - C.03 收入指标 [CATEGORY] (local=03)
+    - C.04 成本支出指标 [CATEGORY] (local=04)
+    - C.05 费用指标 [CATEGORY] (local=05)
+    - C.06 风险指标 [CATEGORY] (local=06)
+    - C.07 税费指标 [CATEGORY] (local=07)
+    - C.08 利润损益结果 [CATEGORY] (local=08)
+      - C.01.01 资产日均 [GROUP] (local=01.01)
+      - C.01.02 资产余额 [GROUP] (local=01.02)
+      - C.01.03 负债日均 [GROUP] (local=01.03)
+- C01 国内业务: nodes=785, leaves=0, functional_groups=0
+  - C01 国内业务 [CATEGORY]
+    - C01.00 统一业务指标树 [CATEGORY] (local=00)
+    - C01.01 规模余额指标 [CATEGORY] (local=01)
+    - C01.09 验收E2E指标根 [GROUP] (local=09)
+    - C01.02 利率费率指标 [CATEGORY] (local=02)
+    - C01.03 收入指标 [CATEGORY] (local=03)
+    - C01.04 成本支出指标 [CATEGORY] (local=04)
+    - C01.05 费用指标 [CATEGORY] (local=05)
+    - C01.06 风险指标 [CATEGORY] (local=06)
+    - C01.07 税费指标 [CATEGORY] (local=07)
+    - C01.08 利润损益结果 [CATEGORY] (local=08)
+      - C01.01.01 资产日均 [GROUP] (local=01.01)
+      - C01.01.02 资产余额 [GROUP] (local=01.02)
+      - C01.01.03 负债日均 [GROUP] (local=01.03)
+- C02 国内研发: nodes=780, leaves=0, functional_groups=0
+  - C02 国内研发 [CATEGORY]
+    - C02.00 统一业务指标树 [CATEGORY] (local=00)
+    - C02.01 规模余额指标 [CATEGORY] (local=01)
+    - C02.09 验收E2E指标根 [GROUP] (local=09)
+    - C02.02 利率费率指标 [CATEGORY] (local=02)
+    - C02.03 收入指标 [CATEGORY] (local=03)
+    - C02.04 成本支出指标 [CATEGORY] (local=04)
+    - C02.05 费用指标 [CATEGORY] (local=05)
+    - C02.06 风险指标 [CATEGORY] (local=06)
+    - C02.07 税费指标 [CATEGORY] (local=07)
+    - C02.08 利润损益结果 [CATEGORY] (local=08)
+      - C02.01.01 资产日均 [GROUP] (local=01.01)
+      - C02.01.02 资产余额 [GROUP] (local=01.02)
+      - C02.01.03 负债日均 [GROUP] (local=01.03)
+- CORP 微众银行: nodes=778, leaves=0, functional_groups=0
+  - CORP 微众银行 [CATEGORY]
+    - CORP.00 统一业务指标树 [CATEGORY] (local=00)
+    - CORP.01 规模余额指标 [CATEGORY] (local=01)
+    - CORP.09 验收E2E指标根 [GROUP] (local=09)
+    - CORP.02 利率费率指标 [CATEGORY] (local=02)
+    - CORP.03 收入指标 [CATEGORY] (local=03)
+    - CORP.04 成本支出指标 [CATEGORY] (local=04)
+    - CORP.05 费用指标 [CATEGORY] (local=05)
+    - CORP.06 风险指标 [CATEGORY] (local=06)
+    - CORP.07 税费指标 [CATEGORY] (local=07)
+    - CORP.08 利润损益结果 [CATEGORY] (local=08)
+      - CORP.01.01 资产日均 [GROUP] (local=01.01)
+      - CORP.01.02 资产余额 [GROUP] (local=01.02)
+      - CORP.01.03 负债日均 [GROUP] (local=01.03)
+- D 国际业务: nodes=711, leaves=0, functional_groups=0
+  - D 国际业务 [CATEGORY]
+    - D.00 统一业务指标树 [CATEGORY] (local=00)
+    - D.01 规模余额指标 [CATEGORY] (local=01)
+    - D.09 验收E2E指标根 [GROUP] (local=09)
+    - D.02 利率费率指标 [CATEGORY] (local=02)
+    - D.03 收入指标 [CATEGORY] (local=03)
+    - D.04 成本支出指标 [CATEGORY] (local=04)
+    - D.05 费用指标 [CATEGORY] (local=05)
+    - D.06 风险指标 [CATEGORY] (local=06)
+    - D.07 税费指标 [CATEGORY] (local=07)
+    - D.08 利润损益结果 [CATEGORY] (local=08)
+      - D.01.01 资产日均 [GROUP] (local=01.01)
+      - D.01.02 资产余额 [GROUP] (local=01.02)
+      - D.01.03 负债日均 [GROUP] (local=01.03)
+- D01 国际业务: nodes=780, leaves=0, functional_groups=0
+  - D01 国际业务 [CATEGORY]
+    - D01.00 统一业务指标树 [CATEGORY] (local=00)
+    - D01.01 规模余额指标 [CATEGORY] (local=01)
+    - D01.09 验收E2E指标根 [GROUP] (local=09)
+    - D01.02 利率费率指标 [CATEGORY] (local=02)
+    - D01.03 收入指标 [CATEGORY] (local=03)
+    - D01.04 成本支出指标 [CATEGORY] (local=04)
+    - D01.05 费用指标 [CATEGORY] (local=05)
+    - D01.06 风险指标 [CATEGORY] (local=06)
+    - D01.07 税费指标 [CATEGORY] (local=07)
+    - D01.08 利润损益结果 [CATEGORY] (local=08)
+      - D01.01.01 资产日均 [GROUP] (local=01.01)
+      - D01.01.02 资产余额 [GROUP] (local=01.02)
+      - D01.01.03 负债日均 [GROUP] (local=01.03)
+- E 小鹅导流: nodes=711, leaves=0, functional_groups=0
+  - E 小鹅导流 [CATEGORY]
+    - E.00 统一业务指标树 [CATEGORY] (local=00)
+    - E.01 规模余额指标 [CATEGORY] (local=01)
+    - E.09 验收E2E指标根 [GROUP] (local=09)
+    - E.02 利率费率指标 [CATEGORY] (local=02)
+    - E.03 收入指标 [CATEGORY] (local=03)
+    - E.04 成本支出指标 [CATEGORY] (local=04)
+    - E.05 费用指标 [CATEGORY] (local=05)
+    - E.06 风险指标 [CATEGORY] (local=06)
+    - E.07 税费指标 [CATEGORY] (local=07)
+    - E.08 利润损益结果 [CATEGORY] (local=08)
+      - E.01.01 资产日均 [GROUP] (local=01.01)
+      - E.01.02 资产余额 [GROUP] (local=01.02)
+      - E.01.03 负债日均 [GROUP] (local=01.03)
+- E01 小鹅导流: nodes=780, leaves=0, functional_groups=0
+  - E01 小鹅导流 [CATEGORY]
+    - E01.00 统一业务指标树 [CATEGORY] (local=00)
+    - E01.01 规模余额指标 [CATEGORY] (local=01)
+    - E01.09 验收E2E指标根 [GROUP] (local=09)
+    - E01.02 利率费率指标 [CATEGORY] (local=02)
+    - E01.03 收入指标 [CATEGORY] (local=03)
+    - E01.04 成本支出指标 [CATEGORY] (local=04)
+    - E01.05 费用指标 [CATEGORY] (local=05)
+    - E01.06 风险指标 [CATEGORY] (local=06)
+    - E01.07 税费指标 [CATEGORY] (local=07)
+    - E01.08 利润损益结果 [CATEGORY] (local=08)
+      - E01.01.01 资产日均 [GROUP] (local=01.01)
+      - E01.01.02 资产余额 [GROUP] (local=01.02)
+      - E01.01.03 负债日均 [GROUP] (local=01.03)
+- F 司库及其他: nodes=711, leaves=0, functional_groups=0
+  - F 司库及其他 [CATEGORY]
+    - F.00 统一业务指标树 [CATEGORY] (local=00)
+    - F.01 规模余额指标 [CATEGORY] (local=01)
+    - F.09 验收E2E指标根 [GROUP] (local=09)
+    - F.02 利率费率指标 [CATEGORY] (local=02)
+    - F.03 收入指标 [CATEGORY] (local=03)
+    - F.04 成本支出指标 [CATEGORY] (local=04)
+    - F.05 费用指标 [CATEGORY] (local=05)
+    - F.06 风险指标 [CATEGORY] (local=06)
+    - F.07 税费指标 [CATEGORY] (local=07)
+    - F.08 利润损益结果 [CATEGORY] (local=08)
+      - F.01.01 资产日均 [GROUP] (local=01.01)
+      - F.01.02 资产余额 [GROUP] (local=01.02)
+      - F.01.03 负债日均 [GROUP] (local=01.03)
+- F01 司库及其他: nodes=788, leaves=0, functional_groups=0
+  - F01 司库及其他 [CATEGORY]
+    - F01.00 统一业务指标树 [CATEGORY] (local=00)
+    - F01.01 规模余额指标 [CATEGORY] (local=01)
+    - F01.09 验收E2E指标根 [GROUP] (local=09)
+    - F01.02 利率费率指标 [CATEGORY] (local=02)
+    - F01.03 收入指标 [CATEGORY] (local=03)
+    - F01.04 成本支出指标 [CATEGORY] (local=04)
+    - F01.05 费用指标 [CATEGORY] (local=05)
+    - F01.06 风险指标 [CATEGORY] (local=06)
+    - F01.07 税费指标 [CATEGORY] (local=07)
+    - F01.08 利润损益结果 [CATEGORY] (local=08)
+      - F01.01.01 资产日均 [GROUP] (local=01.01)
+      - F01.01.02 资产余额 [GROUP] (local=01.02)
+      - F01.01.03 负债日均 [GROUP] (local=01.03)
+
+## 五、常用指标节点样例
+- A.03 | 收入指标 | product=A | level=2 | type=CATEGORY | fg=
+- A.05 | 费用指标 | product=A | level=2 | type=CATEGORY | fg=
+- A.02.01 | 收益率/收息率 | product=A | level=3 | type=GROUP | fg=
+- A.03.01 | 利息收入 | product=A | level=3 | type=GROUP | fg=
+- A.03.02 | 净利息收入 | product=A | level=3 | type=GROUP | fg=
+- A.03.03 | FTP收入 | product=A | level=3 | type=GROUP | fg=
+- A.03.04 | 手续费收入/净手续费收入 | product=A | level=3 | type=GROUP | fg=
+- A.03.06 | 营业外收入 | product=A | level=3 | type=GROUP | fg=
+- A.03.09 | 其他收入 | product=A | level=3 | type=GROUP | fg=
+- A.04.01 | 利息支出/资金成本 | product=A | level=3 | type=GROUP | fg=
+- A.08.01 | 净收入 | product=A | level=3 | type=GROUP | fg=
+- A.05.02 | 人力费用 | product=A | level=3 | type=GROUP | fg=
+- A.05.03 | 非人力费用 | product=A | level=3 | type=GROUP | fg=
+- A.01.01.01 | 贷款及融资资产 | product=A | level=4 | type=GROUP | fg=
+- A.01.02.01 | 贷款及融资资产 | product=A | level=4 | type=GROUP | fg=
+- A.01.03.01 | 存款负债 | product=A | level=4 | type=GROUP | fg=
+- A.01.04.01 | 存款负债 | product=A | level=4 | type=GROUP | fg=
+- A.02.01.03 | 金融市场收益率 | product=A | level=4 | type=GROUP | fg=
+- A.03.01.01 | 贷款及产品利息收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.01.02 | 金融市场利息收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.01.03 | FTP收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.02.01 | 贷款及产品利息收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.02.02 | 手续费及服务收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.03.01 | FTP收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.03.02 | 手续费及服务收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.03.03 | 其他经营收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.03.04 | 其他收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.04.01 | 手续费及服务收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.04.02 | 其他收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.05.01 | 其他经营收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.06.01 | 其他经营收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.09.01 | 贷款及产品利息收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.09.02 | 金融市场利息收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.09.03 | 手续费及服务收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.09.04 | 其他经营收入 | product=A | level=4 | type=GROUP | fg=
+- A.03.09.05 | 其他收入 | product=A | level=4 | type=GROUP | fg=
+- A.04.01.02 | 存款及客户利息支出 | product=A | level=4 | type=GROUP | fg=
+- A.04.02.02 | 存款及客户利息支出 | product=A | level=4 | type=GROUP | fg=
+- A.04.09.01 | 存款及客户利息支出 | product=A | level=4 | type=GROUP | fg=
+- A.05.01.01 | 业务运营费用 | product=A | level=4 | type=GROUP | fg=
+- A.05.01.02 | 费用结果指标 | product=A | level=4 | type=GROUP | fg=
+- A.05.02.01 | 人力费用 | product=A | level=4 | type=GROUP | fg=
+- A.05.03.01 | 科技及系统费用 | product=A | level=4 | type=GROUP | fg=
+- A.05.03.02 | 办公职场及资产费用 | product=A | level=4 | type=GROUP | fg=
+- A.05.03.03 | 业务运营费用 | product=A | level=4 | type=GROUP | fg=
+- A.05.03.04 | 综合费用 | product=A | level=4 | type=GROUP | fg=
+- A.08.01.01 | 净收入 | product=A | level=4 | type=GROUP | fg=
+- A.01.01.01.01 | 贷款及融资明细 | product=A | level=5 | type=GROUP | fg=
+- A.01.02.01.01 | 产品线贷款 | product=A | level=5 | type=GROUP | fg=
+- A.01.02.01.02 | 贷款及融资明细 | product=A | level=5 | type=GROUP | fg=
+- A.01.03.01.01 | 产品及保证金存款 | product=A | level=5 | type=GROUP | fg=
+- A.01.03.01.02 | 产品线存款 | product=A | level=5 | type=GROUP | fg=
+- A.01.03.01.03 | 客户存款 | product=A | level=5 | type=GROUP | fg=
+- A.01.04.01.01 | 产品及保证金存款 | product=A | level=5 | type=GROUP | fg=
+- A.01.04.01.02 | 产品线存款 | product=A | level=5 | type=GROUP | fg=
+- A.01.04.01.03 | 客户存款 | product=A | level=5 | type=GROUP | fg=
+- A.02.01.03.01 | 投资/同业收益率 | product=A | level=5 | type=GROUP | fg=
+- A.03.01.01.01 | 贷款/产品利息 | product=A | level=5 | type=GROUP | fg=
+- A.03.01.02.01 | 投资/同业利息 | product=A | level=5 | type=GROUP | fg=
+- A.03.01.03.01 | FTP收入明细 | product=A | level=5 | type=GROUP | fg=
+- A.03.02.01.01 | 贷款/产品利息 | product=A | level=5 | type=GROUP | fg=
+- A.03.02.02.01 | 服务/渠道收入 | product=A | level=5 | type=GROUP | fg=
+- A.03.03.01.01 | FTP收入明细 | product=A | level=5 | type=GROUP | fg=
+- A.03.03.02.01 | 服务/渠道收入 | product=A | level=5 | type=GROUP | fg=
+- A.03.03.04.01 | 其他收入明细 | product=A | level=5 | type=GROUP | fg=
+- A.03.04.01.01 | 服务/渠道收入 | product=A | level=5 | type=GROUP | fg=
+- A.03.04.02.01 | 其他收入明细 | product=A | level=5 | type=GROUP | fg=
+- A.03.09.01.01 | 贷款/产品利息 | product=A | level=5 | type=GROUP | fg=
+- A.03.09.02.01 | 投资/同业利息 | product=A | level=5 | type=GROUP | fg=
+- A.03.09.03.01 | 服务/渠道收入 | product=A | level=5 | type=GROUP | fg=
+- A.03.09.05.01 | 其他收入明细 | product=A | level=5 | type=GROUP | fg=
+- A.04.01.02.01 | 存款/产品付息 | product=A | level=5 | type=GROUP | fg=
+- A.04.02.02.01 | 存款/产品付息 | product=A | level=5 | type=GROUP | fg=
+- A.04.09.01.01 | 存款/产品付息 | product=A | level=5 | type=GROUP | fg=
+- A.05.01.02.01 | 直接/间接费用 | product=A | level=5 | type=GROUP | fg=
+- A.05.03.01.01 | IT费用 | product=A | level=5 | type=GROUP | fg=
+- A.05.03.02.01 | 办公/资产费用 | product=A | level=5 | type=GROUP | fg=
+- A.05.03.04.01 | 其他费用 | product=A | level=5 | type=GROUP | fg=
+- A.07.02.01.01 | 所得税一般费用 | product=A | level=5 | type=GROUP | fg=
+- A.08.01.01.01 | 净收入结果 | product=A | level=5 | type=GROUP | fg=
+
+## 六、机构及产品指标运行引用样例
+- data=A.00 个金群统一业务指标树 (金额) -> metric=A.00 统一业务指标树 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.017 个金群管理贷款日均 (金额) -> metric=A.01.01.01.01.017 管理贷款日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.021 个金群债转 (金额) -> metric=A.01.01.01.01.021 债转 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.022 个金群银承保函 (金额) -> metric=A.01.01.01.01.022 银承保函 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.042 个金群一般性贷款_日均 (金额) -> metric=A.01.01.01.01.042 一般性贷款_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.044 个金群福费廷_日均 (金额) -> metric=A.01.01.01.01.044 福费廷_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.046 个金群贷款资产_表内日均 (金额) -> metric=A.01.01.01.01.046 贷款资产_表内日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.059 个金群表内贷款日均 (金额) -> metric=A.01.01.01.01.059 表内贷款日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.060 个金群联合贷款日均 (金额) -> metric=A.01.01.01.01.060 联合贷款日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.061 个金群资产流转日均 (金额) -> metric=A.01.01.01.01.061 资产流转日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.01.01.063 个金群表联合贷款_日均总额 (金额) -> metric=A.01.01.01.01.063 表联合贷款_日均总额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.003 个金群PL债券投资_日均 (金额) -> metric=A.01.01.02.01.003 PL债券投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.008 个金群二级资本债_日均 (金额) -> metric=A.01.01.02.01.008 二级资本债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.009 个金群信用债_日均 (金额) -> metric=A.01.01.02.01.009 信用债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.011 个金群国债_日均 (金额) -> metric=A.01.01.02.01.011 国债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.012 个金群地方债_日均 (金额) -> metric=A.01.01.02.01.012 地方债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.013 个金群政金债_日均 (金额) -> metric=A.01.01.02.01.013 政金债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.014 个金群铁道债_日均 (金额) -> metric=A.01.01.02.01.014 铁道债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.015 个金群银行债_日均 (金额) -> metric=A.01.01.02.01.015 银行债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.016 个金群非银债_日均 (金额) -> metric=A.01.01.02.01.016 非银债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.039 个金群信用债投资_日均 (金额) -> metric=A.01.01.02.01.039 信用债投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.01.040 个金群政策性金融债投资_日均 (金额) -> metric=A.01.01.02.01.040 政策性金融债投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.02.004 个金群PL同业存单投资_日均 (金额) -> metric=A.01.01.02.02.004 PL同业存单投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.02.025 个金群同业存单投资_日均 (金额) -> metric=A.01.01.02.02.025 同业存单投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.03.005 个金群债基投资_日均 (金额) -> metric=A.01.01.02.03.005 债基投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.03.006 个金群货基投资_日均 (金额) -> metric=A.01.01.02.03.006 货基投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.03.037 个金群同业货基投资_日均 (金额) -> metric=A.01.01.02.03.037 同业货基投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.03.038 个金群同业债基投资_日均 (金额) -> metric=A.01.01.02.03.038 同业债基投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.04.007 个金群ABS投资_日均 (金额) -> metric=A.01.01.02.04.007 ABS投资_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.04.018 个金群ABN (金额) -> metric=A.01.01.02.04.018 ABN | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.04.019 个金群ABS (金额) -> metric=A.01.01.02.04.019 ABS | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.02.04.041 个金群资产支持证券（ABS）日均 (金额) -> metric=A.01.01.02.04.041 资产支持证券（ABS）日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.024 个金群买入返售_日均 (金额) -> metric=A.01.01.03.01.024 买入返售_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.027 个金群存放同业_日均 (金额) -> metric=A.01.01.03.01.027 存放同业_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.028 个金群拆放同业_日均 (金额) -> metric=A.01.01.03.01.028 拆放同业_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.031 个金群存放同业活期资产_日均 (金额) -> metric=A.01.01.03.01.031 存放同业活期资产_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.032 个金群存放同业定期资产_日均 (金额) -> metric=A.01.01.03.01.032 存放同业定期资产_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.033 个金群存放同业其他资产_日均 (金额) -> metric=A.01.01.03.01.033 存放同业其他资产_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.034 个金群拆放同业资产_日均 (金额) -> metric=A.01.01.03.01.034 拆放同业资产_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.01.035 个金群买入返售资产_日均 (金额) -> metric=A.01.01.03.01.035 买入返售资产_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.02.026 个金群央行存放_日均 (金额) -> metric=A.01.01.03.02.026 央行存放_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.02.029 个金群存放央行法准_表内日均 (金额) -> metric=A.01.01.03.02.029 存放央行法准_表内日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.03.02.030 个金群存放央行超备_表内日均 (金额) -> metric=A.01.01.03.02.030 存放央行超备_表内日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.047 个金群同业存放活期负债_日均 (金额) -> metric=A.01.01.04.01.047 同业存放活期负债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.048 个金群同业存放定期负债_日均 (金额) -> metric=A.01.01.04.01.048 同业存放定期负债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.049 个金群同业拆入负债_日均 (金额) -> metric=A.01.01.04.01.049 同业拆入负债_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.050 个金群卖出回购日均 (金额) -> metric=A.01.01.04.01.050 卖出回购日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.051 个金群发行同业存单日均 (金额) -> metric=A.01.01.04.01.051 发行同业存单日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.052 个金群向中央银行借款日均 (金额) -> metric=A.01.01.04.01.052 向中央银行借款日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.053 个金群交易性金融负债日均 (金额) -> metric=A.01.01.04.01.053 交易性金融负债日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.04.01.054 个金群付息负债日均 (金额) -> metric=A.01.01.04.01.054 付息负债日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.05.01.023 个金群管理资产日均 (金额) -> metric=A.01.01.05.01.023 管理资产日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.05.01.064 个金群管理资产_日均总额 (金额) -> metric=A.01.01.05.01.064 管理资产_日均总额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.05.01.066 个金群代销理财日均 (金额) -> metric=A.01.01.05.01.066 代销理财日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.001 个金群产品利息收入_日均 (金额) -> metric=A.01.01.06.01.001 产品利息收入_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.002 个金群产品贷款利息收入_日均 (金额) -> metric=A.01.01.06.01.002 产品贷款利息收入_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.020 个金群资产日均 (金额) -> metric=A.01.01.06.01.020 资产日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.043 个金群日均 (金额) -> metric=A.01.01.06.01.043 日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.045 个金群纯自营贷款表内_日均 (金额) -> metric=A.01.01.06.01.045 纯自营贷款表内_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.055 个金群活期储蓄存款_日均 (金额) -> metric=A.01.01.06.01.055 活期储蓄存款_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.056 个金群定期储蓄存款_日均 (金额) -> metric=A.01.01.06.01.056 定期储蓄存款_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.057 个金群单位活期存款_日均 (金额) -> metric=A.01.01.06.01.057 单位活期存款_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.058 个金群单位定期存款_日均 (金额) -> metric=A.01.01.06.01.058 单位定期存款_日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.01.06.01.065 个金群各项存款日均 (金额) -> metric=A.01.01.06.01.065 各项存款日均 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.01.056 个金群微粒贷利息收入_余额 (金额) -> metric=A.01.02.01.01.056 微粒贷利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.01.057 个金群分付利息收入_余额 (金额) -> metric=A.01.02.01.01.057 分付利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.01.058 个金群汽金贷款利息收入_余额 (金额) -> metric=A.01.02.01.01.058 汽金贷款利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.01.059 个金群财富贷款利息收入_余额 (金额) -> metric=A.01.02.01.01.059 财富贷款利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.01.061 个金群小鹅花钱利息收入_余额 (金额) -> metric=A.01.02.01.01.061 小鹅花钱利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.015 个金群管理贷款 (金额) -> metric=A.01.02.01.02.015 管理贷款 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.016 个金群管理贷款余额 (金额) -> metric=A.01.02.01.02.016 管理贷款余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.036 个金群表内贷款时点余额 (金额) -> metric=A.01.02.01.02.036 表内贷款时点余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.037 个金群联合贷款时点余额 (金额) -> metric=A.01.02.01.02.037 联合贷款时点余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.038 个金群资产流转时点余额 (金额) -> metric=A.01.02.01.02.038 资产流转时点余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.065 个金群票据贴现利息收入_余额 (金额) -> metric=A.01.02.01.02.065 票据贴现利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.01.02.066 个金群贸易融资利息收入_余额 (金额) -> metric=A.01.02.01.02.066 贸易融资利息收入_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.006 个金群二级资本债_余额 (金额) -> metric=A.01.02.02.01.006 二级资本债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.007 个金群信用债_余额 (金额) -> metric=A.01.02.02.01.007 信用债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.009 个金群国债_余额 (金额) -> metric=A.01.02.02.01.009 国债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.010 个金群地方债_余额 (金额) -> metric=A.01.02.02.01.010 地方债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.011 个金群政金债_余额 (金额) -> metric=A.01.02.02.01.011 政金债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.012 个金群铁道债_余额 (金额) -> metric=A.01.02.02.01.012 铁道债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.013 个金群银行债_余额 (金额) -> metric=A.01.02.02.01.013 银行债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.014 个金群非银债_余额 (金额) -> metric=A.01.02.02.01.014 非银债_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.01.034 个金群投资损益 (金额) -> metric=A.01.02.02.01.034 投资损益 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.02.024 个金群同业存单投资_余额 (金额) -> metric=A.01.02.02.02.024 同业存单投资_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.03.003 个金群债基投资_余额 (金额) -> metric=A.01.02.02.03.003 债基投资_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.03.004 个金群货基投资_余额 (金额) -> metric=A.01.02.02.03.004 货基投资_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.04.005 个金群ABS投资_余额 (金额) -> metric=A.01.02.02.04.005 ABS投资_余额 | scope=PRODUCT:A | product=A | fg=
+- data=A.01.02.02.04.033 个金群资产管理及资金监管（ABN） (金额) -> metric=A.01.02.02.04.033 资产管理及资金监管（ABN） | scope=PRODUCT:A | product=A | fg=
+
+## 七、输出约束
+- 能锁定汇总指标时写入 `query_spec.metric_nodes`；能锁定叶子数据时写入 `query_spec.data_accounts`。
+- 不确定产品或部门时不要猜，走 `data_query_incomplete` 并让用户选择。
+- 不要把 `functional_group_code` 当作取数 code；它只用于跨产品相似指标聚合。

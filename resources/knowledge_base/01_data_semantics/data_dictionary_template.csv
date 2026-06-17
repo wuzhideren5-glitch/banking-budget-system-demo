@@ -1,0 +1,5 @@
+entity_type,entity_code,entity_name,source_table,parent_code,level,value_type,description,status,last_verified_at
+metric_node,A03.01.01.06.01.002,产品贷款利息收入_日均,data_account_metric_node,A03.01.01.06.01,6,,机构及产品指标节点示例,active,2026-05-31T00:00:00+08:00
+data_account,A03.01.01.06.01.002,产品贷款利息收入_日均,data_account,A03.01.01.06.01.002,,金额,机构及产品指标运行引用示例；通过 data_account_metric_binding 绑定指标节点,active,2026-05-31T00:00:00+08:00
+dept_account,Y103,汽车金融部,dept_account,Y1,2,,部门科目示例,active,2026-05-31T00:00:00+08:00
+org_product,A03,汽车金融,org_product_tree_snapshot,A,3,,机构及产品示例,active,2026-05-31T00:00:00+08:00
