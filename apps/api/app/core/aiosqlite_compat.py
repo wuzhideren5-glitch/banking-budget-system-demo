@@ -124,23 +124,18 @@ def _translate_sql(sql: str) -> str:
     if _PRAGMA_FK_RE.match(stripped):
         return "SELECT 1"
 
-    # --- SELECT sql FROM sqlite_master WHERE ... name = ? → DDL-like string from INFORMATION_SCHEMA ---
-    # SQLite's sqlite_master.sql stores the CREATE TABLE statement. MySQL doesn't have
-    # an equivalent column, so we build a DDL-like string from INFORMATION_SCHEMA.
-    # This is used by contract-checking code that pattern-matches on the SQL text.
+    # --- SELECT sql FROM sqlite_master → safe fallback ---
+    # SQLite's sqlite_master.sql stores the CREATE TABLE statement. MySQL has no
+    # equivalent column. Callers that need DDL text use SHOW CREATE TABLE directly.
+    # This fallback returns the table name so existence checks don't crash.
     _sql_master_re = re.compile(
-        r"SELECT\s+sql\s+FROM\s+sqlite_master\s+WHERE\s+type\s*=\s*'table'\s+AND\s+name\s*=\s*\?",
+        r"SELECT\s+sql\s+FROM\s+sqlite_master",
         re.IGNORECASE,
     )
     if _sql_master_re.search(sql):
         return (
-            "SELECT CONCAT('CREATE TABLE ', COLUMN_NAME, ' ', COLUMN_TYPE, "
-            "IF(IS_NULLABLE='YES',' NULL',' NOT NULL'), "
-            "IF(COLUMN_DEFAULT IS NOT NULL, CONCAT(' DEFAULT ', COLUMN_DEFAULT), ''), "
-            "IF(COLUMN_KEY='PRI',' PRIMARY KEY','')) AS `sql` "
-            "FROM INFORMATION_SCHEMA.COLUMNS "
-            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s "
-            "ORDER BY ORDINAL_POSITION"
+            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'"
         )
 
     # --- PRAGMA table_info(table) → INFORMATION_SCHEMA.COLUMNS ---

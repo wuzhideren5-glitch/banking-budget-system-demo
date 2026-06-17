@@ -436,11 +436,12 @@ def _table_columns_sync(conn: sqlite3.Connection, table_name: str) -> set[str]:
 
 
 def _table_sql_sync(conn: sqlite3.Connection, table_name: str) -> str:
-    row = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
-        (table_name,),
-    ).fetchone()
-    return str(row[0] or "") if row else ""
+    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    try:
+        row = conn.execute(f"SHOW CREATE TABLE `{table_name}`").fetchone()
+        return str(row[1] or "") if row else ""
+    except Exception:
+        return ""
 
 
 def _table_exists_sync(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -458,12 +459,13 @@ async def _table_columns(db: AsyncSqlConnection, table_name: str) -> set[str]:
 
 
 async def _table_sql(db: AsyncSqlConnection, table_name: str) -> str:
-    cur = await db.execute(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
-        (table_name,),
-    )
-    row = await cur.fetchone()  # type: ignore[attr-defined]
-    return str(row[0] or "") if row else ""
+    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    try:
+        cur = await db.execute(f"SHOW CREATE TABLE `{table_name}`")
+        row = await cur.fetchone()  # type: ignore[attr-defined]
+        return str(row[1] or "") if row else ""
+    except Exception:
+        return ""
 
 
 async def _table_exists(db: AsyncSqlConnection, table_name: str) -> bool:

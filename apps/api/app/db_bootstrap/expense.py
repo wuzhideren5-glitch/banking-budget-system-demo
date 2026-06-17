@@ -329,12 +329,13 @@ def _quote_identifier(identifier: str) -> str:
 
 
 async def _table_sql(db: AsyncSqlExecutor, table_name: str) -> str:
-    cur = await db.execute(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
-        (table_name,),
-    )
-    row = await cur.fetchone()  # type: ignore[attr-defined]
-    return str(row[0] or "") if row else ""
+    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    try:
+        cur = await db.execute(f"SHOW CREATE TABLE `{table_name}`")
+        row = await cur.fetchone()  # type: ignore[attr-defined]
+        return str(row[1] or "") if row else ""
+    except Exception:
+        return ""
 
 
 async def _table_columns(db: AsyncSqlExecutor, table_name: str) -> list[str]:
@@ -373,11 +374,12 @@ async def ensure_expense_forecast_schema(db: AsyncSqlExecutor) -> None:
 
 
 def _table_sql_sync(conn: sqlite3.Connection, table_name: str) -> str:
-    row = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
-        (table_name,),
-    ).fetchone()
-    return str(row[0] or "") if row else ""
+    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    try:
+        row = conn.execute(f"SHOW CREATE TABLE `{table_name}`").fetchone()
+        return str(row[1] or "") if row else ""
+    except Exception:
+        return ""
 
 
 def _table_columns_sync(conn: sqlite3.Connection, table_name: str) -> list[str]:
