@@ -3,19 +3,18 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.db_bootstrap.derived_read_models import (
-    ensure_budget_pivot_aggregate_schema_async,
-    ensure_budget_summary_read_model_schema_async,
-    ensure_compare_pivot_aggregate_schema_async,
-    ensure_compare_summary_read_model_schema_async,
+    ensure_budget_read_model_schema,
+    ensure_compare_read_model_schema,
 )
 from app.core.db_paths import common_db_path, compare_db_path
 from app.schemas import BudgetSummaryAggregateRequest, BudgetSummaryRowDto, CompareSummaryRowDto
@@ -66,6 +65,80 @@ MAX_PIVOT_SEARCH_ALIASES_PER_KEYWORD = 24
 
 def _iso_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    keys = getattr(row, "keys", None)
+    if callable(keys) and key in keys():
+        return row[key]
+    return row[index]
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or candidate.name == "compare.db" or (
+        candidate.name.startswith("budget_") and candidate.suffix == ".db"
+    )
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+async def _fetch_all_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_all(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchall()
+
+
+async def _fetch_one_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> Any:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_one(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchone()
+
+
+async def _execute_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> int:
+    if _uses_mysql_path(db_path):
+        return await get_pool().execute(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        cur = db.execute(sql, params)
+        db.commit()
+        return cur.rowcount
+
+
+def _ensure_sqlite_budget_read_models(db_path: Path) -> None:
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        ensure_budget_read_model_schema(db)
+        db.commit()
+
+
+def _ensure_sqlite_compare_read_models(db_path: Path) -> None:
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        ensure_compare_read_model_schema(db)
+        db.commit()
 
 
 def _fields_from_request(body: BudgetSummaryAggregateRequest) -> set[str]:
@@ -127,6 +200,8 @@ def _search_alias_keys(*values: str) -> set[str]:
 def _load_org_product_search_aliases(common_path: Path | None = None) -> dict[str, set[str]]:
     db_path = common_path or common_db_path()
     aliases: dict[str, set[str]] = {}
+    if _uses_mysql_path(db_path):
+        return aliases
     if not db_path.exists():
         return aliases
     try:
@@ -168,6 +243,46 @@ def _load_org_product_search_aliases(common_path: Path | None = None) -> dict[st
     return aliases
 
 
+async def _load_org_product_search_aliases_mysql() -> dict[str, set[str]]:
+    aliases: dict[str, set[str]] = {}
+    try:
+        rows = await get_pool().fetch_all(
+            """
+            SELECT node_code, node_name, product_code, metric_table_name
+            FROM data_account_metric_node
+            WHERE is_active = 1
+              AND runtime_account_enabled = 1
+              AND COALESCE(product_code, '') <> ''
+              AND COALESCE(metric_table_name, '') <> ''
+            """
+        )
+    except Exception:
+        return aliases
+    for row in rows:
+        entity_code = str(_row_value(row, "product_code", 2) or "").strip().upper()
+        table_name = str(_row_value(row, "metric_table_name", 3) or "").strip()
+        metric_code = str(_row_value(row, "node_code", 0) or "").strip().upper()
+        metric_name = str(_row_value(row, "node_name", 1) or "").strip()
+        data_acct_code = (
+            derive_runtime_ref_from_org_product_metric_code(
+                entity_code=entity_code,
+                metric_code=metric_code,
+            )
+            or metric_code
+        )
+        source_ref = f"{entity_code}:{table_name}:{metric_code}" if metric_code else ""
+        alias_values = {
+            value
+            for value in [metric_code, metric_name, data_acct_code, source_ref]
+            if value
+        }
+        if not alias_values:
+            continue
+        for key in _search_alias_keys(metric_code, metric_name, data_acct_code, source_ref):
+            aliases.setdefault(key, set()).update(alias_values)
+    return aliases
+
+
 def _expand_search_keyword(keyword: str, *, common_path: Path | None = None) -> list[str]:
     normalized = _normalize_org_product_search_token(keyword)
     expanded = {keyword}
@@ -179,12 +294,37 @@ def _expand_search_keyword(keyword: str, *, common_path: Path | None = None) -> 
     )[:MAX_PIVOT_SEARCH_ALIASES_PER_KEYWORD]
 
 
-async def ensure_budget_pivot_aggregate_table(db: aiosqlite.Connection) -> None:
-    await ensure_budget_pivot_aggregate_schema_async(db)
+async def _expand_search_keyword_async(keyword: str, *, common_path: Path | None = None) -> list[str]:
+    normalized = _normalize_org_product_search_token(keyword)
+    expanded = {keyword}
+    path = common_path or common_db_path()
+    if normalized:
+        if _uses_mysql_path(path):
+            expanded.update((await _load_org_product_search_aliases_mysql()).get(normalized, set()))
+        else:
+            expanded.update(_load_org_product_search_aliases(path).get(normalized, set()))
+    return sorted(
+        (item for item in expanded if str(item).strip()),
+        key=lambda item: (0 if item == keyword else 1, str(item)),
+    )[:MAX_PIVOT_SEARCH_ALIASES_PER_KEYWORD]
 
 
-async def ensure_compare_pivot_aggregate_table(db: aiosqlite.Connection) -> None:
-    await ensure_compare_pivot_aggregate_schema_async(db)
+async def ensure_budget_pivot_aggregate_table(db: Any) -> None:
+    if isinstance(db, (str, Path)):
+        db_path = Path(db)
+        if not _uses_mysql_path(db_path):
+            _ensure_sqlite_budget_read_models(db_path)
+        return
+    ensure_budget_read_model_schema(db)
+
+
+async def ensure_compare_pivot_aggregate_table(db: Any) -> None:
+    if isinstance(db, (str, Path)):
+        db_path = Path(db)
+        if not _uses_mysql_path(db_path):
+            _ensure_sqlite_compare_read_models(db_path)
+        return
+    ensure_compare_read_model_schema(db)
 
 
 def _budget_insert_sql(grain: str) -> str:
@@ -279,35 +419,30 @@ def _compare_insert_sql(grain: str) -> str:
 
 async def rebuild_budget_pivot_aggregate_for_version(version_id: int, budget_path: Path) -> int:
     now = _iso_now()
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_budget_pivot_aggregate_table(db)
-        await ensure_budget_summary_read_model_schema_async(db)
-        await db.execute("DELETE FROM budget_pivot_aggregate WHERE version_id = ?", (int(version_id),))
-        for grain in ("year", "quarter", "month"):
-            await db.execute(_budget_insert_sql(grain), (grain, now, int(version_id)))
-        cur = await db.execute(
-            "SELECT COUNT(*) FROM budget_pivot_aggregate WHERE version_id = ?",
-            (int(version_id),),
-        )
-        row = await cur.fetchone()
-        await db.commit()
-    return int(row[0] or 0) if row else 0
+    await ensure_budget_pivot_aggregate_table(budget_path)
+    await _execute_for_path(budget_path, "DELETE FROM budget_pivot_aggregate WHERE version_id = ?", (int(version_id),))
+    for grain in ("year", "quarter", "month"):
+        await _execute_for_path(budget_path, _budget_insert_sql(grain), (grain, now, int(version_id)))
+    row = await _fetch_one_for_path(
+        budget_path,
+        "SELECT COUNT(*) AS aggregate_count FROM budget_pivot_aggregate WHERE version_id = ?",
+        (int(version_id),),
+    )
+    return int(_row_value(row, "aggregate_count", 0) or 0) if row else 0
 
 
 async def rebuild_compare_pivot_aggregate() -> int:
     now = _iso_now()
-    async with aiosqlite.connect(compare_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_compare_pivot_aggregate_table(db)
-        await ensure_compare_summary_read_model_schema_async(db)
-        await db.execute("DELETE FROM compare_pivot_aggregate")
-        for grain in ("year", "quarter", "month"):
-            await db.execute(_compare_insert_sql(grain), (grain, now))
-        cur = await db.execute("SELECT COUNT(*) FROM compare_pivot_aggregate")
-        row = await cur.fetchone()
-        await db.commit()
-    return int(row[0] or 0) if row else 0
+    compare_path = compare_db_path()
+    await ensure_compare_pivot_aggregate_table(compare_path)
+    await _execute_for_path(compare_path, "DELETE FROM compare_pivot_aggregate")
+    for grain in ("year", "quarter", "month"):
+        await _execute_for_path(compare_path, _compare_insert_sql(grain), (grain, now))
+    row = await _fetch_one_for_path(
+        compare_path,
+        "SELECT COUNT(*) AS aggregate_count FROM compare_pivot_aggregate",
+    )
+    return int(_row_value(row, "aggregate_count", 0) or 0) if row else 0
 
 
 def _search_where(search_text: str, values: list[Any], *, common_path: Path | None = None) -> str:
@@ -320,7 +455,23 @@ def _search_where(search_text: str, values: list[Any], *, common_path: Path | No
             for field in TEXT_SEARCH_FIELDS:
                 one.append(f"COALESCE({field}, '') LIKE ?")
                 values.append(like)
-            one.append("CAST(budget_actual AS TEXT) LIKE ?")
+            one.append("CAST(budget_actual AS CHAR) LIKE ?")
+            values.append(like)
+        clauses.append("(" + " OR ".join(one) + ")")
+    return (" AND " + " AND ".join(clauses)) if clauses else ""
+
+
+async def _search_where_async(search_text: str, values: list[Any], *, common_path: Path | None = None) -> str:
+    keywords = [kw.strip() for kw in search_text.replace("，", " ").replace(",", " ").split() if kw.strip()]
+    clauses: list[str] = []
+    for keyword in keywords:
+        one = []
+        for alias in await _expand_search_keyword_async(keyword, common_path=common_path):
+            like = f"%{alias}%"
+            for field in TEXT_SEARCH_FIELDS:
+                one.append(f"COALESCE({field}, '') LIKE ?")
+                values.append(like)
+            one.append("CAST(budget_actual AS CHAR) LIKE ?")
             values.append(like)
         clauses.append("(" + " OR ".join(one) + ")")
     return (" AND " + " AND ".join(clauses)) if clauses else ""
@@ -373,6 +524,12 @@ def _group_cols(selected_fields: set[str], *, compare: bool) -> list[str]:
     return cols
 
 
+def _group_sql(cols: list[str], *, table_name: str, db_path: Path) -> str:
+    if _uses_mysql_path(db_path):
+        return ", ".join(f"{table_name}.{col}" for col in cols)
+    return ", ".join(cols)
+
+
 def _apply_page_filters(body: BudgetSummaryAggregateRequest, selected_fields: set[str], values: list[Any], *, compare: bool) -> str:
     clauses: list[str] = []
     for field, raw_selected in body.page_selections.items():
@@ -414,84 +571,86 @@ async def list_budget_pivot_aggregate_rows(
 ) -> list[BudgetSummaryRowDto]:
     selected_fields = _fields_from_request(body)
     grain = _grain_for_fields(selected_fields)
+    budget_path = Path(budget_path)
     values: list[Any] = [grain]
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_budget_pivot_aggregate_table(db)
-        cur_count = await db.execute("SELECT COUNT(*) FROM budget_pivot_aggregate WHERE grain = ?", (grain,))
-        count_row = await cur_count.fetchone()
-        if int(count_row[0] or 0) == 0:
-            raise HTTPException(status_code=409, detail="多维分析聚合表为空，请先在“预算事实刷新跑批”执行跑批生成聚合表。")
-        select_fields = [
-            "metric_level1",
-            "metric_level2",
-            "metric_level3",
-            "metric_level4",
-            "metric_level5",
-            "dept_level1",
-            "dept_level2",
-            "dept_level3",
-            "data_code_name",
-            "product_code_name",
-            "year",
-            "month",
-            "quarter",
-            "budget_actual",
-            "value_source",
-        ]
-        select_sql = ", ".join(f"{_select_expr(field, selected_fields, compare=False)} AS {field}" for field in select_fields)
-        if "version_display" in selected_fields:
-            version_sql = "version_id, version_name"
-        else:
-            version_sql = "0 AS version_id, '聚合版本' AS version_name"
-        where = "grain = ?"
-        if "data_code_name" not in selected_fields and "value_source" not in selected_fields:
-            where += " AND value_source <> 'rollup'"
-        where += _apply_page_filters(body, selected_fields, values, compare=False)
-        where += _search_where(body.pivot_search_text, values)
-        group_cols = _group_cols(selected_fields, compare=False)
-        group_sql = ", ".join(group_cols)
-        cur = await db.execute(
-            f"""
-            SELECT {select_sql}, {version_sql}, SUM(value) AS value, value_type, MAX(update_time) AS update_time
-            FROM budget_pivot_aggregate
-            WHERE {where}
-            GROUP BY {group_sql}
-            ORDER BY {group_sql}
-            """,
-            tuple(values),
-        )
-        rows = await cur.fetchall()
+    await ensure_budget_pivot_aggregate_table(budget_path)
+    count_row = await _fetch_one_for_path(
+        budget_path,
+        "SELECT COUNT(*) AS aggregate_count FROM budget_pivot_aggregate WHERE grain = ?",
+        (grain,),
+    )
+    if int(_row_value(count_row, "aggregate_count", 0) or 0) == 0:
+        raise HTTPException(status_code=409, detail="多维分析聚合表为空，请先在“预算事实刷新跑批”执行跑批生成聚合表。")
+    select_fields = [
+        "metric_level1",
+        "metric_level2",
+        "metric_level3",
+        "metric_level4",
+        "metric_level5",
+        "dept_level1",
+        "dept_level2",
+        "dept_level3",
+        "data_code_name",
+        "product_code_name",
+        "year",
+        "month",
+        "quarter",
+        "budget_actual",
+        "value_source",
+    ]
+    select_sql = ", ".join(f"{_select_expr(field, selected_fields, compare=False)} AS {field}" for field in select_fields)
+    if "version_display" in selected_fields:
+        version_sql = "version_id, version_name"
+    else:
+        version_sql = "0 AS version_id, '聚合版本' AS version_name"
+    where = "grain = ?"
+    if "data_code_name" not in selected_fields and "value_source" not in selected_fields:
+        where += " AND value_source <> 'rollup'"
+    where += _apply_page_filters(body, selected_fields, values, compare=False)
+    where += await _search_where_async(body.pivot_search_text, values, common_path=common_db_path())
+    group_cols = _group_cols(selected_fields, compare=False)
+    group_sql = _group_sql(group_cols, table_name="budget_pivot_aggregate", db_path=budget_path)
+    rows = await _fetch_all_for_path(
+        budget_path,
+        f"""
+        SELECT {select_sql}, {version_sql}, SUM(value) AS value, value_type, MAX(update_time) AS update_time
+        FROM budget_pivot_aggregate
+        WHERE {where}
+        GROUP BY {group_sql}
+        ORDER BY {group_sql}
+        """,
+        tuple(values),
+    )
     result: list[BudgetSummaryRowDto] = []
     for row in rows:
-        version_id = int(row[15] or 0)
+        version_id = int(_row_value(row, "version_id", 15) or 0)
         if version_id not in current_month_by_version:
             raise HTTPException(status_code=400, detail=f"版本 {version_id} 缺少 current_month")
         current_month = int(current_month_by_version[version_id])
         result.append(
             BudgetSummaryRowDto(
-                metric_level1=row[0],
-                metric_level2=row[1],
-                metric_level3=row[2],
-                metric_level4=row[3],
-                metric_level5=row[4],
-                dept_level1=row[5],
-                dept_level2=row[6],
-                dept_level3=row[7],
-                data_code_name=str(row[8] or "聚合指标编码"),
-                product_code_name=row[9],
-                year=str(row[10] or "全部"),
-                month=str(row[11] or "全部"),
-                quarter=str(row[12] or "全部"),
-                budget_actual=int(row[13] or 0),
-                value_source=row[14],
+                metric_level1=_row_value(row, "metric_level1", 0),
+                metric_level2=_row_value(row, "metric_level2", 1),
+                metric_level3=_row_value(row, "metric_level3", 2),
+                metric_level4=_row_value(row, "metric_level4", 3),
+                metric_level5=_row_value(row, "metric_level5", 4),
+                dept_level1=_row_value(row, "dept_level1", 5),
+                dept_level2=_row_value(row, "dept_level2", 6),
+                dept_level3=_row_value(row, "dept_level3", 7),
+                data_code_name=str(_row_value(row, "data_code_name", 8) or "聚合指标编码"),
+                product_code_name=_row_value(row, "product_code_name", 9),
+                year=str(_row_value(row, "year", 10) or "全部"),
+                month=str(_row_value(row, "month", 11) or "全部"),
+                quarter=str(_row_value(row, "quarter", 12) or "全部"),
+                budget_actual=int(_row_value(row, "budget_actual", 13) or 0),
+                value_source=_row_value(row, "value_source", 14),
                 version_id=version_id,
-                version_name=row[16],
+                version_name=_row_value(row, "version_name", 16),
                 current_month=current_month,
                 rule_message=f"读取多维聚合表 grain={grain}；聚合规则=sum；聚合表由预算事实刷新跑批生成。",
-                value=float(row[17] or 0.0),
-                value_type=str(row[18] or ""),
-                update_time=row[19],
+                value=float(_row_value(row, "value", 17) or 0.0),
+                value_type=str(_row_value(row, "value_type", 18) or ""),
+                update_time=_row_value(row, "update_time", 19),
             )
         )
     return result
@@ -501,80 +660,82 @@ async def list_compare_pivot_aggregate_rows(body: BudgetSummaryAggregateRequest)
     selected_fields = _fields_from_request(body)
     grain = _grain_for_fields(selected_fields)
     values: list[Any] = [grain]
-    async with aiosqlite.connect(compare_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_compare_pivot_aggregate_table(db)
-        cur_count = await db.execute("SELECT COUNT(*) FROM compare_pivot_aggregate WHERE grain = ?", (grain,))
-        count_row = await cur_count.fetchone()
-        if int(count_row[0] or 0) == 0:
-            raise HTTPException(status_code=409, detail="多年度对比聚合表为空，请先在“预算事实刷新跑批”执行跑批并同步对比聚合表。")
-        select_fields = [
-            "metric_level1",
-            "metric_level2",
-            "metric_level3",
-            "metric_level4",
-            "metric_level5",
-            "dept_level1",
-            "dept_level2",
-            "dept_level3",
-            "data_code_name",
-            "product_code_name",
-            "year",
-            "month",
-            "quarter",
-            "budget_actual",
-            "value_source",
-        ]
-        select_sql = ", ".join(f"{_select_expr(field, selected_fields, compare=True)} AS {field}" for field in select_fields)
-        if "version_display" in selected_fields:
-            version_sql = "show_level, data_file_id, source_year, source_version_id, source_version_name"
-        else:
-            version_sql = "0 AS show_level, 0 AS data_file_id, 0 AS source_year, 0 AS source_version_id, '聚合版本' AS source_version_name"
-        where = "grain = ?"
-        if "data_code_name" not in selected_fields and "value_source" not in selected_fields:
-            where += " AND value_source <> 'rollup'"
-        where += _apply_page_filters(body, selected_fields, values, compare=True)
-        where += _search_where(body.pivot_search_text, values)
-        group_cols = _group_cols(selected_fields, compare=True)
-        group_sql = ", ".join(group_cols)
-        cur = await db.execute(
-            f"""
-            SELECT {version_sql}, {select_sql}, SUM(value) AS value, value_type, MAX(sync_time) AS sync_time
-            FROM compare_pivot_aggregate
-            WHERE {where}
-            GROUP BY {group_sql}
-            ORDER BY {group_sql}
-            """,
-            tuple(values),
-        )
-        rows = await cur.fetchall()
+    compare_path = compare_db_path()
+    await ensure_compare_pivot_aggregate_table(compare_path)
+    count_row = await _fetch_one_for_path(
+        compare_path,
+        "SELECT COUNT(*) AS aggregate_count FROM compare_pivot_aggregate WHERE grain = ?",
+        (grain,),
+    )
+    if int(_row_value(count_row, "aggregate_count", 0) or 0) == 0:
+        raise HTTPException(status_code=409, detail="多年度对比聚合表为空，请先在“预算事实刷新跑批”执行跑批并同步对比聚合表。")
+    select_fields = [
+        "metric_level1",
+        "metric_level2",
+        "metric_level3",
+        "metric_level4",
+        "metric_level5",
+        "dept_level1",
+        "dept_level2",
+        "dept_level3",
+        "data_code_name",
+        "product_code_name",
+        "year",
+        "month",
+        "quarter",
+        "budget_actual",
+        "value_source",
+    ]
+    select_sql = ", ".join(f"{_select_expr(field, selected_fields, compare=True)} AS {field}" for field in select_fields)
+    if "version_display" in selected_fields:
+        version_sql = "show_level, data_file_id, source_year, source_version_id, source_version_name"
+    else:
+        version_sql = "0 AS show_level, 0 AS data_file_id, 0 AS source_year, 0 AS source_version_id, '聚合版本' AS source_version_name"
+    where = "grain = ?"
+    if "data_code_name" not in selected_fields and "value_source" not in selected_fields:
+        where += " AND value_source <> 'rollup'"
+    where += _apply_page_filters(body, selected_fields, values, compare=True)
+    where += await _search_where_async(body.pivot_search_text, values, common_path=common_db_path())
+    group_cols = _group_cols(selected_fields, compare=True)
+    group_sql = _group_sql(group_cols, table_name="compare_pivot_aggregate", db_path=compare_path)
+    rows = await _fetch_all_for_path(
+        compare_path,
+        f"""
+        SELECT {version_sql}, {select_sql}, SUM(value) AS value, value_type, MAX(sync_time) AS sync_time
+        FROM compare_pivot_aggregate
+        WHERE {where}
+        GROUP BY {group_sql}
+        ORDER BY {group_sql}
+        """,
+        tuple(values),
+    )
     result: list[CompareSummaryRowDto] = []
     for row in rows:
         result.append(
             CompareSummaryRowDto(
-                show_level=int(row[0] or 0),
-                data_file_id=int(row[1] or 0),
-                source_year=int(row[2] or 0),
-                source_version_id=int(row[3] or 0),
-                source_version_name=row[4],
-                metric_level1=row[5],
-                metric_level2=row[6],
-                metric_level3=row[7],
-                metric_level4=row[8],
-                metric_level5=row[9],
-                dept_level1=row[10],
-                dept_level2=row[11],
-                dept_level3=row[12],
-                data_code_name=str(row[13] or "聚合指标编码"),
-                product_code_name=row[14],
-                year=str(row[15] or "全部"),
-                month=str(row[16] or "全部"),
-                quarter=str(row[17] or "全部"),
-                budget_actual=int(row[18] or 0),
-                value_source=row[19],
-                value=float(row[20] or 0.0),
-                value_type=str(row[21] or ""),
-                sync_time=str(row[22] or ""),
+                show_level=int(_row_value(row, "show_level", 0) or 0),
+                data_file_id=int(_row_value(row, "data_file_id", 1) or 0),
+                source_year=int(_row_value(row, "source_year", 2) or 0),
+                source_version_id=int(_row_value(row, "source_version_id", 3) or 0),
+                source_version_name=_row_value(row, "source_version_name", 4),
+                metric_level1=_row_value(row, "metric_level1", 5),
+                metric_level2=_row_value(row, "metric_level2", 6),
+                metric_level3=_row_value(row, "metric_level3", 7),
+                metric_level4=_row_value(row, "metric_level4", 8),
+                metric_level5=_row_value(row, "metric_level5", 9),
+                dept_level1=_row_value(row, "dept_level1", 10),
+                dept_level2=_row_value(row, "dept_level2", 11),
+                dept_level3=_row_value(row, "dept_level3", 12),
+                data_code_name=str(_row_value(row, "data_code_name", 13) or "聚合指标编码"),
+                product_code_name=_row_value(row, "product_code_name", 14),
+                year=str(_row_value(row, "year", 15) or "全部"),
+                month=str(_row_value(row, "month", 16) or "全部"),
+                quarter=str(_row_value(row, "quarter", 17) or "全部"),
+                budget_actual=int(_row_value(row, "budget_actual", 18) or 0),
+                value_source=_row_value(row, "value_source", 19),
+                value=float(_row_value(row, "value", 20) or 0.0),
+                value_type=str(_row_value(row, "value_type", 21) or ""),
+                sync_time=str(_row_value(row, "sync_time", 22) or ""),
             )
         )
     return result

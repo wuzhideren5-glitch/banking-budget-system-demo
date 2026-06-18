@@ -1,10 +1,15 @@
 """Business cost-income ratio read model and calculation service."""
 from __future__ import annotations
 
+import re
+import sqlite3
+import tempfile
+from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
-from app.db_bootstrap.business_cost_income import ensure_business_cost_income_schema_async
+from app.core.config import settings
+from app.core.database import get_pool
+from app.db_bootstrap.business_cost_income import ensure_business_cost_income_schema
 from app.core.db_paths import budget_db_path, common_db_path
 from app.services.business_cost_income_derived import (
     apply_bcir_input_derived_values,
@@ -54,17 +59,62 @@ def _scale_amount(value: float | int | None, divisor: float) -> float:
     return round(float(value or 0.0) / divisor, 2)
 
 
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+def _uses_mysql_path(path: Path | str, *, names: set[str] | None = None, budget: bool = False) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    if budget:
+        return re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+    return names is not None and candidate.name in names
+
+
+def _uses_mysql_common_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, names={"common.db"})
+
+
+def _uses_mysql_budget_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, budget=True)
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
 async def ensure_business_cost_income_tables(year: int) -> None:
     path = budget_db_path(year)
-    async with aiosqlite.connect(path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_business_cost_income_schema_async(db)
-        await db.commit()
+    if _uses_mysql_budget_path(path):
+        return
+    with sqlite3.connect(path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        ensure_business_cost_income_schema(db, year)
+        db.commit()
 
 
 async def load_business_cost_income_items(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
+    year: int,
     product_code: str | None = None,
 ) -> list[dict[str, Any]]:
     normalized_product = str(product_code or "").strip().upper()
@@ -75,10 +125,10 @@ async def load_business_cost_income_items(
                org_product_metric_code, org_product_metric_name,
                manual_entry_mode, value_mode, sort_order, enabled
         FROM business_cost_income_item
-        WHERE product_code = ?
+        WHERE budget_year = ? AND product_code = ?
         ORDER BY section, sort_order, id
         """,
-        (normalized_product,),
+        (int(year), normalized_product),
     )
     rows = await cur.fetchall()
     return [
@@ -105,8 +155,9 @@ async def load_business_cost_income_items(
 
 
 async def load_business_cost_income_indicators(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
+    year: int,
     product_code: str | None = None,
 ) -> list[dict[str, Any]]:
     normalized_product = str(product_code or "").strip().upper()
@@ -117,10 +168,10 @@ async def load_business_cost_income_indicators(
                denominator_section, denominator_item_id, denominator_value_mode,
                format, annualize, sort_order, enabled
         FROM business_cost_income_indicator
-        WHERE product_code = ?
+        WHERE budget_year = ? AND product_code = ?
         ORDER BY sort_order, id
         """,
-        (normalized_product,),
+        (int(year), normalized_product),
     )
     rows = await cur.fetchall()
     return [
@@ -146,57 +197,170 @@ async def load_business_cost_income_indicators(
     ]
 
 
+_ITEMS_SQL = """
+    SELECT id, product_code, section, name, parent_id, display_group, data_acct_code,
+           org_product_ref, org_product_entity_code, org_product_table_name,
+           org_product_metric_code, org_product_metric_name,
+           manual_entry_mode, value_mode, sort_order, enabled
+    FROM business_cost_income_item
+    WHERE budget_year = ? AND product_code = ?
+    ORDER BY section, sort_order, id
+    """
+
+
+_INDICATORS_SQL = """
+    SELECT id, product_code, name, parent_id, display_group, topic_metric_node_code,
+           numerator_section, numerator_item_id, numerator_value_mode,
+           denominator_section, denominator_item_id, denominator_value_mode,
+           format, annualize, sort_order, enabled
+    FROM business_cost_income_indicator
+    WHERE budget_year = ? AND product_code = ?
+    ORDER BY sort_order, id
+    """
+
+
+def _items_from_rows(rows: list[Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": int(_row_value(row, "id", 0)),
+            "product_code": str(_row_value(row, "product_code", 1) or ""),
+            "section": str(_row_value(row, "section", 2)),
+            "name": str(_row_value(row, "name", 3)),
+            "parent_id": int(_row_value(row, "parent_id", 4)) if _row_value(row, "parent_id", 4) is not None else None,
+            "display_group": int(_row_value(row, "display_group", 5) or 0),
+            "data_acct_code": str(_row_value(row, "data_acct_code", 6) or ""),
+            "org_product_ref": str(_row_value(row, "org_product_ref", 7) or ""),
+            "org_product_entity_code": str(_row_value(row, "org_product_entity_code", 8) or ""),
+            "org_product_table_name": str(_row_value(row, "org_product_table_name", 9) or ""),
+            "org_product_metric_code": str(_row_value(row, "org_product_metric_code", 10) or ""),
+            "org_product_metric_name": str(_row_value(row, "org_product_metric_name", 11) or ""),
+            "manual_entry_mode": str(_row_value(row, "manual_entry_mode", 12) or "disabled"),
+            "value_mode": str(_row_value(row, "value_mode", 13) or "tree"),
+            "sort_order": int(_row_value(row, "sort_order", 14) or 0),
+            "enabled": int(_row_value(row, "enabled", 15) or 0),
+        }
+        for row in rows
+    ]
+
+
+def _indicators_from_rows(rows: list[Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": int(_row_value(row, "id", 0)),
+            "product_code": str(_row_value(row, "product_code", 1) or ""),
+            "name": str(_row_value(row, "name", 2)),
+            "parent_id": int(_row_value(row, "parent_id", 3)) if _row_value(row, "parent_id", 3) is not None else None,
+            "display_group": int(_row_value(row, "display_group", 4) or 0),
+            "topic_metric_node_code": str(_row_value(row, "topic_metric_node_code", 5) or "") or None,
+            "numerator_section": str(_row_value(row, "numerator_section", 6)),
+            "numerator_item_id": int(_row_value(row, "numerator_item_id", 7)),
+            "numerator_value_mode": str(_row_value(row, "numerator_value_mode", 8) or "tree"),
+            "denominator_section": str(_row_value(row, "denominator_section", 9)),
+            "denominator_item_id": int(_row_value(row, "denominator_item_id", 10)),
+            "denominator_value_mode": str(_row_value(row, "denominator_value_mode", 11) or "tree"),
+            "format": str(_row_value(row, "format", 12)),
+            "annualize": int(_row_value(row, "annualize", 13) or 0),
+            "sort_order": int(_row_value(row, "sort_order", 14) or 0),
+            "enabled": int(_row_value(row, "enabled", 15) or 0),
+        }
+        for row in rows
+    ]
+
+
+async def _load_business_cost_income_items_from_path(
+    budget_path: Path,
+    *,
+    year: int,
+    product_code: str | None = None,
+) -> list[dict[str, Any]]:
+    normalized_product = str(product_code or "").strip().upper()
+    params = (int(year), normalized_product)
+    if _uses_mysql_budget_path(budget_path):
+        return _items_from_rows(await get_pool().fetch_all(_mysql_sql(_ITEMS_SQL), params))
+    with sqlite3.connect(budget_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        ensure_business_cost_income_schema(db, year)
+        return _items_from_rows(db.execute(_ITEMS_SQL, params).fetchall())
+
+
+async def _load_business_cost_income_indicators_from_path(
+    budget_path: Path,
+    *,
+    year: int,
+    product_code: str | None = None,
+) -> list[dict[str, Any]]:
+    normalized_product = str(product_code or "").strip().upper()
+    params = (int(year), normalized_product)
+    if _uses_mysql_budget_path(budget_path):
+        return _indicators_from_rows(await get_pool().fetch_all(_mysql_sql(_INDICATORS_SQL), params))
+    with sqlite3.connect(budget_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        ensure_business_cost_income_schema(db, year)
+        return _indicators_from_rows(db.execute(_INDICATORS_SQL, params).fetchall())
+
+
 async def load_business_cost_income_meta_options(
     *,
     entity_name: str | None,
     report_month: str | None,
     product_code: str | None,
 ) -> dict[str, Any]:
-    async with aiosqlite.connect(common_db_path()) as cdb:
-        await cdb.execute("PRAGMA foreign_keys = ON")
-        cur = await cdb.execute(
-            """
-            SELECT DISTINCT entity_name
-            FROM dept_account
-            WHERE entity_name IS NOT NULL AND TRIM(entity_name) != ''
-            ORDER BY entity_name
-            """
-        )
-        entities = [str(row[0]) for row in await cur.fetchall()]
-        cur = await cdb.execute(
-            f"""
-            {org_product_runtime_products_cte()}
-            SELECT product_code, product_name
-            FROM org_product_runtime_products
-            WHERE product_code <> '' AND product_name <> ''
-            ORDER BY product_code
-            """
-        )
-        products = [
-            {"product_code": str(row[0]), "product_name": str(row[1])}
-            for row in await cur.fetchall()
-        ]
+    common_path = common_db_path()
+    entities_sql = """
+        SELECT DISTINCT entity_name
+        FROM dept_account
+        WHERE entity_name IS NOT NULL AND TRIM(entity_name) != ''
+        ORDER BY entity_name
+        """
+    products_sql = f"""
+        {org_product_runtime_products_cte(dialect="mysql" if _uses_mysql_common_path(common_path) else "sqlite")}
+        SELECT product_code, product_name
+        FROM org_product_runtime_products
+        WHERE product_code <> '' AND product_name <> ''
+        ORDER BY product_code
+        """
+    if _uses_mysql_common_path(common_path):
+        entity_rows = await get_pool().fetch_all(entities_sql)
+        product_rows = await get_pool().fetch_all(products_sql)
+    else:
+        with sqlite3.connect(common_path) as cdb:
+            cdb.execute("PRAGMA foreign_keys = ON")
+            entity_rows = cdb.execute(entities_sql).fetchall()
+            product_rows = cdb.execute(products_sql).fetchall()
+    entities = [str(_row_value(row, "entity_name", 0)) for row in entity_rows]
+    products = [
+        {
+            "product_code": str(_row_value(row, "product_code", 0)),
+            "product_name": str(_row_value(row, "product_name", 1)),
+        }
+        for row in product_rows
+    ]
 
     groups: list[str] = []
     if report_month:
         try:
             year, _month = parse_year_month(report_month)
             await ensure_business_cost_income_tables(year)
-            async with aiosqlite.connect(budget_db_path(year)) as db:
-                await db.execute("PRAGMA foreign_keys = ON")
-                cur = await db.execute(
-                    """
-                    SELECT DISTINCT group_name
-                    FROM business_cost_income_value
-                    WHERE year = ?
-                      AND entity_name = ?
-                      AND product_code = ?
-                      AND TRIM(group_name) != ''
-                    ORDER BY group_name
-                    """,
-                    (year, norm_dim(entity_name), norm_dim(product_code)),
-                )
-                groups = [str(row[0]) for row in await cur.fetchall()]
+            budget_path = budget_db_path(year)
+            group_sql = """
+                SELECT DISTINCT group_name
+                FROM business_cost_income_value
+                WHERE budget_year = ?
+                  AND year = ?
+                  AND entity_name = ?
+                  AND product_code = ?
+                  AND TRIM(group_name) != ''
+                ORDER BY group_name
+                """
+            group_params = (year, year, norm_dim(entity_name), norm_dim(product_code))
+            if _uses_mysql_budget_path(budget_path):
+                group_rows = await get_pool().fetch_all(_mysql_sql(group_sql), group_params)
+            else:
+                with sqlite3.connect(budget_path) as db:
+                    db.execute("PRAGMA foreign_keys = ON")
+                    ensure_business_cost_income_schema(db, year)
+                    group_rows = db.execute(group_sql, group_params).fetchall()
+            groups = [str(_row_value(row, "group_name", 0)) for row in group_rows]
         except Exception:
             groups = []
 
@@ -209,7 +373,7 @@ async def load_business_cost_income_meta_options(
 
 
 async def _load_aggregates(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     year: int,
     month: int,
@@ -238,7 +402,7 @@ async def _load_aggregates(
 
 
 async def _load_last_year_actuals(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     year: int,
     month: int,
@@ -265,7 +429,7 @@ async def _load_last_year_actuals(
 
 
 async def _load_month_cells(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     year: int,
     month: int,
@@ -287,6 +451,120 @@ async def _load_month_cells(
     )
     rows = await cur.fetchall()
     return {(str(row[0]), int(row[1]), str(row[2])): float(row[3] or 0.0) for row in rows}
+
+
+async def _load_aggregates_from_path(
+    budget_path: Path,
+    *,
+    year: int,
+    month: int,
+    entity_name: str,
+    group_name: str,
+    product_code: str,
+) -> dict[tuple[str, int, str], float]:
+    sql = """
+        SELECT item_section, item_id, field, SUM(value) AS total
+        FROM business_cost_income_value
+        WHERE budget_year = ?
+          AND year = ?
+          AND entity_name = ?
+          AND group_name = ?
+          AND product_code = ?
+          AND (
+            (field = 'actual' AND month BETWEEN 1 AND ?)
+            OR (field IN ('budget', 'forecast') AND month BETWEEN 1 AND 12)
+          )
+        GROUP BY item_section, item_id, field
+        """
+    params = (year, year, entity_name, group_name, product_code, month)
+    if _uses_mysql_budget_path(budget_path):
+        rows = await get_pool().fetch_all(_mysql_sql(sql), params)
+    else:
+        with sqlite3.connect(budget_path) as db:
+            db.execute("PRAGMA foreign_keys = ON")
+            ensure_business_cost_income_schema(db, year)
+            rows = db.execute(sql, params).fetchall()
+    return {
+        (
+            str(_row_value(row, "item_section", 0)),
+            int(_row_value(row, "item_id", 1)),
+            str(_row_value(row, "field", 2)),
+        ): float(_row_value(row, "total", 3) or 0.0)
+        for row in rows
+    }
+
+
+async def _load_last_year_actuals_from_path(
+    budget_path: Path,
+    *,
+    year: int,
+    month: int,
+    entity_name: str,
+    group_name: str,
+    product_code: str,
+) -> dict[tuple[str, int], float]:
+    sql = """
+        SELECT item_section, item_id, SUM(value) AS total
+        FROM business_cost_income_value
+        WHERE budget_year = ?
+          AND year = ?
+          AND entity_name = ?
+          AND group_name = ?
+          AND product_code = ?
+          AND field = 'actual'
+          AND month BETWEEN 1 AND ?
+        GROUP BY item_section, item_id
+        """
+    params = (year, year - 1, entity_name, group_name, product_code, month)
+    if _uses_mysql_budget_path(budget_path):
+        rows = await get_pool().fetch_all(_mysql_sql(sql), params)
+    else:
+        with sqlite3.connect(budget_path) as db:
+            db.execute("PRAGMA foreign_keys = ON")
+            ensure_business_cost_income_schema(db, year)
+            rows = db.execute(sql, params).fetchall()
+    return {
+        (str(_row_value(row, "item_section", 0)), int(_row_value(row, "item_id", 1))):
+        float(_row_value(row, "total", 2) or 0.0)
+        for row in rows
+    }
+
+
+async def _load_month_cells_from_path(
+    budget_path: Path,
+    *,
+    year: int,
+    month: int,
+    entity_name: str,
+    group_name: str,
+    product_code: str,
+) -> dict[tuple[str, int, str], float]:
+    sql = """
+        SELECT item_section, item_id, field, value
+        FROM business_cost_income_value
+        WHERE budget_year = ?
+          AND year = ?
+          AND month = ?
+          AND entity_name = ?
+          AND group_name = ?
+          AND product_code = ?
+        """
+    params = (year, year, month, entity_name, group_name, product_code)
+    if _uses_mysql_budget_path(budget_path):
+        rows = await get_pool().fetch_all(_mysql_sql(sql), params)
+    else:
+        with sqlite3.connect(budget_path) as db:
+            db.execute("PRAGMA foreign_keys = ON")
+            ensure_business_cost_income_schema(db, year)
+            rows = db.execute(sql, params).fetchall()
+    return {
+        (
+            str(_row_value(row, "item_section", 0)),
+            int(_row_value(row, "item_id", 1)),
+            str(_row_value(row, "field", 2)),
+        ): float(_row_value(row, "value", 3) or 0.0)
+        for row in rows
+    }
 
 
 def _metrics_from_amounts(
@@ -338,35 +616,34 @@ async def build_business_cost_income_ratio_report(
     group = norm_dim(group_name)
     product = norm_dim(product_code)
     await ensure_business_cost_income_tables(year)
+    budget_path = budget_db_path(year)
 
-    async with aiosqlite.connect(budget_db_path(year)) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        items = await load_business_cost_income_items(db, product_code=product)
-        indicators = await load_business_cost_income_indicators(db, product_code=product)
-        aggregates = await _load_aggregates(
-            db,
-            year=year,
-            month=month,
-            entity_name=entity,
-            group_name=group,
-            product_code=product,
-        )
-        last_year_actuals = await _load_last_year_actuals(
-            db,
-            year=year,
-            month=month,
-            entity_name=entity,
-            group_name=group,
-            product_code=product,
-        )
-        month_cells = await _load_month_cells(
-            db,
-            year=year,
-            month=month,
-            entity_name=entity,
-            group_name=group,
-            product_code=product,
-        )
+    items = await _load_business_cost_income_items_from_path(budget_path, year=year, product_code=product)
+    indicators = await _load_business_cost_income_indicators_from_path(budget_path, year=year, product_code=product)
+    aggregates = await _load_aggregates_from_path(
+        budget_path,
+        year=year,
+        month=month,
+        entity_name=entity,
+        group_name=group,
+        product_code=product,
+    )
+    last_year_actuals = await _load_last_year_actuals_from_path(
+        budget_path,
+        year=year,
+        month=month,
+        entity_name=entity,
+        group_name=group,
+        product_code=product,
+    )
+    month_cells = await _load_month_cells_from_path(
+        budget_path,
+        year=year,
+        month=month,
+        entity_name=entity,
+        group_name=group,
+        product_code=product,
+    )
 
     apply_bcir_input_derived_values(
         items,

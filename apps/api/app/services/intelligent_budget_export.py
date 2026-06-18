@@ -144,7 +144,7 @@ def build_intelligent_budget_simulation_export(task: dict[str, Any]) -> tuple[By
     ws_negotiation.append(["项目", "内容"])
     ws_negotiation.append(["状态", task.get("status", "")])
     ws_negotiation.append(["协商提示", task.get("negotiation_message", "")])
-    ws_negotiation.append(["建议", "\n".join(task.get("negotiation_suggestions", []))])
+    ws_negotiation.append(["建议", "\n".join(task.get("negotiation_suggestions") or [])])
 
     for ws in wb.worksheets:
         _style(ws)

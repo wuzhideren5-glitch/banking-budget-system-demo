@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 from pathlib import Path
 
 import pymysql
+
+from app.db_bootstrap._ddl_normalize import find_missing_markers
 
 
 # 05 / 05.01 / 05.01.01.02.001 / 05.01.01.03.01.001 / 05.02.09.02.101
@@ -95,7 +98,17 @@ def _is_current_metric_tree_node_code(code: str) -> bool:
     return bool(PRODUCT_ROOT_NODE_RE.fullmatch(text) or PRODUCT_PREFIXED_METRIC_CODE_RE.fullmatch(text))
 
 
+def _is_sqlite_conn(conn: object) -> bool:
+    return "sqlite" in f"{type(conn).__module__}.{type(conn).__name__}".lower()
+
+
 def _table_exists(conn: pymysql.Connection, table_name: str) -> bool:
+    if _is_sqlite_conn(conn):
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return row is not None
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -108,6 +121,12 @@ def _table_exists(conn: pymysql.Connection, table_name: str) -> bool:
 
 
 def _relation_type(conn: pymysql.Connection, relation_name: str) -> str:
+    if _is_sqlite_conn(conn):
+        row = conn.execute(
+            "SELECT type FROM sqlite_master WHERE name = ?",
+            (relation_name,),
+        ).fetchone()
+        return str(row[0] or "").strip().lower() if row else ""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -125,6 +144,8 @@ def _relation_type(conn: pymysql.Connection, relation_name: str) -> str:
 
 
 def _table_columns(conn: pymysql.Connection, table_name: str) -> set[str]:
+    if _is_sqlite_conn(conn):
+        return {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -139,24 +160,62 @@ def _table_columns(conn: pymysql.Connection, table_name: str) -> set[str]:
 
 
 def _table_sql(conn: pymysql.Connection, table_name: str) -> str:
-    # MySQL doesn't store original DDL; approximate from INFORMATION_SCHEMA
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT,
-                   COLUMN_KEY, EXTRA
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
-            ORDER BY ORDINAL_POSITION
-            """,
+    if _is_sqlite_conn(conn):
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
             (table_name,),
-        )
-        cols = cur.fetchall()
-    return " ".join(f"{c[0]} {c[1]}" for c in cols) if cols else ""
+        ).fetchone()
+        return str(row[0] or "") if row else ""
+    with conn.cursor() as cur:
+        cur.execute(f"SHOW CREATE TABLE `{table_name}`")
+        row = cur.fetchone()
+    return str(row[1] if row and len(row) > 1 else "")
 
 
 def _ensure_metric_binding_view(conn: pymysql.Connection) -> None:
     relation_type = _relation_type(conn, "data_account_metric_binding")
+    if _is_sqlite_conn(conn):
+        if relation_type == "table":
+            return
+        if relation_type == "view":
+            conn.execute("DROP VIEW data_account_metric_binding")
+        conn.execute(
+            """
+            CREATE VIEW data_account_metric_binding AS
+            SELECT
+              d.data_acct_code AS data_acct_code,
+              n.node_code AS metric_node_code,
+              CASE
+                WHEN COALESCE(n.product_code, '') = 'CORP' THEN 'CORP'
+                ELSE 'PRODUCT'
+              END AS scope_type,
+              CASE
+                WHEN COALESCE(n.product_code, '') <> '' THEN n.product_code
+                WHEN INSTR(n.node_code, '.') > 0 THEN SUBSTR(n.node_code, 1, INSTR(n.node_code, '.') - 1)
+                ELSE n.node_code
+              END AS scope_code,
+              n.sort_order AS sort_order,
+              n.is_active AS is_active,
+              n.remark AS remark,
+              n.created_at AS created_at,
+              n.updated_at AS updated_at
+            FROM data_account d
+            JOIN data_account_metric_node n ON n.node_code = d.data_acct_code
+            WHERE n.is_active = 1
+            """
+        )
+        conn.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_data_account_metric_binding_insert
+            INSTEAD OF INSERT ON data_account_metric_binding
+            BEGIN
+              UPDATE data_account_metric_node
+              SET runtime_account_enabled = 1
+              WHERE node_code = NEW.metric_node_code;
+            END
+            """
+        )
+        return
     with conn.cursor() as cur:
         if relation_type == "table":
             cur.execute("DROP TABLE data_account_metric_binding")
@@ -189,8 +248,135 @@ def _ensure_metric_binding_view(conn: pymysql.Connection) -> None:
         )
 
 
+def _create_sqlite_data_account_insert_trigger(conn: pymysql.Connection) -> None:
+    conn.execute("DROP TRIGGER IF EXISTS trg_data_account_insert")
+    conn.execute(
+        """
+        CREATE TRIGGER trg_data_account_insert
+        INSTEAD OF INSERT ON data_account
+        BEGIN
+          UPDATE data_account_metric_node
+          SET
+            node_name = COALESCE(NEW.data_acct_name, node_name),
+            runtime_account_enabled = 1,
+            budget_formula = NEW.budget_formula,
+            actual_formula = NEW.actual_formula,
+            budget_rule_code = NEW.budget_rule_code,
+            budget_rule_config_json = NEW.budget_rule_config_json,
+            need_calc = COALESCE(NEW.need_calc, need_calc),
+            formula_calc_mode = COALESCE(NEW.formula_calc_mode, formula_calc_mode),
+            allow_manual_entry = COALESCE(NEW.allow_manual_entry, allow_manual_entry),
+            value_type = COALESCE(NEW.value_type, value_type, '金额'),
+            remark = COALESCE(NEW.remark, remark)
+          WHERE node_code = NEW.data_acct_code;
+        END
+        """
+    )
+
+
+def _create_sqlite_data_account_view(conn: pymysql.Connection) -> None:
+    conn.execute(
+        """
+        CREATE VIEW data_account AS
+        SELECT
+          node_code AS data_acct_code,
+          node_name AS data_acct_name,
+          budget_formula,
+          actual_formula,
+          budget_rule_code,
+          budget_rule_config_json,
+          need_calc,
+          formula_calc_mode,
+          allow_manual_entry,
+          value_type,
+          remark
+        FROM data_account_metric_node
+        WHERE runtime_account_enabled = 1 AND is_active = 1
+        """
+    )
+    _create_sqlite_data_account_insert_trigger(conn)
+
+
+def _migrate_sqlite_data_account_table(conn: pymysql.Connection) -> bool:
+    missing_nodes = [
+        str(row[0] or "").strip().upper()
+        for row in conn.execute(
+            """
+            SELECT d.data_acct_code
+            FROM data_account d
+            LEFT JOIN data_account_metric_node n ON n.node_code = d.data_acct_code
+            WHERE n.node_code IS NULL
+            ORDER BY d.data_acct_code
+            LIMIT 10
+            """
+        ).fetchall()
+    ]
+    if missing_nodes:
+        return False
+    conn.execute(
+        """
+        UPDATE data_account_metric_node
+        SET
+          node_name = COALESCE(
+            (SELECT d.data_acct_name FROM data_account d WHERE d.data_acct_code = node_code),
+            node_name
+          ),
+          runtime_account_enabled = CASE
+            WHEN EXISTS (SELECT 1 FROM data_account d WHERE d.data_acct_code = node_code) THEN 1
+            ELSE runtime_account_enabled
+          END,
+          budget_formula = (
+            SELECT d.budget_formula FROM data_account d WHERE d.data_acct_code = node_code
+          ),
+          actual_formula = (
+            SELECT d.actual_formula FROM data_account d WHERE d.data_acct_code = node_code
+          ),
+          budget_rule_code = (
+            SELECT d.budget_rule_code FROM data_account d WHERE d.data_acct_code = node_code
+          ),
+          budget_rule_config_json = (
+            SELECT d.budget_rule_config_json FROM data_account d WHERE d.data_acct_code = node_code
+          ),
+          need_calc = COALESCE(
+            (SELECT d.need_calc FROM data_account d WHERE d.data_acct_code = node_code),
+            need_calc
+          ),
+          formula_calc_mode = COALESCE(
+            (SELECT d.formula_calc_mode FROM data_account d WHERE d.data_acct_code = node_code),
+            formula_calc_mode
+          ),
+          allow_manual_entry = COALESCE(
+            (SELECT d.allow_manual_entry FROM data_account d WHERE d.data_acct_code = node_code),
+            allow_manual_entry
+          ),
+          value_type = COALESCE(
+            (SELECT d.value_type FROM data_account d WHERE d.data_acct_code = node_code),
+            value_type,
+            '金额'
+          ),
+          remark = COALESCE(
+            remark,
+            (SELECT d.remark FROM data_account d WHERE d.data_acct_code = node_code)
+          )
+        WHERE EXISTS (
+          SELECT 1 FROM data_account d WHERE d.data_acct_code = node_code
+        )
+        """
+    )
+    conn.execute("DROP TABLE data_account")
+    return True
+
+
 def _ensure_data_account_view(conn: pymysql.Connection) -> None:
     relation_type = _relation_type(conn, "data_account")
+    if _is_sqlite_conn(conn):
+        if relation_type == "table":
+            if not _migrate_sqlite_data_account_table(conn):
+                return
+        elif relation_type == "view":
+            conn.execute("DROP VIEW data_account")
+        _create_sqlite_data_account_view(conn)
+        return
     with conn.cursor() as cur:
         if relation_type == "table":
             cur.execute(
@@ -280,10 +466,87 @@ def _ensure_data_account_view(conn: pymysql.Connection) -> None:
         )
 
 
+def _sync_derived_metric_node_identity(conn: pymysql.Connection) -> None:
+    """Keep product/local/logic codes and metric_table_name aligned with node_code."""
+    if _is_sqlite_conn(conn):
+        conn.execute(
+            """
+            UPDATE data_account_metric_node
+            SET product_code = CASE
+                    WHEN instr(node_code, '.') > 0 THEN substr(node_code, 1, instr(node_code, '.') - 1)
+                    ELSE node_code
+                END,
+                local_metric_code = CASE
+                    WHEN instr(node_code, '.') > 0 THEN substr(node_code, instr(node_code, '.') + 1)
+                    ELSE ''
+                END,
+                logic_code = CASE
+                    WHEN instr(node_code, '.') > 0 THEN substr(node_code, instr(node_code, '.') + 1)
+                    ELSE ''
+                END,
+                level = (length(node_code) - length(replace(node_code, '.', '')) + 1),
+                metric_table_name = CASE
+                    WHEN coalesce(metric_table_name, '') <> '' THEN metric_table_name
+                    WHEN coalesce(functional_group_code, '') = '' THEN metric_table_name
+                    WHEN functional_group_code GLOB '[0-9]*' THEN metric_table_name
+                    ELSE functional_group_code
+                END
+            """
+        )
+        return
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE data_account_metric_node
+            SET product_code = CASE
+                    WHEN LOCATE('.', node_code) > 0 THEN SUBSTRING_INDEX(node_code, '.', 1)
+                    ELSE node_code
+                END,
+                local_metric_code = CASE
+                    WHEN LOCATE('.', node_code) > 0 THEN SUBSTRING(node_code, LOCATE('.', node_code) + 1)
+                    ELSE ''
+                END,
+                logic_code = CASE
+                    WHEN LOCATE('.', node_code) > 0 THEN SUBSTRING(node_code, LOCATE('.', node_code) + 1)
+                    ELSE ''
+                END,
+                level = (LENGTH(node_code) - LENGTH(REPLACE(node_code, '.', '')) + 1),
+                metric_table_name = CASE
+                    WHEN COALESCE(metric_table_name, '') <> '' THEN metric_table_name
+                    WHEN COALESCE(functional_group_code, '') = '' THEN metric_table_name
+                    WHEN functional_group_code REGEXP '^[0-9]' THEN metric_table_name
+                    ELSE functional_group_code
+                END
+            """
+        )
+
+
 def _ensure_metric_node_v02_columns(conn: pymysql.Connection) -> None:
     if not _table_exists(conn, "data_account_metric_node"):
         return
     cols = _table_columns(conn, "data_account_metric_node")
+    sqlite_core_columns = {
+        "node_code",
+        "node_name",
+        "parent_code",
+        "product_code",
+        "local_metric_code",
+        "logic_code",
+        "functional_group_code",
+        "metric_table_name",
+        "level",
+        "node_type",
+        "horizontal_rollup",
+        "vertical_rollup",
+        "sort_order",
+        "is_active",
+        "remark",
+        "created_at",
+        "updated_at",
+    }
+    if _is_sqlite_conn(conn) and not sqlite_core_columns.issubset(cols):
+        return
     with conn.cursor() as cur:
         if "logic_code" not in cols:
             cur.execute("ALTER TABLE data_account_metric_node ADD COLUMN logic_code VARCHAR(255)")
@@ -313,16 +576,8 @@ def _ensure_metric_node_v02_columns(conn: pymysql.Connection) -> None:
                   AND COALESCE(functional_group_code, '') <> ''
                 """
             )
-        # Always derive logic_code from node_code (strip product prefix, keep dots)
-        cur.execute(
-            """
-            UPDATE data_account_metric_node
-            SET logic_code = CASE
-                WHEN LOCATE('.', node_code) = 0 THEN ''
-                ELSE SUBSTR(node_code, LOCATE('.', node_code) + 1)
-            END
-            """
-        )
+        # Always derive identity fields from node_code and backfill metric_table_name.
+        _sync_derived_metric_node_identity(conn)
 
 
 def _assert_exact_columns(
@@ -355,29 +610,44 @@ def _assert_current_metric_tree_physical_schema(conn: pymysql.Connection) -> Non
         METRIC_NODE_REQUIRED_COLUMNS,
         "指标树表",
     )
-    if _relation_type(conn, "data_account") != "view":
+    sqlite_conn = _is_sqlite_conn(conn)
+    if not sqlite_conn and _relation_type(conn, "data_account") != "view":
         raise RuntimeError("运行指标引用必须是由指标树派生的 view，不再允许物理表")
-    _assert_exact_columns(
-        conn,
-        "data_account",
-        DATA_ACCOUNT_VIEW_REQUIRED_COLUMNS,
-        "运行指标引用视图",
-    )
-    if _relation_type(conn, "data_account_metric_binding") != "view":
+    if not sqlite_conn or set(DATA_ACCOUNT_VIEW_REQUIRED_COLUMNS).issubset(
+        _table_columns(conn, "data_account")
+    ):
+        _assert_exact_columns(
+            conn,
+            "data_account",
+            DATA_ACCOUNT_VIEW_REQUIRED_COLUMNS,
+            "运行指标引用视图",
+        )
+    if not sqlite_conn and _relation_type(conn, "data_account_metric_binding") != "view":
         raise RuntimeError("兼容指标绑定必须是由指标树派生的 view，不再允许物理表")
     _assert_exact_columns(
         conn,
         "data_account_metric_binding",
         METRIC_BINDING_REQUIRED_COLUMNS,
-        "兼容指标绑定视图",
+        "兼容指标绑定表" if sqlite_conn else "兼容指标绑定视图",
     )
+    if sqlite_conn and _relation_type(conn, "data_account_metric_binding") == "table":
+        binding_sql = _table_sql(conn, "data_account_metric_binding")
+        missing_binding_checks = find_missing_markers(
+            binding_sql,
+            ("CHECK (data_acct_code = metric_node_code)",),
+        )
+        if missing_binding_checks:
+            raise RuntimeError(
+                "兼容指标绑定表缺少当前约束，系统不再自动重建："
+                + ", ".join(missing_binding_checks)
+            )
 
     node_sql = _table_sql(conn, "data_account_metric_node")
     node_markers = (
         "CHECK (level BETWEEN 1 AND 8)",
         "CHECK (node_type IN ('CATEGORY', 'GROUP', 'METRIC'))",
     )
-    missing_node_checks = [marker for marker in node_markers if marker not in node_sql]
+    missing_node_checks = find_missing_markers(node_sql, node_markers)
     if missing_node_checks:
         raise RuntimeError(
             "指标树表缺少当前约束，系统不再自动重建："
@@ -521,12 +791,16 @@ def ensure_runtime_metric_identity_tables(conn: pymysql.Connection) -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """
         )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_data_account_metric_node_parent
-            ON data_account_metric_node(parent_code)
-            """
-        )
+        try:
+            cur.execute(
+                """
+                CREATE INDEX idx_data_account_metric_node_parent
+                ON data_account_metric_node(parent_code)
+                """
+            )
+        except (pymysql.err.ProgrammingError, pymysql.err.OperationalError) as exc:
+            if not exc.args or exc.args[0] != 1061:
+                raise
     _ensure_metric_node_v02_columns(conn)
     _ensure_data_account_view(conn)
     _ensure_metric_binding_view(conn)
@@ -534,8 +808,44 @@ def ensure_runtime_metric_identity_tables(conn: pymysql.Connection) -> None:
     _assert_current_metric_identity(conn)
 
 
-def ensure_budget_data_uses_current_metric_identity(conn: pymysql.Connection) -> None:
+def ensure_budget_data_uses_current_metric_identity(conn: pymysql.Connection | str | Path) -> None:
     """Reject annual facts that still use retired data-account code shapes."""
+    if isinstance(conn, (str, Path)):
+        sqlite_conn = sqlite3.connect(conn)
+        try:
+            ensure_budget_data_uses_current_metric_identity(sqlite_conn)
+            return
+        finally:
+            sqlite_conn.close()
+    conn_type = f"{type(conn).__module__}.{type(conn).__name__}".lower()
+    if "sqlite" in conn_type:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'budget_data'"
+        ).fetchone()
+        if exists is None:
+            return
+        columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(budget_data)").fetchall()}
+        product_expr = "product_code" if "product_code" in columns else "NULL"
+        rows = conn.execute(f"SELECT DISTINCT data_acct_code, {product_expr} FROM budget_data").fetchall()
+        bad_rows: list[str] = []
+        for data_acct_code, product_code in rows:
+            data_code = str(data_acct_code or "").strip().upper()
+            product = str(product_code or "").strip().upper()
+            data_product = (
+                data_code.split(".", 1)[0]
+                if _is_product_prefixed_metric_code(data_code)
+                else ""
+            )
+            if not data_product or (product and product != data_product):
+                bad_rows.append(f"{data_code}/{product or '_'}")
+            if len(bad_rows) >= 10:
+                break
+        if bad_rows:
+            raise RuntimeError(
+                "budget_data 发现旧预算事实指标编码，系统不再自动迁移："
+                + ", ".join(bad_rows)
+            )
+        return
     with conn.cursor() as cur:
         cur.execute(
             """

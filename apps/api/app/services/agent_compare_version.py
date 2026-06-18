@@ -110,7 +110,7 @@ def load_compare_version_options(
                 """
                 SELECT e.edit_show_sign AS show_level, d.year AS source_year, e.version_id AS source_version_id, d.data_file_name
                 FROM edit_show_version e
-                JOIN databases d ON d.id = e.data_file_id
+                JOIN `databases` d ON d.id = e.data_file_id
                 WHERE e.edit_show_sign BETWEEN 1 AND 5
                 ORDER BY e.edit_show_sign ASC
                 """

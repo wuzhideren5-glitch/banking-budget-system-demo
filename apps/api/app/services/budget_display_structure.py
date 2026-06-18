@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import re
-from typing import Protocol
+from typing import Any, Protocol
 
-import app.core.aiosqlite_compat as aiosqlite
 DISPLAY_ROW_KEY_PATTERN = re.compile(r"^(TOTAL|OVERVIEW|PRODUCT\.[^.]+)(?:\.\d{2})+$")
 
 
 class AsyncSqlExecutor(Protocol):
     async def execute(self, sql: str, parameters: object = ...) -> object: ...
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
 
 
 def display_view_key(display_view: str) -> str:
@@ -49,7 +57,7 @@ def format_budget_display_row_key(display_view: str, segments: tuple[int, ...]) 
 
 
 async def allocate_budget_display_row_key(
-    db: aiosqlite.Connection,
+    db: AsyncSqlExecutor,
     *,
     display_view: str,
     parent_row_key: str | None,
@@ -68,7 +76,7 @@ async def allocate_budget_display_row_key(
     )
     used_child_segments: set[int] = set()
     for row in await cur.fetchall():
-        raw = row["row_key"] if isinstance(row, aiosqlite.Row) else row[0]
+        raw = _row_value(row, "row_key", 0)
         parsed = parse_display_row_key(str(raw))
         if not parsed:
             continue

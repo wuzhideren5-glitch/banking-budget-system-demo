@@ -4,15 +4,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import re
+import sqlite3
+import tempfile
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from app.budget_data_writer import (
     BudgetDataWriteItem,
     ROLLUP_RESULT_POLICY,
     delete_rollup_budget_data_rows,
     write_budget_data_items,
 )
+from app.core.config import settings
+from app.core.database import get_pool
 from app.formula_refs import extract_formula_codes
 from app.services.formula_engine import calculate_formula_value, normalize_formula
 from app.services.runtime_metric_refs import derive_runtime_ref_from_org_product_metric_code
@@ -123,6 +127,49 @@ def _upper(value: Any) -> str:
     return _clean(value).upper()
 
 
+def _uses_mysql_path(path: Path | str, *, names: set[str] | None = None, budget: bool = False) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    if budget:
+        return re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+    return names is not None and candidate.name in names
+
+
+def _uses_mysql_common_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, names={"common.db"})
+
+
+def _uses_mysql_budget_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, budget=True)
+
+
+def _budget_year_from_path(path: Path | str) -> int:
+    match = re.fullmatch(r"budget_(\d{4})\.db", Path(path).name)
+    return int(match.group(1)) if match else int(settings.budget_year)
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
 def _node_depth(code: str) -> int:
     return code.count(".") + 1 if code else 0
 
@@ -142,37 +189,39 @@ def _normalize_rollup_flag(value: Any) -> bool:
     return True
 
 
-async def _load_metric_nodes(db: aiosqlite.Connection) -> dict[str, dict[str, Any]]:
-    cur = await db.execute(
-        """
-        SELECT node_code, node_name, parent_code, node_type, level,
-               COALESCE(product_code, '') AS product_code,
-               COALESCE(logic_code, local_metric_code, '') AS logic_code,
-               COALESCE(horizontal_rollup, 0) AS horizontal_rollup,
-               COALESCE(vertical_rollup, 0) AS vertical_rollup
-        FROM data_account_metric_node
-        WHERE is_active = 1
-        """
-    )
+async def _load_metric_nodes(common_path: Path) -> dict[str, dict[str, Any]]:
+    sql = """
+    SELECT node_code, node_name, parent_code, node_type, level,
+           COALESCE(product_code, '') AS product_code,
+           COALESCE(logic_code, local_metric_code, '') AS logic_code,
+           COALESCE(horizontal_rollup, 0) AS horizontal_rollup,
+           COALESCE(vertical_rollup, 0) AS vertical_rollup
+    FROM data_account_metric_node
+    WHERE is_active = 1
+    """
+    if _uses_mysql_common_path(common_path):
+        rows = await get_pool().fetch_all(sql)
+    else:
+        with sqlite3.connect(common_path) as db:
+            rows = db.execute(sql).fetchall()
     return {
-        _upper(r[0]): {
-            "code": _upper(r[0]),
-            "name": _clean(r[1]),
-            "parent": _upper(r[2]) or None,
-            "node_type": _upper(r[3]),
-            "level": int(r[4] or 0),
-            "product_code": _upper(r[5]),
-            "logic_code": _upper(r[6]),
-            "horizontal_rollup": 1 if int(r[7] or 0) else 0,
-            "vertical_rollup": 1 if int(r[8] or 0) else 0,
+        _upper(_row_value(row, "node_code", 0)): {
+            "code": _upper(_row_value(row, "node_code", 0)),
+            "name": _clean(_row_value(row, "node_name", 1)),
+            "parent": _upper(_row_value(row, "parent_code", 2)) or None,
+            "node_type": _upper(_row_value(row, "node_type", 3)),
+            "level": int(_row_value(row, "level", 4) or 0),
+            "product_code": _upper(_row_value(row, "product_code", 5)),
+            "logic_code": _upper(_row_value(row, "logic_code", 6)),
+            "horizontal_rollup": 1 if int(_row_value(row, "horizontal_rollup", 7) or 0) else 0,
+            "vertical_rollup": 1 if int(_row_value(row, "vertical_rollup", 8) or 0) else 0,
         }
-        for r in await cur.fetchall()
-        if _upper(r[0])
+        for row in rows
+        if _upper(_row_value(row, "node_code", 0))
     }
 
 
-# Retired: was used by the old _load_payload_rollup_flags that read from
-# org_product_metric_table JSON payloads. Kept for reference only.
+# Retired: was used by the old payload rollup flag reader. Kept for reference only.
 def _iter_payload_nodes(items: list[Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     stack = [item for item in items if isinstance(item, dict)]
@@ -184,67 +233,48 @@ def _iter_payload_nodes(items: list[Any]) -> list[dict[str, Any]]:
     return result
 
 
-async def _load_payload_rollup_flags(db: aiosqlite.Connection) -> dict[str, dict[str, bool]]:
-    """Load horizontal/vertical rollup flags from data_account_metric_node.
-
-    Previously read from the retired org_product_metric_table JSON payloads;
-    now reads directly from the canonical metric node table.
+async def _load_payload_rollup_flags(common_path: Path) -> dict[str, dict[str, bool]]:
+    """Load horizontal/vertical rollup flags from data_account_metric_node."""
+    sql = """
+    SELECT node_code, product_code, horizontal_rollup, vertical_rollup
+    FROM data_account_metric_node
+    WHERE is_active = 1
     """
+    try:
+        if _uses_mysql_common_path(common_path):
+            rows = await get_pool().fetch_all(sql)
+        else:
+            with sqlite3.connect(common_path) as db:
+                rows = db.execute(sql).fetchall()
+    except sqlite3.Error:
+        return {}
+
     flags: dict[str, dict[str, bool]] = {}
-    node_table_exists = await (
-        await db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='data_account_metric_node'"
-        )
-    ).fetchone()
-    if node_table_exists is None:
-        return flags
-    cur = await db.execute(
-        """
-        SELECT node_code, product_code, horizontal_rollup, vertical_rollup
-        FROM data_account_metric_node
-        WHERE is_active = 1
-        """
-    )
-    for node_code, product_code_raw, horizontal_raw, vertical_raw in await cur.fetchall():
+    for row in rows:
         code = derive_runtime_ref_from_org_product_metric_code(
-            entity_code=str(product_code_raw or "").strip(),
-            metric_code=node_code,
+            entity_code=str(_row_value(row, "product_code", 1) or "").strip(),
+            metric_code=_row_value(row, "node_code", 0),
         )
         if not code:
             continue
         current = flags.setdefault(code, {"horizontal": False, "vertical": False})
-        current["horizontal"] = current["horizontal"] or _normalize_rollup_flag(horizontal_raw)
-        current["vertical"] = current["vertical"] or _normalize_rollup_flag(vertical_raw)
+        current["horizontal"] = current["horizontal"] or _normalize_rollup_flag(_row_value(row, "horizontal_rollup", 2))
+        current["vertical"] = current["vertical"] or _normalize_rollup_flag(_row_value(row, "vertical_rollup", 3))
     return flags
 
 
-def _children_by_parent(nodes: dict[str, dict[str, Any]]) -> dict[str | None, list[str]]:
-    children: dict[str | None, list[str]] = {}
-    for code, node in nodes.items():
-        children.setdefault(node.get("parent"), []).append(code)
-    for items in children.values():
-        items.sort(key=lambda code: (_node_depth(code), code))
-    return children
-
-
-def _descendants(code: str, children_by_parent: dict[str | None, list[str]]) -> list[str]:
-    result: list[str] = []
-    for child in children_by_parent.get(code, []):
-        result.append(child)
-        result.extend(_descendants(child, children_by_parent))
-    return result
-
-
-async def _load_product_children(db: aiosqlite.Connection) -> dict[str, set[str]]:
-    """Load product hierarchy: parent_code → {child product_codes}."""
-    cur = await db.execute(
-        "SELECT payload_json FROM org_product_tree_snapshot WHERE id = 1"
-    )
-    row = await cur.fetchone()
+async def _load_product_children(common_path: Path) -> dict[str, set[str]]:
+    """Load product hierarchy: parent_code -> {child product_codes}."""
+    sql = "SELECT payload_json FROM org_product_tree_snapshot WHERE id = 1"
+    if _uses_mysql_common_path(common_path):
+        row = await get_pool().fetch_one(sql)
+    else:
+        with sqlite3.connect(common_path) as db:
+            row = db.execute(sql).fetchone()
     if not row:
         return {}
     try:
-        tree = json.loads(str(row[0] or "{}"))
+        tree = json.loads(str(_row_value(row, "payload_json", 0) or "{}"))
     except Exception:
         return {}
 
@@ -265,41 +295,134 @@ async def _load_product_children(db: aiosqlite.Connection) -> dict[str, set[str]
     return child_map
 
 
-async def _load_bindings(db: aiosqlite.Connection) -> dict[tuple[str, str], dict[str, Any]]:
-    cur = await db.execute(
-        """
-        SELECT b.metric_node_code, b.scope_type, b.scope_code, b.data_acct_code,
-               d.data_acct_name, d.value_type, d.budget_formula, d.actual_formula,
-               COALESCE(b.sort_order, 0)
-        FROM data_account_metric_binding b
-        JOIN data_account d ON d.data_acct_code = b.data_acct_code
-        JOIN data_account_metric_node n ON n.node_code = b.metric_node_code
-        WHERE b.is_active = 1
-          AND COALESCE(n.is_active, 1) = 1
-        """
-    )
+async def _load_bindings(common_path: Path) -> dict[tuple[str, str], dict[str, Any]]:
+    sql = """
+    SELECT b.metric_node_code, b.scope_type, b.scope_code, b.data_acct_code,
+           d.data_acct_name, d.value_type, d.budget_formula, d.actual_formula,
+           COALESCE(b.sort_order, 0) AS sort_order
+    FROM data_account_metric_binding b
+    JOIN data_account d ON d.data_acct_code = b.data_acct_code
+    JOIN data_account_metric_node n ON n.node_code = b.metric_node_code
+    WHERE b.is_active = 1
+      AND COALESCE(n.is_active, 1) = 1
+    """
+    if _uses_mysql_common_path(common_path):
+        rows = await get_pool().fetch_all(sql)
+    else:
+        with sqlite3.connect(common_path) as db:
+            rows = db.execute(sql).fetchall()
     bindings: dict[tuple[str, str], dict[str, Any]] = {}
-    for row in await cur.fetchall():
-        metric_code = _upper(row[0])
-        scope = _upper(row[2])
+    for row in rows:
+        metric_code = _upper(_row_value(row, "metric_node_code", 0))
+        scope = _upper(_row_value(row, "scope_code", 2))
         if not metric_code or not scope:
             continue
         bindings[(metric_code, scope)] = {
             "metric_node_code": metric_code,
-            "scope_type": _upper(row[1]) or ("CORP" if scope == "CORP" else "PRODUCT"),
+            "scope_type": _upper(_row_value(row, "scope_type", 1)) or ("CORP" if scope == "CORP" else "PRODUCT"),
             "scope_code": scope,
-            "data_acct_code": _upper(row[3]),
-            "data_acct_name": _clean(row[4]),
-            "value_type": _clean(row[5]) or "金额",
-            "budget_formula": row[6],
-            "actual_formula": row[7],
-            "sort_order": int(row[8] or 0),
+            "data_acct_code": _upper(_row_value(row, "data_acct_code", 3)),
+            "data_acct_name": _clean(_row_value(row, "data_acct_name", 4)),
+            "value_type": _clean(_row_value(row, "value_type", 5)) or "金额",
+            "budget_formula": _row_value(row, "budget_formula", 6),
+            "actual_formula": _row_value(row, "actual_formula", 7),
+            "sort_order": int(_row_value(row, "sort_order", 8) or 0),
         }
     return bindings
 
 
+async def _period_ids_for_year(common_path: Path, budget_year: int) -> list[int]:
+    sql = "SELECT period_id FROM period WHERE year = ? ORDER BY period_id"
+    params = (f"Y{int(budget_year)}",)
+    if _uses_mysql_common_path(common_path):
+        rows = await get_pool().fetch_all(sql.replace("?", "%s"), params)
+    else:
+        with sqlite3.connect(common_path) as db:
+            rows = db.execute(sql, params).fetchall()
+    return [int(_row_value(row, "period_id", 0)) for row in rows]
+
+
+async def _fetch_base_budget_values(
+    budget_path: Path,
+    *,
+    version_id: int,
+    source_codes: tuple[str, ...],
+    product_codes: tuple[str, ...],
+    period_ids: tuple[int, ...],
+    budget_actuals: tuple[int, ...],
+) -> list[Any]:
+    if not source_codes or not product_codes or not period_ids or not budget_actuals:
+        return []
+    if _uses_mysql_budget_path(budget_path):
+        code_placeholders = ",".join("%s" for _ in source_codes)
+        product_placeholders = ",".join("%s" for _ in product_codes)
+        period_placeholders = ",".join("%s" for _ in period_ids)
+        actual_placeholders = ",".join("%s" for _ in budget_actuals)
+        return await get_pool().fetch_all(
+            f"""
+            SELECT data_acct_code, product_code, period_id, budget_actual, value
+            FROM budget_data
+            WHERE budget_year = %s
+              AND version_id = %s
+              AND data_acct_code IN ({code_placeholders})
+              AND product_code IN ({product_placeholders})
+              AND period_id IN ({period_placeholders})
+              AND budget_actual IN ({actual_placeholders})
+            """,
+            (
+                _budget_year_from_path(budget_path),
+                int(version_id),
+                *source_codes,
+                *product_codes,
+                *period_ids,
+                *budget_actuals,
+            ),
+        )
+    code_placeholders = ",".join("?" for _ in source_codes)
+    product_placeholders = ",".join("?" for _ in product_codes)
+    period_placeholders = ",".join("?" for _ in period_ids)
+    actual_placeholders = ",".join("?" for _ in budget_actuals)
+    with sqlite3.connect(budget_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(
+            f"""
+            SELECT data_acct_code, product_code, period_id, budget_actual, value
+            FROM budget_data
+            WHERE version_id = ?
+              AND data_acct_code IN ({code_placeholders})
+              AND product_code IN ({product_placeholders})
+              AND period_id IN ({period_placeholders})
+              AND budget_actual IN ({actual_placeholders})
+            """,
+            (
+                int(version_id),
+                *source_codes,
+                *product_codes,
+                *period_ids,
+                *budget_actuals,
+            ),
+        ).fetchall()
+
+
+def _children_by_parent(nodes: dict[str, dict[str, Any]]) -> dict[str | None, list[str]]:
+    children: dict[str | None, list[str]] = {}
+    for code, node in nodes.items():
+        children.setdefault(node.get("parent"), []).append(code)
+    for items in children.values():
+        items.sort(key=lambda code: (_node_depth(code), code))
+    return children
+
+
+def _descendants(code: str, children_by_parent: dict[str | None, list[str]]) -> list[str]:
+    result: list[str] = []
+    for child in children_by_parent.get(code, []):
+        result.append(child)
+        result.extend(_descendants(child, children_by_parent))
+    return result
+
+
 async def sync_metric_tree_rollup_accounts(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     metric_node_codes: set[str] | None = None,
 ) -> MetricTreeRollupSyncResult:
@@ -330,15 +453,6 @@ def _collect_child_source_codes(
     return sorted(dict.fromkeys(result))
 
 
-async def _period_ids_for_year(common_path: Path, budget_year: int) -> list[int]:
-    async with aiosqlite.connect(common_path) as db:
-        cur = await db.execute(
-            "SELECT period_id FROM period WHERE year = ? ORDER BY period_id",
-            (f"Y{int(budget_year)}",),
-        )
-        return [int(r[0]) for r in await cur.fetchall()]
-
-
 def _normalize_plan_inputs(
     product_codes: list[str],
     budget_actuals: list[int],
@@ -364,12 +478,10 @@ async def build_metric_tree_rollup_plan(
     if not product_set or not actuals:
         return plan
 
-    async with aiosqlite.connect(common_path) as cdb:
-        await cdb.execute("PRAGMA foreign_keys = ON")
-        nodes = await _load_metric_nodes(cdb)
-        children = _children_by_parent(nodes)
-        bindings = await _load_bindings(cdb)
-        product_children = await _load_product_children(cdb)
+    nodes = await _load_metric_nodes(common_path)
+    children = _children_by_parent(nodes)
+    bindings = await _load_bindings(common_path)
+    product_children = await _load_product_children(common_path)
 
     period_ids = await _period_ids_for_year(common_path, budget_year)
     plan.period_ids = tuple(period_ids)
@@ -520,32 +632,21 @@ async def rebuild_metric_tree_rollups(
 
     base_values: dict[tuple[str, str, int, int], float] = {}
     if plan.source_codes:
-        code_placeholders = ",".join("?" for _ in plan.source_codes)
-        product_placeholders = ",".join("?" for _ in plan.product_codes)
-        period_placeholders = ",".join("?" for _ in plan.period_ids)
-        actual_placeholders = ",".join("?" for _ in plan.budget_actuals)
-        async with aiosqlite.connect(budget_path) as bdb:
-            await bdb.execute("PRAGMA foreign_keys = ON")
-            cur = await bdb.execute(
-                f"""
-                SELECT data_acct_code, product_code, period_id, budget_actual, value
-                FROM budget_data
-                WHERE version_id = ?
-                  AND data_acct_code IN ({code_placeholders})
-                  AND product_code IN ({product_placeholders})
-                  AND period_id IN ({period_placeholders})
-                  AND budget_actual IN ({actual_placeholders})
-                """,
-                (
-                    int(version_id),
-                    *plan.source_codes,
-                    *plan.product_codes,
-                    *plan.period_ids,
-                    *plan.budget_actuals,
-                ),
-            )
-            for code_raw, product_raw, period_raw, actual_raw, value_raw in await cur.fetchall():
-                base_values[(_upper(code_raw), _upper(product_raw), int(period_raw), int(actual_raw))] = float(value_raw or 0.0)
+        rows = await _fetch_base_budget_values(
+            budget_path,
+            version_id=int(version_id),
+            source_codes=plan.source_codes,
+            product_codes=plan.product_codes,
+            period_ids=plan.period_ids,
+            budget_actuals=plan.budget_actuals,
+        )
+        for row in rows:
+            code_raw = _row_value(row, "data_acct_code", 0)
+            product_raw = _row_value(row, "product_code", 1)
+            period_raw = _row_value(row, "period_id", 2)
+            actual_raw = _row_value(row, "budget_actual", 3)
+            value_raw = _row_value(row, "value", 4)
+            base_values[(_upper(code_raw), _upper(product_raw), int(period_raw), int(actual_raw))] = float(value_raw or 0.0)
 
     computed: dict[tuple[str, str, int, int], float] = {}
     write_items: list[BudgetDataWriteItem] = []

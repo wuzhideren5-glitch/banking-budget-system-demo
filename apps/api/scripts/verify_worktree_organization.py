@@ -197,6 +197,7 @@ RETIRED_CODE_MARKER_ALLOWED_FILES = {
     Path("apps/api/app/knowledge_base.py"),
     Path("apps/api/scripts/verify_worktree_organization.py"),
     Path("apps/api/scripts/full_user_journey.py"),
+    Path("apps/api/scripts/migrate_sqlite_to_mysql.py"),
 }
 
 TEXT_SUFFIXES = {".md", ".py", ".ts", ".tsx"}

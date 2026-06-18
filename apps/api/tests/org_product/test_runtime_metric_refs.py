@@ -4,12 +4,14 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import aiosqlite
 
 from app.core.config import settings
 from app.db_bootstrap.runtime_metric_tree import ensure_runtime_metric_identity_tables
 from app.services.runtime_budget_paths import active_budget_database_files
+from app.services import runtime_metric_refs as runtime_metric_refs_module
 from app.services.runtime_metric_refs import (
     count_org_product_metric_refs,
     enrich_account_usage_flags,
@@ -309,6 +311,76 @@ class RuntimeMetricRefsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(accounts[0].metric_binding_ref_count, 1)
         self.assertEqual(enriched.budget_data_ref_count, 2)
         self.assertEqual(enriched.metric_binding_ref_count, 1)
+
+
+class _FakeRuntimeMetricRefsMysqlPool:
+    def __init__(self) -> None:
+        self.fetch_all_calls: list[tuple[str, tuple[object, ...]]] = []
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized = " ".join(sql.lower().split())
+        self.fetch_all_calls.append((" ".join(sql.split()), tuple(params)))
+        if "from budget_data" in normalized:
+            return [{"data_acct_code": "A01.01.01.001", "ref_count": 2}]
+        if "from data_account_metric_binding" in normalized and "count(*)" in normalized:
+            return [{"data_acct_code": "A01.01.01.001", "ref_count": 1}]
+        if "from data_account_metric_node" in normalized and "runtime_account_enabled = 1" in normalized:
+            return [
+                {
+                    "node_code": "A01.01.01.001",
+                    "node_name": "产品利息收入",
+                    "product_code": "A01",
+                    "metric_table_name": "业务状况表",
+                }
+            ]
+        if "from data_account d" in normalized:
+            return [
+                {
+                    "data_acct_code": "A01.01.01.001",
+                    "data_acct_name": "产品利息收入",
+                    "metric_node_code": "A01.01.01.001",
+                    "node_name": "产品利息收入",
+                    "scope_type": "PRODUCT",
+                    "scope_code": "A01",
+                    "budget_formula": None,
+                    "actual_formula": None,
+                    "need_calc": 0,
+                    "formula_calc_mode": 0,
+                    "allow_manual_entry": 1,
+                    "value_type": "金额",
+                    "remark": None,
+                    "product_name": "泛微粒贷",
+                }
+            ]
+        raise AssertionError(f"Unexpected fetch_all SQL: {sql}")
+
+
+class RuntimeMetricRefsMysqlPathTests(unittest.IsolatedAsyncioTestCase):
+    async def test_list_runtime_refs_uses_mysql_for_runtime_paths(self) -> None:
+        fake_pool = _FakeRuntimeMetricRefsMysqlPool()
+
+        with patch.object(runtime_metric_refs_module, "get_pool", return_value=fake_pool):
+            accounts = await list_runtime_refs(
+                settings.data_dir / "common.db",
+                budget_paths=[settings.data_dir / "budget_2026.db"],
+            )
+
+        self.assertEqual(len(accounts), 1)
+        self.assertEqual(accounts[0].data_acct_code, "A01.01.01.001")
+        self.assertEqual(accounts[0].budget_data_ref_count, 2)
+        self.assertEqual(accounts[0].metric_binding_ref_count, 1)
+        self.assertEqual(accounts[0].org_product_metric_ref_count, 1)
+        budget_sql, budget_params = next(
+            (sql, params)
+            for sql, params in fake_pool.fetch_all_calls
+            if "FROM budget_data" in sql
+        )
+        self.assertIn("budget_year IN (%s)", budget_sql)
+        self.assertEqual(budget_params, (2026,))
+
+    def test_runtime_metric_refs_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(runtime_metric_refs_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

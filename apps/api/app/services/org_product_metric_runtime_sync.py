@@ -9,7 +9,7 @@ import sqlite3
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 from typing import Any
 
-from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
+from app.services.org_product_runtime_catalog import org_product_runtime_products_cte_for_conn
 from app.services.runtime_metric_refs import (
     compact_org_product_metric_code,
     derive_runtime_ref_from_org_product_metric_code,
@@ -53,6 +53,7 @@ class _RuntimeMetricRef:
     name: str
     value_type: str
     allow_manual_entry: int
+    allow_manual_entry_explicit: bool
     sort_order: int
     source_code: str
     horizontal_rollup: int
@@ -181,6 +182,15 @@ def _normalize_allow_manual_entry(value: Any) -> int:
     if text in {"0", "false", "否", "不允许", "no", "n"}:
         return 0
     return 1
+
+
+def _has_explicit_allow_manual_entry(node: dict[str, Any]) -> bool:
+    if "allow_manual_entry" not in node:
+        return False
+    value = node.get("allow_manual_entry")
+    if isinstance(value, (bool, int, float)):
+        return True
+    return value is not None and _normalize_text(value) != ""
 
 
 def _normalize_rollup_flag(value: Any) -> int:
@@ -360,6 +370,7 @@ def normalize_org_product_metric_runtime_refs(
             name=name,
             value_type=_normalize_value_type(node.get("value_type"), node.get("nature")),
             allow_manual_entry=_normalize_allow_manual_entry(node.get("allow_manual_entry")),
+            allow_manual_entry_explicit=_has_explicit_allow_manual_entry(node),
             sort_order=sort_order,
             source_code=_normalize_text(node.get("code")),
             horizontal_rollup=_normalize_rollup_flag(node.get("horizontal_rollup")),
@@ -375,7 +386,7 @@ def _product_names(conn: sqlite3.Connection) -> dict[str, str]:
             _normalize_code(code): _normalize_text(name)
             for code, name in conn.execute(
                 f"""
-                {org_product_runtime_products_cte()}
+                {org_product_runtime_products_cte_for_conn(conn)}
                 SELECT product_code, product_name
                 FROM org_product_runtime_products
                 WHERE product_code <> '' AND product_name <> ''
@@ -383,7 +394,7 @@ def _product_names(conn: sqlite3.Connection) -> dict[str, str]:
             )
             if _normalize_code(code) and _normalize_text(name)
         }
-    except sqlite3.Error:
+    except Exception:
         return {}
 
 
@@ -454,6 +465,7 @@ def sync_org_product_metric_runtime_refs(
     entity_code: str,
     table_name: str,
     metrics: list[dict[str, Any]],
+    overwrite_existing_metadata: bool = False,
 ) -> OrgProductMetricRuntimeSyncResult:
     metrics = dedupe_org_product_metric_payload_nodes(metrics)
     refs = normalize_org_product_metric_runtime_refs(metrics, entity_code=entity_code, table_name=table_name)
@@ -481,23 +493,26 @@ def sync_org_product_metric_runtime_refs(
         ref.code: ref.name for ref in refs if ref.name
     }
 
+    all_node_codes = _all_node_codes(refs, parent_by_code=parent_by_code)
     node_count = 0
-    for node_code in _all_node_codes(refs, parent_by_code=parent_by_code):
+    for node_code in all_node_codes:
         product_code = _product_code(node_code)
         local_code = _local_metric_code(node_code)
         meta = payload_meta.get(node_code, {})
         parent_code = parent_by_code.get(node_code) or _parent_code(node_code)
+        if parent_code:
+            exists_parent = conn.execute(
+                "SELECT 1 FROM data_account_metric_node WHERE node_code=?",
+                (parent_code,),
+            ).fetchone()
+            if not exists_parent:
+                parent_code = None
         logic_code = local_code
         horizontal_rollup = _normalize_rollup_flag(meta.get("horizontal_rollup"))
         vertical_rollup = _normalize_rollup_flag(meta.get("vertical_rollup"))
         node_type = "CATEGORY" if _is_product_root(node_code) else ("GROUP" if node_code in parent_codes else "METRIC")
-        conn.execute(
+        update_clause = (
             """
-            INSERT INTO data_account_metric_node(
-              node_code, node_name, parent_code, product_code, local_metric_code, logic_code,
-              functional_group_code, metric_table_name, level, node_type, horizontal_rollup, vertical_rollup,
-              sort_order, is_active, remark
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             ON CONFLICT(node_code) DO UPDATE SET
               node_name=excluded.node_name,
               parent_code=excluded.parent_code,
@@ -516,6 +531,38 @@ def sync_org_product_metric_runtime_refs(
               vertical_rollup=excluded.vertical_rollup,
               is_active=1,
               updated_at=CURRENT_TIMESTAMP
+            """
+            if overwrite_existing_metadata
+            else
+            """
+            ON CONFLICT(node_code) DO UPDATE SET
+              node_name=COALESCE(NULLIF(data_account_metric_node.node_name, ''), excluded.node_name),
+              parent_code=COALESCE(NULLIF(data_account_metric_node.parent_code, ''), excluded.parent_code),
+              product_code=COALESCE(NULLIF(data_account_metric_node.product_code, ''), excluded.product_code),
+              local_metric_code=COALESCE(NULLIF(data_account_metric_node.local_metric_code, ''), excluded.local_metric_code),
+              logic_code=COALESCE(NULLIF(data_account_metric_node.logic_code, ''), excluded.logic_code),
+              functional_group_code=COALESCE(NULLIF(data_account_metric_node.functional_group_code, ''), excluded.functional_group_code),
+              metric_table_name=COALESCE(NULLIF(data_account_metric_node.metric_table_name, ''), excluded.metric_table_name),
+              level=CASE WHEN COALESCE(data_account_metric_node.level, 0)=0 THEN excluded.level ELSE data_account_metric_node.level END,
+              node_type=CASE
+                WHEN COALESCE(data_account_metric_node.node_type, '')='' THEN excluded.node_type
+                WHEN excluded.node_type='GROUP' AND data_account_metric_node.node_type='METRIC' THEN 'GROUP'
+                WHEN excluded.node_type='CATEGORY' THEN 'CATEGORY'
+                ELSE data_account_metric_node.node_type
+              END,
+              horizontal_rollup=CASE WHEN excluded.horizontal_rollup=1 THEN 1 ELSE data_account_metric_node.horizontal_rollup END,
+              vertical_rollup=CASE WHEN excluded.vertical_rollup=1 THEN 1 ELSE data_account_metric_node.vertical_rollup END,
+              is_active=1
+            """
+        )
+        conn.execute(
+            f"""
+            INSERT INTO data_account_metric_node(
+              node_code, node_name, parent_code, product_code, local_metric_code, logic_code,
+              functional_group_code, metric_table_name, level, node_type, horizontal_rollup, vertical_rollup,
+              sort_order, is_active, remark
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            {update_clause}
             """,
             (
                 node_code,
@@ -538,25 +585,51 @@ def sync_org_product_metric_runtime_refs(
 
     account_count = 0
     for ref in refs:
-        conn.execute(
-            """
-            UPDATE data_account_metric_node
-            SET node_name=?,
-                runtime_account_enabled=1,
-                allow_manual_entry=?,
-                value_type=?,
-                remark=COALESCE(remark, ?),
-                updated_at=CURRENT_TIMESTAMP
-            WHERE node_code=?
-            """,
-            (
-                ref.name,
-                ref.allow_manual_entry,
-                ref.value_type,
-                f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
-                ref.code,
-            ),
-        )
+        if overwrite_existing_metadata:
+            conn.execute(
+                """
+                UPDATE data_account_metric_node
+                SET node_name=?,
+                    runtime_account_enabled=1,
+                    allow_manual_entry=?,
+                    value_type=?,
+                    remark=COALESCE(remark, ?),
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE node_code=?
+                """,
+                (
+                    ref.name,
+                    ref.allow_manual_entry,
+                    ref.value_type,
+                    f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
+                    ref.code,
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE data_account_metric_node
+                SET node_name=COALESCE(NULLIF(node_name, ''), ?),
+                    runtime_account_enabled=1,
+                    allow_manual_entry=CASE
+                      WHEN ?=1 THEN ?
+                      WHEN allow_manual_entry IN (0, 1) THEN allow_manual_entry
+                      ELSE ?
+                    END,
+                    value_type=COALESCE(NULLIF(value_type, ''), ?),
+                    remark=COALESCE(remark, ?)
+                WHERE node_code=?
+                """,
+                (
+                    ref.name,
+                    1 if ref.allow_manual_entry_explicit else 0,
+                    ref.allow_manual_entry,
+                    ref.allow_manual_entry,
+                    ref.value_type,
+                    f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
+                    ref.code,
+                ),
+            )
         account_count += 1
         bound_codes.add(ref.code)
 
@@ -635,6 +708,11 @@ def normalize_org_product_metric_mapping_statuses(conn: sqlite3.Connection) -> i
     if not row:
         return 0
 
+    table_columns = {
+        str(row[1] if not isinstance(row, dict) else row.get("name") or "")
+        for row in conn.execute("PRAGMA table_info(org_product_metric_table)").fetchall()
+    }
+    has_updated_at = "updated_at" in table_columns
     updated_nodes = 0
     table_updates: list[tuple[str, str, str, str]] = []
 
@@ -678,14 +756,24 @@ def normalize_org_product_metric_mapping_statuses(conn: sqlite3.Connection) -> i
             table_updates.append((json.dumps(payload, ensure_ascii=False), str(entity_code), str(table_name)))
 
     for payload_json, entity_code, table_name in table_updates:
-        conn.execute(
-            """
-            UPDATE org_product_metric_table
-            SET payload_json=?, updated_at=CURRENT_TIMESTAMP
-            WHERE entity_code=? AND table_name=?
-            """,
-            (payload_json, entity_code, table_name),
-        )
+        if has_updated_at:
+            conn.execute(
+                """
+                UPDATE org_product_metric_table
+                SET payload_json=?, updated_at=CURRENT_TIMESTAMP
+                WHERE entity_code=? AND table_name=?
+                """,
+                (payload_json, entity_code, table_name),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE org_product_metric_table
+                SET payload_json=?
+                WHERE entity_code=? AND table_name=?
+                """,
+                (payload_json, entity_code, table_name),
+            )
     if table_updates:
         conn.commit()
     return updated_nodes
@@ -695,13 +783,42 @@ def _load_org_product_metric_ref_codes(conn: sqlite3.Connection) -> set[str]:
     return _collect_runtime_data_account_refs(conn)
 
 
-def _collect_budget_data_account_refs(budget_paths: list[Path | str] | tuple[Path | str, ...]) -> set[str]:
+def _collect_budget_data_account_refs(
+    budget_paths: list[Path | str] | tuple[Path | str, ...] | Any,
+) -> set[str]:
     refs: set[str] = set()
     targets = (
         ("budget_data", "data_acct_code"),
         ("business_cost_income_item", "data_acct_code"),
         ("business_cost_income_source_mapping", "data_acct_code"),
     )
+    if not isinstance(budget_paths, (list, tuple)):
+        conn = budget_paths
+        current_tables = {
+            str(row[0])
+            for row in conn.execute(
+                """
+                SELECT TABLE_NAME
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+                """
+            ).fetchall()
+        }
+        for table, column in targets:
+            if table not in current_tables:
+                continue
+            for (value,) in conn.execute(
+                f"""
+                SELECT DISTINCT {_mysql_quote_identifier(column)}
+                FROM {_mysql_quote_identifier(table)}
+                WHERE {_mysql_quote_identifier(column)} IS NOT NULL
+                  AND TRIM({_mysql_quote_identifier(column)}) <> ''
+                """
+            ).fetchall():
+                code = _normalize_legacy_corp_ref(str(value or ""))
+                if _is_product_prefixed_metric_code(code):
+                    refs.add(code)
+        return refs
     for raw_path in budget_paths:
         path = Path(raw_path)
         if not path.exists():
@@ -732,7 +849,7 @@ def _collect_budget_data_account_refs(budget_paths: list[Path | str] | tuple[Pat
 
 
 def normalize_legacy_corp_data_account_refs(
-    database_paths: list[Path | str] | tuple[Path | str, ...],
+    database_paths: list[Path | str] | tuple[Path | str, ...] | Any,
 ) -> int:
     """Rewrite retired CORP metric refs to AA refs in fact/config tables."""
     targets = (
@@ -742,6 +859,46 @@ def normalize_legacy_corp_data_account_refs(
         ("business_cost_income_source_mapping", "data_acct_code"),
     )
     updated = 0
+    if not isinstance(database_paths, (list, tuple)):
+        conn = database_paths
+        current_tables = {
+            str(row[0])
+            for row in conn.execute(
+                """
+                SELECT TABLE_NAME
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+                """
+            ).fetchall()
+        }
+        primary_key_columns = {"budget_output_display_item": "row_key"}
+        for table, column in targets:
+            if table not in current_tables:
+                continue
+            key_column = primary_key_columns.get(table, "id")
+            rows = list(
+                conn.execute(
+                    f"""
+                    SELECT {_mysql_quote_identifier(key_column)}, {_mysql_quote_identifier(column)}
+                    FROM {_mysql_quote_identifier(table)}
+                    WHERE {_mysql_quote_identifier(column)} LIKE 'CORP.%'
+                    """
+                )
+            )
+            for row_key, value in rows:
+                normalized = _normalize_legacy_corp_ref(str(value or ""))
+                if normalized and normalized != str(value or "").strip().upper():
+                    conn.execute(
+                        f"""
+                        UPDATE {_mysql_quote_identifier(table)}
+                        SET {_mysql_quote_identifier(column)}=?
+                        WHERE {_mysql_quote_identifier(key_column)}=?
+                        """,
+                        (normalized, row_key),
+                    )
+                    updated += 1
+        conn.commit()
+        return updated
     for raw_path in database_paths:
         path = Path(raw_path)
         if not path.exists():
@@ -783,7 +940,7 @@ def normalize_legacy_corp_data_account_refs(
 
 
 def normalize_read_model_data_code_names(
-    database_paths: list[Path | str] | tuple[Path | str, ...],
+    database_paths: list[Path | str] | tuple[Path | str, ...] | Any,
 ) -> int:
     """Rewrite read-model display keys from retired CORP.* to AA.*."""
     targets = (
@@ -793,6 +950,41 @@ def normalize_read_model_data_code_names(
         "compare_pivot_aggregate",
     )
     updated = 0
+    if not isinstance(database_paths, (list, tuple)):
+        conn = database_paths
+        current_tables = {
+            str(row[0])
+            for row in conn.execute(
+                """
+                SELECT TABLE_NAME
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+                """
+            ).fetchall()
+        }
+        for table in targets:
+            if table not in current_tables:
+                continue
+            rows = list(
+                conn.execute(
+                    f"""
+                    SELECT id, {_mysql_quote_identifier("data_code_name")}
+                    FROM {_mysql_quote_identifier(table)}
+                    WHERE {_mysql_quote_identifier("data_code_name")} LIKE 'CORP.%'
+                    """
+                )
+            )
+            for rowid, value in rows:
+                code, name = _split_display_code_name(value)
+                normalized = _display_code_name(code, name)
+                if normalized and normalized != _normalize_text(value):
+                    conn.execute(
+                        f"UPDATE {_mysql_quote_identifier(table)} SET {_mysql_quote_identifier('data_code_name')}=? WHERE id=?",
+                        (normalized, rowid),
+                    )
+                    updated += 1
+        conn.commit()
+        return updated
     for raw_path in database_paths:
         path = Path(raw_path)
         if not path.exists():
@@ -831,7 +1023,7 @@ def normalize_read_model_data_code_names(
 
 
 def _collect_read_model_data_code_refs(
-    database_paths: list[Path | str] | tuple[Path | str, ...],
+    database_paths: list[Path | str] | tuple[Path | str, ...] | Any,
 ) -> dict[str, str]:
     refs: dict[str, str] = {}
     targets = (
@@ -840,6 +1032,33 @@ def _collect_read_model_data_code_refs(
         "compare_budget_summary",
         "compare_pivot_aggregate",
     )
+    if not isinstance(database_paths, (list, tuple)):
+        conn = database_paths
+        current_tables = {
+            str(row[0])
+            for row in conn.execute(
+                """
+                SELECT TABLE_NAME
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+                """
+            ).fetchall()
+        }
+        for table in targets:
+            if table not in current_tables:
+                continue
+            for (value,) in conn.execute(
+                f"""
+                SELECT DISTINCT {_mysql_quote_identifier("data_code_name")}
+                FROM {_mysql_quote_identifier(table)}
+                WHERE {_mysql_quote_identifier("data_code_name")} IS NOT NULL
+                  AND TRIM({_mysql_quote_identifier("data_code_name")}) <> ''
+                """
+            ).fetchall():
+                code, name = _split_display_code_name(value)
+                if _is_product_prefixed_metric_code(code):
+                    refs.setdefault(code, name or code)
+        return refs
     for raw_path in database_paths:
         path = Path(raw_path)
         if not path.exists():
@@ -908,6 +1127,18 @@ def assert_all_runtime_metric_refs_are_confirmed_org_product_metrics(
 
 def _quote_identifier(name: str) -> str:
     return '"' + str(name).replace('"', '""') + '"'
+
+
+def _mysql_quote_identifier(name: str) -> str:
+    return "`" + str(name).replace("`", "``") + "`"
+
+
+def _is_mysql_connection(conn: object) -> bool:
+    return conn.__class__.__module__.startswith("pymysql")
+
+
+def _quote_identifier_for_connection(conn: object, name: str) -> str:
+    return _mysql_quote_identifier(name) if _is_mysql_connection(conn) else _quote_identifier(name)
 
 
 def _metric_payload_index(nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -1149,12 +1380,14 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
                 for table, column in targets:
                     if table not in current_tables:
                         continue
+                    table_ident = _quote_identifier_for_connection(db, table)
+                    column_ident = _quote_identifier_for_connection(db, column)
                     if column == "data_code_name":
                         row = db.execute(
                             f"""
                             SELECT 1
-                            FROM {_quote_identifier(table)}
-                            WHERE {_quote_identifier(column)} LIKE ?
+                            FROM {table_ident}
+                            WHERE {column_ident} LIKE ?
                             LIMIT 1
                             """,
                             (f"{normalized} %",),
@@ -1163,8 +1396,8 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
                         row = db.execute(
                             f"""
                             SELECT 1
-                            FROM {_quote_identifier(table)}
-                            WHERE {_quote_identifier(column)}=?
+                            FROM {table_ident}
+                            WHERE {column_ident}=?
                             LIMIT 1
                             """,
                             (normalized,),
@@ -1176,6 +1409,26 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
                 db.close()
         external_ref_cache[normalized] = False
         return False
+
+    runtime_enabled_ref_cache: dict[str, bool] = {}
+
+    def has_runtime_enabled_ref(code: str) -> bool:
+        normalized = _normalize_code(code)
+        if not normalized:
+            return False
+        if normalized in runtime_enabled_ref_cache:
+            return runtime_enabled_ref_cache[normalized]
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM data_account_metric_node
+            WHERE node_code=? AND runtime_account_enabled=1
+            LIMIT 1
+            """,
+            (normalized,),
+        ).fetchone()
+        runtime_enabled_ref_cache[normalized] = bool(row)
+        return bool(row)
 
     def payload_node_ref(node: dict[str, Any], entity_code: str = "") -> str:
         code = _normalize_code(node.get("code"))
@@ -1221,6 +1474,18 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
 
         return walk(nodes)
 
+    def normalize_legacy_direct_expense_payload_nodes(entity_code: str, nodes: list[dict[str, Any]]) -> None:
+        for node in _iter_metric_nodes([item for item in nodes if isinstance(item, dict)]):
+            ref = payload_node_ref(node, entity_code)
+            if not ref.endswith(".90.01"):
+                continue
+            compact = _compact_org_product_metric_code(ref) or ref.replace(".", "")
+            node["id"] = f"canonical-{compact}"
+            node["code"] = ref
+            node["name"] = "直接费用"
+            for legacy_key in ("metric_node_code", "data_acct_code", "mapping_status"):
+                node.pop(legacy_key, None)
+
     def prune_obsolete_payload_nodes(entity_code: str, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kept: list[dict[str, Any]] = []
         for node in nodes:
@@ -1235,6 +1500,7 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
                 ref
                 and is_under_canonical_root(ref)
                 and ref not in expected_codes
+                and not has_runtime_enabled_ref(ref)
                 and not has_external_ref(ref)
             )
             if obsolete and not node.get("children"):
@@ -1259,6 +1525,8 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
         metrics = payload.get("metrics") if isinstance(payload, dict) else []
         if not isinstance(metrics, list):
             metrics = []
+        metrics = [item for item in metrics if isinstance(item, dict)]
+        normalize_legacy_direct_expense_payload_nodes(entity_code, metrics)
         original_node_count = len(_iter_metric_nodes([item for item in metrics if isinstance(item, dict)]))
         metrics = dedupe_org_product_metric_payload_nodes(
             [item for item in metrics if isinstance(item, dict)]
@@ -1346,6 +1614,7 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
             (root, f"{root}.%"),
         )
         if str(row[0] or "").strip().upper() not in expected_codes
+        and not has_runtime_enabled_ref(str(row[0] or ""))
         and not has_external_ref(str(row[0] or ""))
     ]
     for code in obsolete_codes:
@@ -1358,6 +1627,15 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
         )
         if child_count == 0:
             conn.execute("DELETE FROM data_account_metric_node WHERE node_code=?", (code,))
+
+    conn.execute(
+        """
+        UPDATE data_account_metric_node
+        SET node_name='直接费用'
+        WHERE (node_code LIKE '%.90.01' OR local_metric_code='90.01')
+          AND COALESCE(node_type, '') IN ('GROUP', 'CATEGORY', '')
+        """
+    )
 
     for node in canonical_nodes:
         node_type = str(node.node_type).upper()
@@ -1379,8 +1657,7 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
               level=excluded.level,
               node_type=excluded.node_type,
               sort_order=excluded.sort_order,
-              is_active=1,
-              updated_at=CURRENT_TIMESTAMP
+              is_active=1
             """,
             (
                 node.node_code,
@@ -1389,8 +1666,8 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
                 node.product_code,
                 node.local_metric_code,
                 node.local_metric_code,
-                "业务支出评估" if ".91" in node.node_code else "业务状况表",
-                "业务支出评估" if ".91" in node.node_code else "业务状况表",
+                "业务支出评估" if ".05.02" in node.node_code else "业务状况表",
+                "业务支出评估" if ".05.02" in node.node_code else "业务状况表",
                 node.level,
                 node_type,
                 node.sort_order,
@@ -1403,12 +1680,14 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
         conn.execute(
             """
             UPDATE data_account_metric_node
-            SET node_name=?,
+            SET node_name=COALESCE(NULLIF(node_name, ''), ?),
                 runtime_account_enabled=1,
-                value_type=?,
-                allow_manual_entry=1,
-                remark=COALESCE(remark, ?),
-                updated_at=CURRENT_TIMESTAMP
+                value_type=COALESCE(NULLIF(value_type, ''), ?),
+                allow_manual_entry=CASE
+                  WHEN allow_manual_entry IN (0, 1) THEN allow_manual_entry
+                  ELSE 1
+                END,
+                remark=COALESCE(remark, ?)
             WHERE node_code=?
             """,
             (

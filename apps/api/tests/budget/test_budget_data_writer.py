@@ -6,12 +6,17 @@ from pathlib import Path
 
 import aiosqlite
 
+from app.core.config import settings
+import app.budget_data_writer as budget_data_writer_module
 from app.budget_data_writer import (
+    BudgetDataWriteItem,
     BudgetDataWriteResult,
+    MANUAL_INPUT_POLICY,
     delete_budget_data_for_runtime_ref,
     delete_rollup_budget_data_rows,
     delete_budget_data_for_version,
     purge_disallowed_budget_data_for_version,
+    write_budget_data_items,
 )
 
 
@@ -245,6 +250,98 @@ class BudgetDataWriterDeleteTests(unittest.IsolatedAsyncioTestCase):
                         ("A02.PARENT", "A02", 1, 0, "rollup", 20.0),
                     ],
                 )
+
+
+class _FakeBudgetDataMysqlPool:
+    def __init__(self) -> None:
+        self.executed: list[tuple[str, tuple[object, ...]]] = []
+        self.executed_many: list[tuple[str, list[tuple[object, ...]]]] = []
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        sql_upper = sql.upper()
+        if "FROM VERSION" in sql_upper:
+            return [{"version_id": 2026000003, "current_month": 4}]
+        if "FROM PERIOD" in sql_upper:
+            return [{"period_id": 202605, "month": "M05"}]
+        if "INFORMATION_SCHEMA.TABLES" in sql_upper:
+            return [
+                {"TABLE_NAME": "data_account_metric_binding"},
+                {"TABLE_NAME": "data_account_metric_node"},
+            ]
+        if "FROM DATA_ACCOUNT D" in sql_upper:
+            return [
+                {
+                    "data_acct_code": "A01.01",
+                    "budget_formula": "",
+                    "actual_formula": "",
+                    "allow_manual_entry": 1,
+                    "node_type": "METRIC",
+                }
+            ]
+        return []
+
+    async def execute(self, sql: str, params: tuple[object, ...] = ()) -> int:
+        self.executed.append((sql, tuple(params)))
+        return 3
+
+    async def execute_many(self, sql: str, rows: list[tuple[object, ...]]) -> int:
+        self.executed_many.append((sql, list(rows)))
+        return len(rows)
+
+
+class BudgetDataWriterMysqlPathTests(unittest.IsolatedAsyncioTestCase):
+    async def test_write_budget_data_items_uses_mysql_for_runtime_budget_path(self) -> None:
+        fake_pool = _FakeBudgetDataMysqlPool()
+        previous_get_pool = budget_data_writer_module.get_pool
+        budget_data_writer_module.get_pool = lambda: fake_pool
+        try:
+            result = await write_budget_data_items(
+                budget_path=settings.data_dir / "budget_2026.db",
+                common_path=settings.data_dir / "common.db",
+                items=[
+                    BudgetDataWriteItem(
+                        data_acct_code="a01.01",
+                        product_code="a01",
+                        period_id=202605,
+                        budget_actual=0,
+                        version_id=2026000003,
+                        value=123.45,
+                    )
+                ],
+                policy=MANUAL_INPUT_POLICY,
+            )
+        finally:
+            budget_data_writer_module.get_pool = previous_get_pool
+
+        self.assertEqual(result.saved_cells, 1)
+        self.assertEqual(len(fake_pool.executed_many), 1)
+        sql, rows = fake_pool.executed_many[0]
+        self.assertIn("ON DUPLICATE KEY UPDATE", sql)
+        self.assertIn("budget_year", sql)
+        self.assertEqual(rows[0][0], 2026)
+        self.assertEqual(rows[0][1], "A01.01")
+
+    async def test_delete_rollup_budget_data_rows_uses_mysql_for_runtime_budget_path(self) -> None:
+        fake_pool = _FakeBudgetDataMysqlPool()
+        previous_get_pool = budget_data_writer_module.get_pool
+        budget_data_writer_module.get_pool = lambda: fake_pool
+        try:
+            deleted = await delete_rollup_budget_data_rows(
+                budget_path=settings.data_dir / "budget_2026.db",
+                version_id=2026000003,
+                data_acct_codes=["a01.parent"],
+                product_codes=["a01"],
+                budget_actuals=[0],
+            )
+        finally:
+            budget_data_writer_module.get_pool = previous_get_pool
+
+        self.assertEqual(deleted, 3)
+        self.assertEqual(len(fake_pool.executed), 1)
+        sql, params = fake_pool.executed[0]
+        self.assertIn("budget_year = %s", sql)
+        self.assertIn("value_source = 'rollup'", sql)
+        self.assertEqual(params[:2], (2026, 2026000003))
 
 
 if __name__ == "__main__":

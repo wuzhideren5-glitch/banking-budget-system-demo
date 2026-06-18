@@ -12,7 +12,16 @@ from app.agent.agent_prompt_assets import get_product_manager_intent_assets
 from app.agent.agent_query_spec import normalise_current_query_spec
 from app.core.db_paths import common_db_path
 from app.integrations.deepseek_client import DeepseekClient
-from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
+from app.services.org_product_runtime_catalog import org_product_runtime_products_cte_for_cursor
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    keys = getattr(row, "keys", None)
+    if callable(keys) and key in keys():
+        return row[key]
+    return row[index]
 
 
 def _org_hints_path(kb_root: Path) -> Path:
@@ -104,7 +113,7 @@ def _confirmed_org_product_runtime_refs(cur: sqlite3.Cursor) -> tuple[set[str], 
     metric_refs: set[str] = set()
     data_refs: set[str] = set()
     try:
-        source_rows = cur.execute(
+        cur.execute(
             """
             SELECT node_code
             FROM data_account_metric_node
@@ -112,12 +121,13 @@ def _confirmed_org_product_runtime_refs(cur: sqlite3.Cursor) -> tuple[set[str], 
               AND runtime_account_enabled = 1
               AND COALESCE(product_code, '') <> ''
             """
-        ).fetchall()
+        )
+        source_rows = cur.fetchall()
     except sqlite3.Error:
         return metric_refs, data_refs
 
     for source in source_rows:
-        data_ref = str(source[0] or "").strip().upper()
+        data_ref = str(_row_value(source, "node_code", 0) or "").strip().upper()
         if not data_ref:
             continue
         metric_refs.add(data_ref)
@@ -151,22 +161,23 @@ def _expanded_product_scope_codes(cur: sqlite3.Cursor, scope_codes: list[str]) -
     if not selected:
         return set()
     try:
-        rows = cur.execute(
+        cur.execute(
             f"""
-            {org_product_runtime_products_cte()}
+            {org_product_runtime_products_cte_for_cursor(cur)}
             SELECT product_code, parent_code
             FROM org_product_runtime_products
             WHERE product_code <> ''
             """
-        ).fetchall()
+        )
+        rows = cur.fetchall()
     except sqlite3.Error:
         return selected
 
     children: dict[str, list[str]] = defaultdict(list)
     all_codes: set[str] = set()
-    for code, parent in rows:
-        child_code = str(code or "").strip().upper()
-        parent_code = str(parent or "").strip().upper()
+    for row in rows:
+        child_code = str(_row_value(row, "product_code", 0) or "").strip().upper()
+        parent_code = str(_row_value(row, "parent_code", 1) or "").strip().upper()
         if not child_code:
             continue
         all_codes.add(child_code)
@@ -731,7 +742,7 @@ def _confirmed_org_product_metric_digest_rows(
     rows: list[dict[str, str]] = []
     seen: set[tuple[str, str, str]] = set()
     try:
-        source_rows = cur.execute(
+        cur.execute(
             """
             SELECT node_code, node_name, product_code, metric_table_name, value_type
             FROM data_account_metric_node
@@ -741,14 +752,15 @@ def _confirmed_org_product_metric_digest_rows(
               AND COALESCE(metric_table_name, '') <> ''
             ORDER BY product_code, metric_table_name, node_code
             """
-        ).fetchall()
+        )
+        source_rows = cur.fetchall()
     except sqlite3.Error:
         return []
 
     for source in source_rows:
-        entity_code = str(source["product_code"] or "").strip().upper()
-        table_name = str(source["metric_table_name"] or "").strip()
-        data_ref = str(source["node_code"] or "").strip().upper()
+        entity_code = str(_row_value(source, "product_code", 2) or "").strip().upper()
+        table_name = str(_row_value(source, "metric_table_name", 3) or "").strip()
+        data_ref = str(_row_value(source, "node_code", 0) or "").strip().upper()
         if not entity_code or not table_name or not data_ref:
             continue
         key = (entity_code, table_name, data_ref)
@@ -762,8 +774,8 @@ def _confirmed_org_product_metric_digest_rows(
                 "source_code": data_ref,
                 "metric_node_code": data_ref,
                 "data_acct_code": data_ref,
-                "name": str(source["node_name"] or data_ref).strip(),
-                "value_type": str(source["value_type"] or "").strip() or "金额",
+                "name": str(_row_value(source, "node_name", 1) or data_ref).strip(),
+                "value_type": str(_row_value(source, "value_type", 4) or "").strip() or "金额",
             }
         )
         if len(rows) >= limit:
@@ -781,18 +793,23 @@ def build_catalog_digest(common_db: Path, *, max_chars: int | None = 14_000) -> 
         conn = sqlite3.connect(common_db)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        nc = cur.execute("SELECT COUNT(*) FROM data_account_metric_node WHERE is_active = 1").fetchone()[0]
-        bc = cur.execute("SELECT COUNT(*) FROM data_account_metric_binding WHERE is_active = 1").fetchone()[0]
-        dc = cur.execute("SELECT COUNT(*) FROM data_account").fetchone()[0]
-        dec = cur.execute("SELECT COUNT(*) FROM dept_account").fetchone()[0]
-        pc = cur.execute(
+        cur.execute("SELECT COUNT(*) FROM data_account_metric_node WHERE is_active = 1")
+        nc = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM data_account_metric_binding WHERE is_active = 1")
+        bc = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM data_account")
+        dc = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM dept_account")
+        dec = cur.fetchone()[0]
+        cur.execute(
             f"""
-            {org_product_runtime_products_cte()}
+            {org_product_runtime_products_cte_for_cursor(cur)}
             SELECT COUNT(*)
             FROM org_product_runtime_products
             WHERE product_code <> '' AND product_name <> ''
             """
-        ).fetchone()[0]
+        )
+        pc = cur.fetchone()[0]
         lines.append(
             f"【统计】指标节点 {nc} 条；指标绑定 {bc} 条；运行取数编码 {dc} 条；部门科目 {dec} 条；"
             f"机构及产品节点 {pc} 条。"
@@ -808,23 +825,32 @@ def build_catalog_digest(common_db: Path, *, max_chars: int | None = 14_000) -> 
             )
 
         lines.append("【部门科目】代码|名称|层级（节选）")
-        for row in cur.execute(
-            "SELECT dept_code, dept_name, level FROM dept_account ORDER BY dept_code LIMIT 400"
-        ):
-            lines.append(f"  {row['dept_code']}|{row['dept_name']}|{row['level']}")
+        cur.execute("SELECT dept_code, dept_name, level FROM dept_account ORDER BY dept_code LIMIT 400")
+        for row in cur.fetchall():
+            lines.append(
+                "  "
+                f"{_row_value(row, 'dept_code', 0)}|"
+                f"{_row_value(row, 'dept_name', 1)}|"
+                f"{_row_value(row, 'level', 2)}"
+            )
 
         lines.append("【机构及产品】代码|名称（节选）")
-        for row in cur.execute(
+        cur.execute(
             f"""
-            {org_product_runtime_products_cte()}
+            {org_product_runtime_products_cte_for_cursor(cur)}
             SELECT product_code, product_name
             FROM org_product_runtime_products
             WHERE product_code <> '' AND product_name <> ''
             ORDER BY product_code
             LIMIT 400
             """
-        ):
-            lines.append(f"  {row['product_code']}|{row['product_name']}")
+        )
+        for row in cur.fetchall():
+            lines.append(
+                "  "
+                f"{_row_value(row, 'product_code', 0)}|"
+                f"{_row_value(row, 'product_name', 1)}"
+            )
 
         conn.close()
     except Exception as exc:

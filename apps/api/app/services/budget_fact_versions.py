@@ -3,9 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+import tempfile
+from typing import Any
+
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.db_bootstrap.budget_version import ensure_budget_version_schema, ensure_budget_version_schema_sync
 from app.schemas import BudgetFactVersionOption
 
@@ -23,8 +27,55 @@ class BudgetFactVersionIdentity:
     current_month: int
 
 
+def _budget_year_from_file_name(file_name: str) -> int | None:
+    stem = Path(file_name).stem
+    if not stem.startswith("budget_"):
+        return None
+    suffix = stem.removeprefix("budget_")
+    return int(suffix) if suffix.isdigit() else None
+
+
+def _uses_mysql_path(path: Path) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name.startswith("budget_") and candidate.suffix == ".db"
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+def _row_to_version_option(row: Any) -> BudgetFactVersionOption:
+    version_id = int(_row_value(row, "version_id", 0))
+    return BudgetFactVersionOption(
+        version_id=version_id,
+        version_name=str(_row_value(row, "version_name", 1) or f"V{version_id}"),
+        version_date_time=str(_row_value(row, "version_date_time", 2) or "") or None,
+        current_month=int(_row_value(row, "current_month", 3)),
+    )
+
+
 async def load_budget_fact_version_options(
-    db: aiosqlite.Connection,
+    db: Any,
 ) -> list[BudgetFactVersionOption]:
     await ensure_budget_version_schema(db)
     cur = await db.execute(
@@ -35,40 +86,61 @@ async def load_budget_fact_version_options(
         """
     )
     rows = await cur.fetchall()
-    return [
-        BudgetFactVersionOption(
-            version_id=int(row[0]),
-            version_name=str(row[1] or f"V{row[0]}"),
-            version_date_time=str(row[2] or "") or None,
-            current_month=int(row[3]),
-        )
-        for row in rows
-    ]
+    return [_row_to_version_option(row) for row in rows]
 
 
 async def load_budget_fact_version_options_from_path(
     budget_path: Path,
 ) -> list[BudgetFactVersionOption]:
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        return await load_budget_fact_version_options(db)
+    budget_year = _budget_year_from_file_name(budget_path.name)
+    if _uses_mysql_path(budget_path):
+        if budget_year is None:
+            return []
+        rows = await get_pool().fetch_all(
+            """
+            SELECT version_id, version_name, version_date_time, current_month
+            FROM version
+            WHERE budget_year = %s
+            ORDER BY version_id DESC
+            """,
+            (budget_year,),
+        )
+        return [_row_to_version_option(row) for row in rows]
+
+    with sqlite3.connect(budget_path) as db:
+        ensure_budget_version_schema_sync(db)
+        rows = db.execute(
+            """
+            SELECT version_id, version_name, version_date_time, current_month
+            FROM version
+            ORDER BY version_id DESC
+            """
+        ).fetchall()
+    return [_row_to_version_option(row) for row in rows]
 
 
 async def load_budget_fact_current_month_from_path(
     budget_path: Path,
     version_id: int,
 ) -> int:
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_budget_version_schema(db)
-        cur = await db.execute(
-            "SELECT current_month FROM version WHERE version_id = ?",
-            (int(version_id),),
+    budget_year = _budget_year_from_file_name(budget_path.name)
+    if _uses_mysql_path(budget_path):
+        if budget_year is None:
+            raise BudgetFactVersionNotFound(version_id)
+        row = await get_pool().fetch_one(
+            "SELECT current_month FROM version WHERE budget_year = %s AND version_id = %s",
+            (budget_year, int(version_id)),
         )
-        row = await cur.fetchone()
+    else:
+        with sqlite3.connect(budget_path) as db:
+            ensure_budget_version_schema_sync(db)
+            row = db.execute(
+                "SELECT current_month FROM version WHERE version_id = ?",
+                (int(version_id),),
+            ).fetchone()
     if not row:
         raise BudgetFactVersionNotFound(version_id)
-    return int(row[0])
+    return int(_row_value(row, "current_month", 0))
 
 
 def load_budget_fact_version_identity_sync(
@@ -95,7 +167,7 @@ def load_budget_fact_version_identity_sync(
 
 
 async def budget_fact_version_exists(
-    db: aiosqlite.Connection,
+    db: Any,
     version_id: int,
 ) -> bool:
     cur = await db.execute(
@@ -109,7 +181,7 @@ async def ensure_budget_fact_version_exists(
     budget_path: Path,
     version_id: int,
 ) -> None:
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        if not await budget_fact_version_exists(db, version_id):
-            raise BudgetFactVersionNotFound(version_id)
+    try:
+        await load_budget_fact_current_month_from_path(budget_path, version_id)
+    except BudgetFactVersionNotFound:
+        raise

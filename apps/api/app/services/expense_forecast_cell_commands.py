@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sqlite3
+import tempfile
 from typing import Any, Protocol
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.services.expense_forecast_data_context import build_expense_forecast_effective_manage_departments
 from app.services.expense_forecast_write_commands import (
     delete_month_forecast_override,
@@ -18,6 +21,127 @@ def _text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+class _SqliteExecutor:
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    async def execute(self, sql: str, parameters: object = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, parameters)  # type: ignore[arg-type]
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+async def _upsert_month_forecast_value_mysql(
+    cur: Any,
+    *,
+    year: int,
+    forecast_version: str,
+    scope_type: str,
+    scope_value: str,
+    subject_id: int,
+    month: int,
+    value: float,
+    now: str,
+) -> None:
+    await cur.execute(
+        """
+        INSERT INTO expense_forecast_entry(
+          forecast_year, forecast_version, scope_type, scope_value, subject_id, month,
+          forecast_value, create_time, update_time
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+          forecast_value = %s,
+          update_time = %s
+        """,
+        (
+            int(year),
+            forecast_version,
+            scope_type,
+            scope_value,
+            int(subject_id),
+            int(month),
+            float(value),
+            now,
+            now,
+            float(value),
+            now,
+        ),
+    )
+
+
+async def _upsert_annual_forecast_value_mysql(
+    cur: Any,
+    *,
+    year: int,
+    forecast_version: str,
+    scope_type: str,
+    scope_value: str,
+    subject_id: int,
+    field_name: str,
+    value: float,
+    now: str,
+) -> None:
+    await cur.execute(
+        """
+        INSERT INTO expense_forecast_annual_entry(
+          forecast_year, forecast_version, scope_type, scope_value, subject_id, field_name,
+          field_value, create_time, update_time
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+          field_value = %s,
+          update_time = %s
+        """,
+        (
+            int(year),
+            forecast_version,
+            scope_type,
+            scope_value,
+            int(subject_id),
+            field_name,
+            float(value),
+            now,
+            now,
+            float(value),
+            now,
+        ),
+    )
+
+
+async def _delete_month_forecast_override_mysql(
+    cur: Any,
+    *,
+    year: int,
+    forecast_version: str,
+    owner_name: str,
+    subject_id: int,
+    month: int,
+) -> None:
+    await cur.execute(
+        """
+        DELETE FROM expense_forecast_override
+        WHERE forecast_year = %s AND forecast_version = %s AND owner_name = %s AND subject_id = %s AND month = %s
+        """,
+        (int(year), forecast_version, owner_name, int(subject_id), int(month)),
+    )
 
 
 @dataclass(frozen=True)
@@ -96,8 +220,56 @@ async def upsert_expense_forecast_cell_value(
     value: float,
     now: str,
 ) -> ExpenseForecastCellUpsertResult:
-    async with aiosqlite.connect(str(db_path)) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
+    path = Path(db_path)
+    if _uses_mysql_path(path):
+        async with get_pool().acquire() as conn:
+            await conn.begin()
+            try:
+                async with conn.cursor() as cur:
+                    if field_name == "month_forecast":
+                        normalized_month = int(month or 0)
+                        await _upsert_month_forecast_value_mysql(
+                            cur,
+                            year=year,
+                            forecast_version=forecast_version,
+                            scope_type=scope_type,
+                            scope_value=scope_value,
+                            subject_id=subject_id,
+                            month=normalized_month,
+                            value=value,
+                            now=now,
+                        )
+                        await _delete_month_forecast_override_mysql(
+                            cur,
+                            year=year,
+                            forecast_version=forecast_version,
+                            owner_name=scope_value,
+                            subject_id=subject_id,
+                            month=normalized_month,
+                        )
+                        mode = "manual"
+                    else:
+                        await _upsert_annual_forecast_value_mysql(
+                            cur,
+                            year=year,
+                            forecast_version=forecast_version,
+                            scope_type=scope_type,
+                            scope_value=scope_value,
+                            subject_id=subject_id,
+                            field_name=field_name,
+                            value=value,
+                            now=now,
+                        )
+                        mode = "annual"
+                await conn.commit()
+                return ExpenseForecastCellUpsertResult(mode=mode)
+            except Exception:
+                await conn.rollback()
+                raise
+
+    with sqlite3.connect(path) as conn:
+        conn.execute("PRAGMA foreign_keys = ON")
+        db = _SqliteExecutor(conn)
         if field_name == "month_forecast":
             normalized_month = int(month or 0)
             await upsert_month_forecast_value(
@@ -133,7 +305,7 @@ async def upsert_expense_forecast_cell_value(
                 now=now,
             )
             mode = "annual"
-        await db.commit()
+        conn.commit()
     return ExpenseForecastCellUpsertResult(mode=mode)
 
 

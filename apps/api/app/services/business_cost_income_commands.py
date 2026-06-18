@@ -1,11 +1,18 @@
 """Business cost-income ratio write commands and admin configuration service."""
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import re
+import sqlite3
+import tempfile
+from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.core.db_paths import budget_db_path, common_db_path
+from app.db_bootstrap.business_cost_income import ensure_business_cost_income_schema
 from app.services.business_cost_income_derived import (
     effective_bcir_item_entry_mode,
 )
@@ -26,6 +33,156 @@ from app.services.runtime_metric_refs import (
 VALUE_MODES = {"tree", "self", "self_and_tree"}
 INDICATOR_FORMATS = {"ratio", "percent", "number"}
 SOURCE_FIELDS = {"actual", "budget"}
+
+
+def _uses_mysql_path(path: Path | str, *, names: set[str] | None = None, budget: bool = False) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    if budget:
+        return re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+    return names is not None and candidate.name in names
+
+
+def _uses_mysql_common_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, names={"common.db"})
+
+
+def _uses_mysql_budget_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, budget=True)
+
+
+def _mysql_sql(sql: str) -> str:
+    stripped = sql.strip().lower()
+    if stripped == "select last_insert_rowid()":
+        return "SELECT LAST_INSERT_ID()"
+    sql = sql.replace("?", "%s")
+    sql = re.sub(r"\bINSERT\s+OR\s+IGNORE\s+INTO\b", "INSERT IGNORE INTO", sql, flags=re.IGNORECASE)
+    sql = re.sub(
+        r"ON\s+CONFLICT\s*\([^)]+\)\s*DO\s+UPDATE\s+SET",
+        "ON DUPLICATE KEY UPDATE",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(r"excluded\.(\w+)", r"VALUES(\1)", sql, flags=re.IGNORECASE)
+    sql = re.sub(r"\bparent_id\s+IS\s+%s\b", "parent_id <=> %s", sql, flags=re.IGNORECASE)
+    return sql
+
+
+class _AsyncCursorAdapter:
+    def __init__(self, rows: list[Any] | None = None):
+        self._rows = rows or []
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteCommandConnection:
+    def __init__(self, path: Path, *, budget_year: int | None = None):
+        self._path = path
+        self._budget_year = budget_year
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteCommandConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        if self._budget_year is not None:
+            ensure_business_cost_income_schema(self._conn, self._budget_year)
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            if exc_type is not None:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] = ()) -> _AsyncCursorAdapter:
+        assert self._conn is not None
+        if sql.strip().lower().startswith("pragma foreign_keys"):
+            return _AsyncCursorAdapter([(1,)])
+        cur = self._conn.execute(sql, params)
+        return _AsyncCursorAdapter(cur.fetchall() if cur.description else [])
+
+    async def commit(self) -> None:
+        assert self._conn is not None
+        self._conn.commit()
+
+
+class _MySQLCommandConnection:
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+        self._lastrowid = 0
+
+    async def __aenter__(self) -> "_MySQLCommandConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None and self._conn is not None:
+            rollback = getattr(self._conn, "rollback", None)
+            if rollback is not None:
+                await rollback()
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] = ()) -> _AsyncCursorAdapter:
+        assert self._conn is not None
+        if sql.strip().lower().startswith("pragma foreign_keys"):
+            return _AsyncCursorAdapter([(1,)])
+        translated = _mysql_sql(sql)
+        if translated.strip().lower().startswith("select last_insert_id()"):
+            return _AsyncCursorAdapter([(self._lastrowid,)])
+        async with self._conn.cursor() as cur:
+            await cur.execute(translated, params)
+            self._lastrowid = int(getattr(cur, "lastrowid", 0) or self._lastrowid or 0)
+            rows = await cur.fetchall() if cur.description else []
+        return _AsyncCursorAdapter(list(rows))
+
+    async def commit(self) -> None:
+        if self._conn is not None:
+            await self._conn.commit()
+
+
+@asynccontextmanager
+async def _connect_common_db():
+    path = common_db_path()
+    if _uses_mysql_common_path(path):
+        async with _MySQLCommandConnection() as conn:
+            yield conn
+    else:
+        async with _SQLiteCommandConnection(path) as conn:
+            yield conn
+
+
+@asynccontextmanager
+async def _connect_budget_db(year: int):
+    path = budget_db_path(year)
+    if _uses_mysql_budget_path(path):
+        async with _MySQLCommandConnection() as conn:
+            yield conn
+    else:
+        async with _SQLiteCommandConnection(path, budget_year=year) as conn:
+            yield conn
 
 
 def _iso_now() -> str:
@@ -158,7 +315,7 @@ async def _ensure_runtime_metric_reference(
     normalized_code = _normalize_text(data_acct_code).upper()
     if not normalized_code:
         raise ValueError("普通细项必须选择机构及产品指标编码")
-    async with aiosqlite.connect(common_db_path()) as cdb:
+    async with _connect_common_db() as cdb:
         await cdb.execute("PRAGMA foreign_keys = ON")
         confirmed_codes = await load_confirmed_org_product_runtime_ref_codes(cdb)
         if normalized_code not in confirmed_codes:
@@ -184,7 +341,7 @@ async def _ensure_runtime_metric_reference(
 
 
 async def _ensure_item_reference(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     section: str,
     item_id: int,
@@ -214,8 +371,9 @@ async def _ensure_item_reference(
 
 
 async def _replace_source_mappings(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
+    year: int,
     item_id: int,
     data_acct_code: str,
     enabled: bool,
@@ -227,19 +385,19 @@ async def _replace_source_mappings(
         await db.execute(
             """
             INSERT INTO business_cost_income_source_mapping(
-              item_id, field, data_acct_code, agg_method, filters_json, enabled
-            ) VALUES (?, ?, ?, 'sum', '{}', ?)
+              budget_year, item_id, field, data_acct_code, agg_method, filters_json, enabled
+            ) VALUES (?, ?, ?, ?, 'sum', '{}', ?)
             """,
-            (int(item_id), field, data_acct_code, 1 if enabled else 0),
+            (int(year), int(item_id), field, data_acct_code, 1 if enabled else 0),
         )
 
 
 async def list_business_cost_income_item_configs(year: int, *, product_code: str | None = None) -> list[dict[str, Any]]:
     await ensure_business_cost_income_tables(year)
     normalized_product = _normalize_product_code(product_code)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
-        items = await load_business_cost_income_items(db, product_code=normalized_product)
+        items = await load_business_cost_income_items(db, year=year, product_code=normalized_product)
     parent_ids = {int(item["parent_id"]) for item in items if item.get("parent_id") is not None}
     return [
         {
@@ -277,9 +435,9 @@ async def list_business_cost_income_indicator_configs(
 ) -> list[dict[str, Any]]:
     await ensure_business_cost_income_tables(year)
     normalized_product = _normalize_product_code(product_code)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
-        indicators = await load_business_cost_income_indicators(db, product_code=normalized_product)
+        indicators = await load_business_cost_income_indicators(db, year=year, product_code=normalized_product)
     return [
         {
             "id": int(indicator["id"]),
@@ -326,7 +484,7 @@ async def upsert_business_cost_income_value(
     now = _iso_now()
 
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         item_row = await _ensure_item_reference(db, section=item_section, item_id=int(item_id), label="录入")
         has_children = (
@@ -353,16 +511,17 @@ async def upsert_business_cost_income_value(
         await db.execute(
             """
             INSERT INTO business_cost_income_value (
-              year, month, entity_name, group_name, product_code,
+              budget_year, year, month, entity_name, group_name, product_code,
               item_section, item_id, field, value, update_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (
-              year, month,
+              budget_year, year, month,
               entity_name, group_name, product_code,
               item_section, item_id, field
             ) DO UPDATE SET value = excluded.value, update_time = excluded.update_time
             """,
             (
+                year,
                 year,
                 month,
                 entity,
@@ -452,7 +611,7 @@ async def create_business_cost_income_item(
         org_product_identity = _normalize_org_product_item_identity(product_code=normalized_product)
     await ensure_business_cost_income_tables(year)
 
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         if parent_id is not None:
             parent_item = await _ensure_item_reference(
@@ -469,21 +628,22 @@ async def create_business_cost_income_item(
             """
             SELECT COALESCE(MAX(sort_order), -1) + 1
             FROM business_cost_income_item
-            WHERE product_code = ? AND section = ? AND parent_id IS ?
+            WHERE budget_year = ? AND product_code = ? AND section = ? AND parent_id IS ?
             """,
-            (normalized_product, section, parent_id),
+            (year, normalized_product, section, parent_id),
         )
         sort_order = int((await cur.fetchone())[0])
         await db.execute(
             """
             INSERT INTO business_cost_income_item(
-              product_code, section, name, parent_id, display_group, data_acct_code,
+              budget_year, product_code, section, name, parent_id, display_group, data_acct_code,
               org_product_ref, org_product_entity_code, org_product_table_name,
               org_product_metric_code, org_product_metric_name,
               manual_entry_mode, value_mode, sort_order, enabled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                year,
                 normalized_product,
                 section,
                 item_name,
@@ -505,6 +665,7 @@ async def create_business_cost_income_item(
         item_id = int((await cur.fetchone())[0])
         await _replace_source_mappings(
             db,
+            year=year,
             item_id=item_id,
             data_acct_code=normalized_data_acct_code if not display_group else "",
             enabled=enabled,
@@ -564,7 +725,7 @@ async def update_business_cost_income_item(
         )
     )
 
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -634,8 +795,8 @@ async def update_business_cost_income_item(
                 product_code=normalized_product,
             )
             cur = await db.execute(
-                "SELECT id, parent_id FROM business_cost_income_item WHERE product_code = ? AND section = ?",
-                (normalized_product, before["section"]),
+                "SELECT id, parent_id FROM business_cost_income_item WHERE budget_year = ? AND product_code = ? AND section = ?",
+                (year, normalized_product, before["section"]),
             )
             tree_rows = await cur.fetchall()
             children_by_parent: dict[int, list[int]] = {}
@@ -660,18 +821,18 @@ async def update_business_cost_income_item(
                     """
                     SELECT COALESCE(MAX(sort_order), -1) + 1
                     FROM business_cost_income_item
-                    WHERE product_code = ? AND section = ? AND parent_id IS NULL AND id <> ?
+                    WHERE budget_year = ? AND product_code = ? AND section = ? AND parent_id IS NULL AND id <> ?
                     """,
-                    (normalized_product, before["section"], int(item_id)),
+                    (year, normalized_product, before["section"], int(item_id)),
                 )
             else:
                 cur = await db.execute(
                     """
                     SELECT COALESCE(MAX(sort_order), -1) + 1
                     FROM business_cost_income_item
-                    WHERE product_code = ? AND section = ? AND parent_id = ? AND id <> ?
+                    WHERE budget_year = ? AND product_code = ? AND section = ? AND parent_id = ? AND id <> ?
                     """,
-                    (normalized_product, before["section"], parent_id_value, int(item_id)),
+                    (year, normalized_product, before["section"], parent_id_value, int(item_id)),
                 )
             target_sort_order = int((await cur.fetchone())[0])
 
@@ -703,6 +864,7 @@ async def update_business_cost_income_item(
         )
         await _replace_source_mappings(
             db,
+            year=year,
             item_id=int(item_id),
             data_acct_code=normalized_data_acct_code if not display_group else "",
             enabled=enabled,
@@ -728,7 +890,7 @@ async def update_business_cost_income_item(
 
 async def delete_business_cost_income_item(*, year: int, item_id: int) -> dict[str, Any]:
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -762,7 +924,7 @@ async def reorder_business_cost_income_items(*, year: int, item_ids: list[Any]) 
         raise ValueError("item_ids 必须是非空列表")
     now = _iso_now()
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -828,7 +990,7 @@ async def create_business_cost_income_indicator(
         "enabled": bool(enabled),
     }
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await _ensure_item_reference(
             db,
@@ -859,13 +1021,14 @@ async def create_business_cost_income_indicator(
         await db.execute(
             """
             INSERT INTO business_cost_income_indicator(
-              product_code, name, parent_id, display_group, topic_metric_node_code,
+              budget_year, product_code, name, parent_id, display_group, topic_metric_node_code,
               numerator_section, numerator_item_id, numerator_value_mode,
               denominator_section, denominator_item_id, denominator_value_mode,
               format, annualize, sort_order, enabled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                year,
                 indicator["product_code"],
                 indicator["name"],
                 indicator["parent_id"],
@@ -911,7 +1074,7 @@ async def update_business_cost_income_indicator(
 ) -> dict[str, Any]:
     await ensure_business_cost_income_tables(year)
     normalized_product = _normalize_product_code(product_code)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -1009,7 +1172,7 @@ async def update_business_cost_income_indicator(
 
 async def delete_business_cost_income_indicator(*, year: int, indicator_id: int) -> dict[str, Any]:
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -1036,7 +1199,7 @@ async def reorder_business_cost_income_indicators(*, year: int, indicator_ids: l
         raise ValueError("indicator_ids 必须是非空列表")
     now = _iso_now()
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
+    async with _connect_budget_db(year) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from io import BytesIO
+from pathlib import Path
+import sqlite3
+import tempfile
 from typing import Awaitable, Callable
 from urllib.parse import quote
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.core.config import settings
-from app.db_bootstrap.expense import ensure_expense_budget_entry_schema
+from app.db_bootstrap.expense import ensure_expense_budget_entry_schema_sync
 from app.core.db_paths import common_db_path
 from app.schemas import (
     ExpenseBudgetEntryApplyResponse,
@@ -44,6 +46,25 @@ from app.services.expense_budget_entry_units import (
 )
 
 
+def _uses_mysql_common_path(path: Path) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
 def build_expense_budget_entry_router(
     *,
     write_operation_log: Callable[..., Awaitable[None]],
@@ -51,10 +72,13 @@ def build_expense_budget_entry_router(
     router = APIRouter()
 
     async def _ensure_tables() -> None:
-        async with aiosqlite.connect(common_db_path()) as db:
-            await db.execute("PRAGMA foreign_keys = ON")
-            await ensure_expense_budget_entry_schema(db)
-            await db.commit()
+        path = common_db_path()
+        if _uses_mysql_common_path(path):
+            return
+        with sqlite3.connect(path) as db:
+            db.execute("PRAGMA foreign_keys = ON")
+            ensure_expense_budget_entry_schema_sync(db)
+            db.commit()
 
     @router.get("/api/expense-budget-entry/template")
     async def download_expense_budget_entry_template():

@@ -31,7 +31,7 @@ class DepartmentExpenseContractsTests(unittest.TestCase):
         )
 
     def test_main_no_longer_keeps_department_code_validation_implementation(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("def _validate_dept_code_with_parent", main_source)
         self.assertNotIn("1级部门科目代码格式错误", main_source)

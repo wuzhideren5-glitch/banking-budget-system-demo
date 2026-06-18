@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 import re
+import sqlite3
+import tempfile
 from typing import Any, Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
@@ -14,6 +16,8 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.runtime_metric_identity import product_code_from_runtime_metric_ref
 from app.db_bootstrap.budget_version import ensure_budget_version_schema
 from app.core.db_paths import common_db_path
@@ -23,7 +27,7 @@ from app.schemas import BudgetSummaryAggregateRequest, BudgetSummaryExportPivotR
 from app.services.export_common import autosize_worksheet_columns
 from app.services.formula_engine import normalize_formula, prepare_formula_expression
 from app.services.runtime_metric_refs import load_org_product_metric_refs_by_runtime_ref_code
-from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
+from app.services.org_product_runtime_catalog import org_product_runtime_products_cte_for_db
 from app.services.pivot_aggregate import list_budget_pivot_aggregate_rows
 from app.services.pivot_aggregate_export import aggregate_workbook_response, build_pivot_aggregate_workbook
 
@@ -52,6 +56,97 @@ def month_idx_from_label(label: str | None) -> int | None:
     return month - 1
 
 
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+class _CursorAdapter:
+    def __init__(self, rows: list[Any] | None = None):
+        self._rows = rows or []
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteExportConnection:
+    def __init__(self, path: Path):
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteExportConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        cur = self._conn.execute(sql, params)
+        return _CursorAdapter(cur.fetchall() if cur.description else [])
+
+
+class _MySQLExportConnection:
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+
+    async def __aenter__(self) -> "_MySQLExportConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        if sql.strip().lower().startswith("pragma foreign_keys"):
+            return _CursorAdapter([(1,)])
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), params)
+            rows = await cur.fetchall() if cur.description else []
+        return _CursorAdapter(list(rows))
+
+
+@asynccontextmanager
+async def _connect_db(path: Path):
+    if _uses_mysql_path(path):
+        async with _MySQLExportConnection() as db:
+            yield db
+    else:
+        async with _SQLiteExportConnection(path) as db:
+            yield db
+
+
 class BudgetSummaryExportService:
     def __init__(
         self,
@@ -66,7 +161,7 @@ class BudgetSummaryExportService:
         output_filename: str,
     ) -> StreamingResponse:
         editable_budget_path, editable_year, _editable_vid = await self._editable_context_provider()
-        async with aiosqlite.connect(editable_budget_path) as db:
+        async with _connect_db(editable_budget_path) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur_ver = await db.execute("SELECT version_id, current_month FROM version")
             version_month_map = {int(r[0]): int(r[1] or 1) for r in await cur_ver.fetchall()}
@@ -82,7 +177,7 @@ class BudgetSummaryExportService:
             body=aggregate_body,
             current_month_by_version=version_month_map,
         )
-        async with aiosqlite.connect(common_db_path()) as common_db:
+        async with _connect_db(common_db_path()) as common_db:
             await common_db.execute("PRAGMA foreign_keys = ON")
             org_product_refs = await load_org_product_metric_refs_by_runtime_ref_code(common_db)
         wb = build_pivot_aggregate_workbook(
@@ -102,7 +197,7 @@ class BudgetSummaryExportService:
         budget_year: int,
     ) -> StreamingResponse:
         common_path = common_db_path()
-        async with aiosqlite.connect(common_path) as cdb:
+        async with _connect_db(common_path) as cdb:
             await cdb.execute("PRAGMA foreign_keys = ON")
             roots = await load_metric_tree_with_data_accounts(cdb)
             org_product_refs_by_runtime_ref_code = await load_org_product_metric_refs_by_runtime_ref_code(
@@ -130,7 +225,7 @@ class BudgetSummaryExportService:
             data_rows = await cur_data.fetchall()
             cur_products = await cdb.execute(
                 f"""
-                {org_product_runtime_products_cte()}
+                {org_product_runtime_products_cte_for_db(cdb)}
                 SELECT product_code, product_name
                 FROM org_product_runtime_products
                 WHERE product_code <> '' AND product_name <> ''
@@ -166,9 +261,10 @@ class BudgetSummaryExportService:
         data_values: dict[str, dict[str, Any]] = {}
         current_month = 1
         version_name = ""
-        async with aiosqlite.connect(budget_path) as bdb:
+        async with _connect_db(budget_path) as bdb:
             await bdb.execute("PRAGMA foreign_keys = ON")
-            await ensure_budget_version_schema(bdb)
+            if not _uses_mysql_path(budget_path):
+                await ensure_budget_version_schema(bdb)
             cur_ver = await bdb.execute(
                 "SELECT version_name, current_month FROM version WHERE version_id = ?",
                 (version_id,),

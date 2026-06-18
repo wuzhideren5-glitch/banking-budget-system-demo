@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
@@ -184,7 +183,7 @@ def _sorted_for_parent_insert(rows: list[BudgetDisplayConfigImportRow]) -> list[
 
 
 async def apply_budget_display_config_import(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     rows: list[BudgetDisplayConfigImportRow],
     mode: str,

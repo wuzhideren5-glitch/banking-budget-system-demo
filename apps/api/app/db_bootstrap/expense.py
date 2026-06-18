@@ -329,14 +329,27 @@ def _quote_identifier(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
 
 
+async def _table_exists(db: AsyncSqlExecutor, table_name: str) -> bool:
+    cur = await db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table_name,),
+    )
+    return await cur.fetchone() is not None  # type: ignore[attr-defined]
+
+
 async def _table_sql(db: AsyncSqlExecutor, table_name: str) -> str:
-    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    """Return the DDL text for a table via SHOW CREATE TABLE or sqlite_master."""
     try:
         cur = await db.execute(f"SHOW CREATE TABLE `{table_name}`")
         row = await cur.fetchone()  # type: ignore[attr-defined]
         return str(row[1] or "") if row else ""
     except Exception:
-        return ""
+        cur = await db.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        )
+        row = await cur.fetchone()  # type: ignore[attr-defined]
+        return str(row[0] or "") if row else ""
 
 
 async def _table_columns(db: AsyncSqlExecutor, table_name: str) -> list[str]:
@@ -370,17 +383,23 @@ async def _assert_current_expense_forecast_contract(db: AsyncSqlExecutor) -> Non
 
 async def ensure_expense_forecast_schema(db: AsyncSqlExecutor) -> None:
     """Ensure fee-forecast input, rule, result, and override tables exist."""
+    if await _table_exists(db, "expense_forecast_rule"):
+        await _assert_current_expense_forecast_contract(db)
     await _execute_script(db, EXPENSE_FORECAST_SCHEMA)
     await _assert_current_expense_forecast_contract(db)
 
 
 def _table_sql_sync(conn: sqlite3.Connection, table_name: str) -> str:
-    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    """Return the DDL text for a table via SHOW CREATE TABLE or sqlite_master."""
     try:
         row = conn.execute(f"SHOW CREATE TABLE `{table_name}`").fetchone()
         return str(row[1] or "") if row else ""
     except Exception:
-        return ""
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return str(row[0] or "") if row else ""
 
 
 def _table_columns_sync(conn: sqlite3.Connection, table_name: str) -> list[str]:

@@ -18,86 +18,96 @@ class AsyncSqlConnection(Protocol):
 
 BUSINESS_COST_INCOME_SCHEMA = """
 CREATE TABLE IF NOT EXISTS business_cost_income_item (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_code TEXT NOT NULL DEFAULT '',
-  section TEXT NOT NULL CHECK (section IN ('input', 'output')),
-  name TEXT NOT NULL,
-  parent_id INTEGER DEFAULT NULL REFERENCES business_cost_income_item(id),
-  display_group INTEGER NOT NULL DEFAULT 0 CHECK (display_group IN (0, 1)),
-  data_acct_code TEXT NOT NULL DEFAULT '',
-  org_product_ref TEXT NOT NULL DEFAULT '',
-  org_product_entity_code TEXT NOT NULL DEFAULT '',
-  org_product_table_name TEXT NOT NULL DEFAULT '',
-  org_product_metric_code TEXT NOT NULL DEFAULT '',
-  org_product_metric_name TEXT NOT NULL DEFAULT '',
-  manual_entry_mode TEXT NOT NULL DEFAULT 'disabled' CHECK (manual_entry_mode IN ('disabled', 'manual', 'manual_preferred')),
-  value_mode TEXT NOT NULL DEFAULT 'tree' CHECK (value_mode IN ('tree', 'self', 'self_and_tree')),
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-  UNIQUE (product_code, section, name)
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  budget_year INT NOT NULL DEFAULT 2026,
+  product_code VARCHAR(64) NOT NULL DEFAULT '',
+  section VARCHAR(16) NOT NULL CHECK (section IN ('input', 'output')),
+  name VARCHAR(255) NOT NULL,
+  parent_id INT DEFAULT NULL,
+  display_group TINYINT(1) NOT NULL DEFAULT 0 CHECK (display_group IN (0, 1)),
+  data_acct_code VARCHAR(255) NOT NULL DEFAULT '',
+  org_product_ref VARCHAR(255) NOT NULL DEFAULT '',
+  org_product_entity_code VARCHAR(64) NOT NULL DEFAULT '',
+  org_product_table_name VARCHAR(255) NOT NULL DEFAULT '',
+  org_product_metric_code VARCHAR(255) NOT NULL DEFAULT '',
+  org_product_metric_name VARCHAR(255) NOT NULL DEFAULT '',
+  manual_entry_mode VARCHAR(32) NOT NULL DEFAULT 'disabled' CHECK (manual_entry_mode IN ('disabled', 'manual', 'manual_preferred')),
+  value_mode VARCHAR(32) NOT NULL DEFAULT 'tree' CHECK (value_mode IN ('tree', 'self', 'self_and_tree')),
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled TINYINT(1) NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  UNIQUE (budget_year, product_code, section, name),
+  FOREIGN KEY (parent_id) REFERENCES business_cost_income_item(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_bci_item_section
-ON business_cost_income_item(product_code, section, sort_order, id);
+CREATE INDEX idx_bci_item_section
+ON business_cost_income_item(budget_year, product_code, section, sort_order, id);
 
 CREATE TABLE IF NOT EXISTS business_cost_income_indicator (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_code TEXT NOT NULL DEFAULT '',
-  name TEXT NOT NULL,
-  parent_id INTEGER DEFAULT NULL REFERENCES business_cost_income_indicator(id),
-  display_group INTEGER NOT NULL DEFAULT 0 CHECK (display_group IN (0, 1)),
-  topic_metric_node_code TEXT DEFAULT NULL,
-  numerator_section TEXT NOT NULL CHECK (numerator_section IN ('input', 'output')),
-  numerator_item_id INTEGER NOT NULL REFERENCES business_cost_income_item(id) ON DELETE CASCADE,
-  numerator_value_mode TEXT NOT NULL DEFAULT 'tree' CHECK (numerator_value_mode IN ('tree', 'self', 'self_and_tree')),
-  denominator_section TEXT NOT NULL CHECK (denominator_section IN ('input', 'output')),
-  denominator_item_id INTEGER NOT NULL REFERENCES business_cost_income_item(id) ON DELETE CASCADE,
-  denominator_value_mode TEXT NOT NULL DEFAULT 'tree' CHECK (denominator_value_mode IN ('tree', 'self', 'self_and_tree')),
-  format TEXT NOT NULL DEFAULT 'ratio' CHECK (format IN ('ratio', 'percent', 'number')),
-  annualize INTEGER NOT NULL DEFAULT 0 CHECK (annualize IN (0, 1)),
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1))
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  budget_year INT NOT NULL DEFAULT 2026,
+  product_code VARCHAR(64) NOT NULL DEFAULT '',
+  name VARCHAR(255) NOT NULL,
+  parent_id INT DEFAULT NULL,
+  display_group TINYINT(1) NOT NULL DEFAULT 0 CHECK (display_group IN (0, 1)),
+  topic_metric_node_code VARCHAR(255) DEFAULT NULL,
+  numerator_section VARCHAR(16) NOT NULL CHECK (numerator_section IN ('input', 'output')),
+  numerator_item_id INT NOT NULL,
+  numerator_value_mode VARCHAR(32) NOT NULL DEFAULT 'tree' CHECK (numerator_value_mode IN ('tree', 'self', 'self_and_tree')),
+  denominator_section VARCHAR(16) NOT NULL CHECK (denominator_section IN ('input', 'output')),
+  denominator_item_id INT NOT NULL,
+  denominator_value_mode VARCHAR(32) NOT NULL DEFAULT 'tree' CHECK (denominator_value_mode IN ('tree', 'self', 'self_and_tree')),
+  format VARCHAR(16) NOT NULL DEFAULT 'ratio' CHECK (format IN ('ratio', 'percent', 'number')),
+  annualize TINYINT(1) NOT NULL DEFAULT 0 CHECK (annualize IN (0, 1)),
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled TINYINT(1) NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  FOREIGN KEY (parent_id) REFERENCES business_cost_income_indicator(id),
+  FOREIGN KEY (numerator_item_id) REFERENCES business_cost_income_item(id) ON DELETE CASCADE,
+  FOREIGN KEY (denominator_item_id) REFERENCES business_cost_income_item(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_bci_indicator_enabled
+CREATE INDEX idx_bci_indicator_enabled
 ON business_cost_income_indicator(product_code, enabled, sort_order, id);
 
 CREATE TABLE IF NOT EXISTS business_cost_income_source_mapping (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  item_id INTEGER NOT NULL REFERENCES business_cost_income_item(id) ON DELETE CASCADE,
-  field TEXT NOT NULL CHECK (field IN ('actual', 'budget')),
-  data_acct_code TEXT NOT NULL,
-  agg_method TEXT NOT NULL DEFAULT 'sum',
-  filters_json TEXT NOT NULL DEFAULT '{}',
-  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-  UNIQUE (item_id, field, data_acct_code)
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  budget_year INT NOT NULL DEFAULT 2026,
+  item_id INT NOT NULL,
+  field VARCHAR(16) NOT NULL CHECK (field IN ('actual', 'budget')),
+  data_acct_code VARCHAR(255) NOT NULL,
+  agg_method VARCHAR(32) NOT NULL DEFAULT 'sum',
+  filters_json VARCHAR(4096) NOT NULL DEFAULT '{}',
+  enabled TINYINT(1) NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  UNIQUE (budget_year, item_id, field, data_acct_code),
+  FOREIGN KEY (item_id) REFERENCES business_cost_income_item(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_bci_source_mapping_item
-ON business_cost_income_source_mapping(item_id, field, enabled, id);
+CREATE INDEX idx_bci_source_mapping_item
+ON business_cost_income_source_mapping(budget_year, item_id, field, enabled, id);
 
 CREATE TABLE IF NOT EXISTS business_cost_income_value (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  year INTEGER NOT NULL,
-  month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
-  entity_name TEXT NOT NULL,
-  group_name TEXT NOT NULL DEFAULT '',
-  product_code TEXT NOT NULL DEFAULT '',
-  item_section TEXT NOT NULL CHECK (item_section IN ('input', 'output')),
-  item_id INTEGER NOT NULL REFERENCES business_cost_income_item(id) ON DELETE CASCADE,
-  field TEXT NOT NULL CHECK (field IN ('actual', 'budget', 'forecast')),
-  value REAL NOT NULL DEFAULT 0,
-  update_time TEXT NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  budget_year INT NOT NULL DEFAULT 2026,
+  year INT NOT NULL,
+  month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
+  entity_name VARCHAR(128) NOT NULL,
+  group_name VARCHAR(128) NOT NULL DEFAULT '',
+  product_code VARCHAR(64) NOT NULL DEFAULT '',
+  item_section VARCHAR(16) NOT NULL CHECK (item_section IN ('input', 'output')),
+  item_id INT NOT NULL,
+  field VARCHAR(16) NOT NULL CHECK (field IN ('actual', 'budget', 'forecast')),
+  value DOUBLE NOT NULL DEFAULT 0,
+  update_time VARCHAR(64) NOT NULL,
   UNIQUE (
-    year, month,
+    budget_year, year, month,
     entity_name, group_name, product_code,
     item_section, item_id, field
-  )
+  ),
+  FOREIGN KEY (item_id) REFERENCES business_cost_income_item(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_bci_value_lookup
+CREATE INDEX idx_bci_value_lookup
 ON business_cost_income_value(
-  year, entity_name, group_name, product_code, item_section, item_id, field, month
+  budget_year, year, entity_name, group_name, product_code, item_section, item_id, field, month
 );
 """
 
@@ -105,6 +115,7 @@ ON business_cost_income_value(
 BUSINESS_COST_INCOME_REQUIRED_COLUMNS = {
     "business_cost_income_item": {
         "id",
+        "budget_year",
         "product_code",
         "section",
         "name",
@@ -118,6 +129,7 @@ BUSINESS_COST_INCOME_REQUIRED_COLUMNS = {
     },
     "business_cost_income_indicator": {
         "id",
+        "budget_year",
         "product_code",
         "name",
         "parent_id",
@@ -136,6 +148,7 @@ BUSINESS_COST_INCOME_REQUIRED_COLUMNS = {
     },
     "business_cost_income_source_mapping": {
         "id",
+        "budget_year",
         "item_id",
         "field",
         "data_acct_code",
@@ -145,6 +158,7 @@ BUSINESS_COST_INCOME_REQUIRED_COLUMNS = {
     },
     "business_cost_income_value": {
         "id",
+        "budget_year",
         "year",
         "month",
         "entity_name",
@@ -156,6 +170,14 @@ BUSINESS_COST_INCOME_REQUIRED_COLUMNS = {
         "value",
         "update_time",
     },
+}
+
+
+BCIR_YEAR_COLUMNS = {
+    "business_cost_income_item": "budget_year INTEGER NOT NULL DEFAULT 2026",
+    "business_cost_income_indicator": "budget_year INTEGER NOT NULL DEFAULT 2026",
+    "business_cost_income_source_mapping": "budget_year INTEGER NOT NULL DEFAULT 2026",
+    "business_cost_income_value": "budget_year INTEGER NOT NULL DEFAULT 2026",
 }
 
 
@@ -178,7 +200,7 @@ BUSINESS_COST_INCOME_REQUIRED_SQL_MARKERS = {
         "manual_entry_mode TEXT NOT NULL DEFAULT 'disabled' CHECK (manual_entry_mode IN ('disabled', 'manual', 'manual_preferred'))",
         "value_mode TEXT NOT NULL DEFAULT 'tree' CHECK (value_mode IN ('tree', 'self', 'self_and_tree'))",
         "CHECK (enabled IN (0, 1))",
-        "UNIQUE (product_code, section, name)",
+        "UNIQUE (budget_year, product_code, section, name)",
     ),
     "business_cost_income_indicator": (
         "product_code TEXT NOT NULL DEFAULT ''",
@@ -193,7 +215,7 @@ BUSINESS_COST_INCOME_REQUIRED_SQL_MARKERS = {
     ),
     "business_cost_income_source_mapping": (
         "CHECK (field IN ('actual', 'budget'))",
-        "UNIQUE (item_id, field, data_acct_code)",
+        "UNIQUE (budget_year, item_id, field, data_acct_code)",
     ),
     "business_cost_income_value": (
         "CHECK (month BETWEEN 1 AND 12)",
@@ -437,12 +459,16 @@ def _table_columns_sync(conn: sqlite3.Connection, table_name: str) -> set[str]:
 
 
 def _table_sql_sync(conn: sqlite3.Connection, table_name: str) -> str:
-    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    """Return the DDL text for a table via SHOW CREATE TABLE or sqlite_master."""
     try:
         row = conn.execute(f"SHOW CREATE TABLE `{table_name}`").fetchone()
         return str(row[1] or "") if row else ""
     except Exception:
-        return ""
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return str(row[0] or "") if row else ""
 
 
 def _table_exists_sync(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -460,13 +486,18 @@ async def _table_columns(db: AsyncSqlConnection, table_name: str) -> set[str]:
 
 
 async def _table_sql(db: AsyncSqlConnection, table_name: str) -> str:
-    """Return the DDL text for a table via SHOW CREATE TABLE."""
+    """Return the DDL text for a table via SHOW CREATE TABLE or sqlite_master."""
     try:
         cur = await db.execute(f"SHOW CREATE TABLE `{table_name}`")
         row = await cur.fetchone()  # type: ignore[attr-defined]
         return str(row[1] or "") if row else ""
     except Exception:
-        return ""
+        cur = await db.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        )
+        row = await cur.fetchone()  # type: ignore[attr-defined]
+        return str(row[0] or "") if row else ""
 
 
 async def _table_exists(db: AsyncSqlConnection, table_name: str) -> bool:
@@ -476,6 +507,40 @@ async def _table_exists(db: AsyncSqlConnection, table_name: str) -> bool:
     )
     row = await cur.fetchone()  # type: ignore[attr-defined]
     return row is not None
+
+
+def ensure_business_cost_income_budget_year_columns_sync(
+    conn: sqlite3.Connection,
+    budget_year: int,
+) -> None:
+    """Ensure annual BCIR private tables carry the merged MySQL budget year."""
+    for table_name, column_sql in BCIR_YEAR_COLUMNS.items():
+        if not _table_exists_sync(conn, table_name):
+            continue
+        columns = _table_columns_sync(conn, table_name)
+        if "budget_year" not in columns:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}")
+        conn.execute(
+            f"UPDATE {table_name} SET budget_year = ? WHERE budget_year IS NULL OR budget_year = 0",
+            (int(budget_year),),
+        )
+
+
+async def ensure_business_cost_income_budget_year_columns(
+    db: AsyncSqlConnection,
+    budget_year: int,
+) -> None:
+    """Async variant for annual BCIR budget_year columns."""
+    for table_name, column_sql in BCIR_YEAR_COLUMNS.items():
+        if not await _table_exists(db, table_name):
+            continue
+        columns = await _table_columns(db, table_name)
+        if "budget_year" not in columns:
+            await db.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}")
+        await db.execute(
+            f"UPDATE {table_name} SET budget_year = ? WHERE budget_year IS NULL OR budget_year = 0",
+            (int(budget_year),),
+        )
 
 
 def _needs_business_cost_income_rebuild_sync(conn: sqlite3.Connection) -> bool:
@@ -1173,20 +1238,25 @@ def _merge_bcir_item_id(conn: sqlite3.Connection, *, from_id: int, to_id: int) -
     conn.execute(
         """
         DELETE FROM business_cost_income_value
-        WHERE item_id = ? AND EXISTS (
-          SELECT 1
-          FROM business_cost_income_value keep
-          WHERE keep.item_id = ?
-            AND keep.year = business_cost_income_value.year
-            AND keep.month = business_cost_income_value.month
-            AND keep.entity_name = business_cost_income_value.entity_name
-            AND keep.group_name = business_cost_income_value.group_name
-            AND keep.product_code = business_cost_income_value.product_code
-            AND keep.item_section = business_cost_income_value.item_section
-            AND keep.field = business_cost_income_value.field
+        WHERE item_id = ? AND id IN (
+          SELECT id FROM (
+            SELECT drop_row.id
+            FROM business_cost_income_value drop_row
+            JOIN business_cost_income_value keep
+              ON keep.item_id = ?
+             AND keep.budget_year = drop_row.budget_year
+             AND keep.year = drop_row.year
+             AND keep.month = drop_row.month
+             AND keep.entity_name = drop_row.entity_name
+             AND keep.group_name = drop_row.group_name
+             AND keep.product_code = drop_row.product_code
+             AND keep.item_section = drop_row.item_section
+             AND keep.field = drop_row.field
+            WHERE drop_row.item_id = ?
+          ) duplicate_rows
         )
         """,
-        (from_id, to_id),
+        (from_id, to_id, from_id),
     )
     conn.execute(
         "UPDATE business_cost_income_value SET item_id = ? WHERE item_id = ?",
@@ -1242,40 +1312,80 @@ def _normalize_legacy_bcir_item_names_sync(conn: sqlite3.Connection) -> int:
     """Rename legacy BCIR item aliases in-place before duplicate merging."""
     renamed = 0
     for product_code in BCIR_B_LINE_PRODUCT_CODES:
-        row = conn.execute(
+        rows = conn.execute(
             """
-            SELECT id
+            SELECT id, budget_year
             FROM business_cost_income_item
             WHERE product_code = ? AND section = 'input' AND name = '营销积分支出'
-            LIMIT 1
             """,
             (product_code,),
-        ).fetchone()
-        if row is None:
-            continue
-        duplicate = conn.execute(
-            """
-            SELECT id
-            FROM business_cost_income_item
-            WHERE product_code = ? AND section = 'input' AND name = '积分'
-            LIMIT 1
-            """,
-            (product_code,),
-        ).fetchone()
-        old_id = int(row[0])
-        if duplicate is not None:
-            _merge_bcir_item_id(conn, from_id=old_id, to_id=int(duplicate[0]))
-            conn.execute("DELETE FROM business_cost_income_item WHERE id = ?", (old_id,))
-        else:
-            conn.execute(
+        ).fetchall()
+        for row in rows:
+            budget_year = int(row[1] or 0)
+            duplicate = conn.execute(
                 """
-                UPDATE business_cost_income_item
-                SET name = '积分'
-                WHERE id = ?
+                SELECT id
+                FROM business_cost_income_item
+                WHERE budget_year = ? AND product_code = ? AND section = 'input' AND name = '积分'
+                LIMIT 1
                 """,
-                (old_id,),
+                (budget_year, product_code),
+            ).fetchone()
+            old_id = int(row[0])
+            if duplicate is not None:
+                _merge_bcir_item_id(conn, from_id=old_id, to_id=int(duplicate[0]))
+                conn.execute("DELETE FROM business_cost_income_item WHERE id = ?", (old_id,))
+            else:
+                conn.execute(
+                    """
+                    UPDATE business_cost_income_item
+                    SET name = '积分'
+                    WHERE id = ?
+                    """,
+                    (old_id,),
+                )
+            renamed += 1
+    return renamed
+
+
+async def _normalize_legacy_bcir_item_names(db: AsyncSqlConnection) -> int:
+    renamed = 0
+    for product_code in BCIR_B_LINE_PRODUCT_CODES:
+        cur = await db.execute(
+            """
+            SELECT id, budget_year
+            FROM business_cost_income_item
+            WHERE product_code = ? AND section = 'input' AND name = '营销积分支出'
+            """,
+            (product_code,),
+        )
+        rows = await cur.fetchall()  # type: ignore[attr-defined]
+        for row in rows:
+            budget_year = int(row[1] or 0)
+            cur = await db.execute(
+                """
+                SELECT id
+                FROM business_cost_income_item
+                WHERE budget_year = ? AND product_code = ? AND section = 'input' AND name = '积分'
+                LIMIT 1
+                """,
+                (budget_year, product_code),
             )
-        renamed += 1
+            duplicate = await cur.fetchone()  # type: ignore[attr-defined]
+            old_id = int(row[0])
+            if duplicate is not None:
+                await _merge_bcir_item_id_async(db, from_id=old_id, to_id=int(duplicate[0]))
+                await db.execute("DELETE FROM business_cost_income_item WHERE id = ?", (old_id,))
+            else:
+                await db.execute(
+                    """
+                    UPDATE business_cost_income_item
+                    SET name = '积分'
+                    WHERE id = ?
+                    """,
+                    (old_id,),
+                )
+            renamed += 1
     return renamed
 
 
@@ -1285,20 +1395,25 @@ async def _merge_bcir_item_id_async(db: AsyncSqlConnection, *, from_id: int, to_
     await db.execute(
         """
         DELETE FROM business_cost_income_value
-        WHERE item_id = ? AND EXISTS (
-          SELECT 1
-          FROM business_cost_income_value keep
-          WHERE keep.item_id = ?
-            AND keep.year = business_cost_income_value.year
-            AND keep.month = business_cost_income_value.month
-            AND keep.entity_name = business_cost_income_value.entity_name
-            AND keep.group_name = business_cost_income_value.group_name
-            AND keep.product_code = business_cost_income_value.product_code
-            AND keep.item_section = business_cost_income_value.item_section
-            AND keep.field = business_cost_income_value.field
+        WHERE item_id = ? AND id IN (
+          SELECT id FROM (
+            SELECT drop_row.id
+            FROM business_cost_income_value drop_row
+            JOIN business_cost_income_value keep
+              ON keep.item_id = ?
+             AND keep.budget_year = drop_row.budget_year
+             AND keep.year = drop_row.year
+             AND keep.month = drop_row.month
+             AND keep.entity_name = drop_row.entity_name
+             AND keep.group_name = drop_row.group_name
+             AND keep.product_code = drop_row.product_code
+             AND keep.item_section = drop_row.item_section
+             AND keep.field = drop_row.field
+            WHERE drop_row.item_id = ?
+          ) duplicate_rows
         )
         """,
-        (from_id, to_id),
+        (from_id, to_id, from_id),
     )
     await db.execute("UPDATE business_cost_income_value SET item_id = ? WHERE item_id = ?", (to_id, from_id))
     await db.execute(
@@ -1311,49 +1426,6 @@ async def _merge_bcir_item_id_async(db: AsyncSqlConnection, *, from_id: int, to_
     )
     await db.execute("UPDATE business_cost_income_item SET parent_id = ? WHERE parent_id = ?", (to_id, from_id))
     await db.execute("DELETE FROM business_cost_income_source_mapping WHERE item_id = ?", (from_id,))
-
-
-async def _normalize_legacy_bcir_item_names(db: AsyncSqlConnection) -> int:
-    renamed = 0
-    for product_code in BCIR_B_LINE_PRODUCT_CODES:
-        cur = await db.execute(
-            """
-            SELECT id
-            FROM business_cost_income_item
-            WHERE product_code = ? AND section = 'input' AND name = '营销积分支出'
-            LIMIT 1
-            """,
-            (product_code,),
-        )
-        row = await cur.fetchone()  # type: ignore[attr-defined]
-        if row is None:
-            continue
-        cur = await db.execute(
-            """
-            SELECT id
-            FROM business_cost_income_item
-            WHERE product_code = ? AND section = 'input' AND name = '积分'
-            LIMIT 1
-            """,
-            (product_code,),
-        )
-        duplicate = await cur.fetchone()  # type: ignore[attr-defined]
-        old_id = int(row[0])
-        if duplicate is not None:
-            await _merge_bcir_item_id_async(db, from_id=old_id, to_id=int(duplicate[0]))
-            await db.execute("DELETE FROM business_cost_income_item WHERE id = ?", (old_id,))
-        else:
-            await db.execute(
-                """
-                UPDATE business_cost_income_item
-                SET name = '积分'
-                WHERE id = ?
-                """,
-                (old_id,),
-            )
-        renamed += 1
-    return renamed
-
 
 async def repair_bcir_item_identity(db: AsyncSqlConnection) -> dict[str, int]:
     """Async variant of BCIR item identity repair that reuses the active DB connection."""
@@ -1370,15 +1442,16 @@ async def repair_bcir_item_identity(db: AsyncSqlConnection) -> dict[str, int]:
 
     cur = await db.execute(
         """
-        SELECT id, product_code, section, name, data_acct_code, enabled
+        SELECT id, product_code, section, name, data_acct_code, enabled, budget_year
         FROM business_cost_income_item
         ORDER BY id
         """
     )
     rows = await cur.fetchall()  # type: ignore[attr-defined]
-    grouped: dict[tuple[str, str, str], list[tuple]] = {}
+    grouped: dict[tuple[int, str, str, str], list[tuple]] = {}
     for row in rows:
         key = (
+            int(row[6] or 0),
             str(row[1] or "").strip().upper(),
             str(row[2]),
             str(row[3] or "").strip(),
@@ -1419,8 +1492,9 @@ async def repair_bcir_item_identity(db: AsyncSqlConnection) -> dict[str, int]:
 def repair_bcir_item_identity_sync(conn: sqlite3.Connection) -> dict[str, int]:
     """Normalize product/name keys and merge duplicate BCIR items for the same product."""
     stats = {"trimmed_names": 0, "normalized_products": 0, "merged_duplicates": 0, "renamed_legacy_items": 0}
-    row_factory = conn.row_factory
-    conn.row_factory = sqlite3.Row
+    row_factory = getattr(conn, "row_factory", None)
+    if hasattr(conn, "row_factory"):
+        conn.row_factory = sqlite3.Row
     trimmed = conn.execute(
         """
         UPDATE business_cost_income_item
@@ -1431,16 +1505,25 @@ def repair_bcir_item_identity_sync(conn: sqlite3.Connection) -> dict[str, int]:
     stats["trimmed_names"] = int(trimmed or 0)
     stats["renamed_legacy_items"] = _normalize_legacy_bcir_item_names_sync(conn)
 
-    rows = conn.execute(
+    cur = conn.execute(
         """
-        SELECT id, product_code, section, name, data_acct_code, enabled
+        SELECT id, product_code, section, name, data_acct_code, enabled, budget_year
         FROM business_cost_income_item
         ORDER BY id
         """
-    ).fetchall()
-    grouped: dict[tuple[str, str, str], list[sqlite3.Row]] = {}
+    )
+    rows = cur.fetchall()
+    if rows and not isinstance(rows[0], sqlite3.Row):
+        columns = [str(desc[0]) for desc in cur.description]
+        rows = [dict(zip(columns, row)) for row in rows]
+    grouped: dict[tuple[int, str, str, str], list] = {}
     for row in rows:
+        try:
+            row_budget_year = int(row["budget_year"] or 0)
+        except (KeyError, TypeError, IndexError):
+            row_budget_year = int(row[6] or 0)
         key = (
+            row_budget_year,
             str(row["product_code"] or "").strip().upper(),
             str(row["section"]),
             str(row["name"] or "").strip(),
@@ -1473,7 +1556,8 @@ def repair_bcir_item_identity_sync(conn: sqlite3.Connection) -> dict[str, int]:
         """
     ).rowcount
     stats["normalized_products"] = int((normalized_items or 0) + (normalized_indicators or 0))
-    conn.row_factory = row_factory
+    if hasattr(conn, "row_factory"):
+        conn.row_factory = row_factory
     return stats
 
 
@@ -1546,13 +1630,15 @@ async def _assert_current_business_cost_income_contract(db: AsyncSqlConnection) 
             )
 
 
-def ensure_business_cost_income_schema(conn: sqlite3.Connection) -> None:
+def ensure_business_cost_income_schema(conn: sqlite3.Connection, budget_year: int = 2026) -> None:
     """Ensure business cost-income private tables exist in an annual budget DB."""
+    ensure_business_cost_income_budget_year_columns_sync(conn, budget_year)
     _reject_existing_legacy_business_cost_income_tables_sync(conn)
     if _needs_business_cost_income_rebuild_sync(conn):
         _rebuild_business_cost_income_schema_sync(conn)
     else:
         conn.executescript(BUSINESS_COST_INCOME_SCHEMA)
+    ensure_business_cost_income_budget_year_columns_sync(conn, budget_year)
     _ensure_bcir_item_org_product_columns_sync(conn)
     _assert_current_business_cost_income_contract_sync(conn)
     if _needs_product_template_reseed_sync(conn):
@@ -1565,13 +1651,16 @@ def ensure_business_cost_income_schema(conn: sqlite3.Connection) -> None:
 def ensure_business_cost_income_schema_with_common(
     conn: sqlite3.Connection,
     common_conn: sqlite3.Connection | None,
+    budget_year: int = 2026,
 ) -> None:
     """Sync variant that resolves product-prefixed data account bindings."""
+    ensure_business_cost_income_budget_year_columns_sync(conn, budget_year)
     _reject_existing_legacy_business_cost_income_tables_sync(conn)
     if _needs_business_cost_income_rebuild_sync(conn):
         _rebuild_business_cost_income_schema_sync(conn)
     else:
         conn.executescript(BUSINESS_COST_INCOME_SCHEMA)
+    ensure_business_cost_income_budget_year_columns_sync(conn, budget_year)
     _ensure_bcir_item_org_product_columns_sync(conn)
     _assert_current_business_cost_income_contract_sync(conn)
     if _needs_product_template_reseed_sync(conn):
@@ -1581,13 +1670,15 @@ def ensure_business_cost_income_schema_with_common(
     repair_bcir_item_identity_sync(conn)
 
 
-async def ensure_business_cost_income_schema_async(db: AsyncSqlConnection) -> None:
+async def ensure_business_cost_income_schema_async(db: AsyncSqlConnection, budget_year: int = 2026) -> None:
     """Async adapter for FastAPI routes that lazily touch annual budget DBs."""
+    await ensure_business_cost_income_budget_year_columns(db, budget_year)
     await _reject_existing_legacy_business_cost_income_tables(db)
     if await _needs_business_cost_income_rebuild(db):
         await _rebuild_business_cost_income_schema(db)
     else:
         await db.executescript(BUSINESS_COST_INCOME_SCHEMA)
+    await ensure_business_cost_income_budget_year_columns(db, budget_year)
     await _ensure_bcir_item_org_product_columns(db)
     await _assert_current_business_cost_income_contract(db)
     if await _needs_product_template_reseed(db):

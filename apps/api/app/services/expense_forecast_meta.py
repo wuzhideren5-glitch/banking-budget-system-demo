@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import sqlite3
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.services.expense_forecast_data_context import (
     load_expense_forecast_budget_subject_rows,
     load_expense_forecast_scope_rows,
@@ -44,6 +47,25 @@ def _group_sort_key(group_name: str) -> tuple[int, str]:
         return (_GROUP_ORDER.index(text), text)
     except ValueError:
         return (len(_GROUP_ORDER), text)
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
 
 
 def build_expense_forecast_scope_options(
@@ -108,9 +130,30 @@ async def load_expense_forecast_version_suggestions(
     year: int,
     default_version: str,
 ) -> list[str]:
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
+    if _uses_mysql_path(db_path):
+        rows = await get_pool().fetch_all(
+            """
+            SELECT forecast_version, MAX(update_time) AS latest_time
+            FROM expense_forecast_entry
+            WHERE forecast_year = %s
+            GROUP BY forecast_version
+            ORDER BY latest_time DESC, forecast_version DESC
+            LIMIT 20
+            """,
+            (year,),
+        )
+        versions = [_text(row["forecast_version"]) for row in rows if _text(row.get("forecast_version"))]
+    else:
+        versions = _load_expense_forecast_version_suggestions_sqlite(db_path, year=year)
+    if default_version not in versions:
+        versions.insert(0, default_version)
+    return versions
+
+
+def _load_expense_forecast_version_suggestions_sqlite(db_path: Path, *, year: int) -> list[str]:
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        rows = db.execute(
             """
             SELECT forecast_version, MAX(update_time) AS latest_time
             FROM expense_forecast_entry
@@ -120,12 +163,8 @@ async def load_expense_forecast_version_suggestions(
             LIMIT 20
             """,
             (year,),
-        )
-        rows = await cur.fetchall()
-    versions = [_text(row[0]) for row in rows if _text(row[0])]
-    if default_version not in versions:
-        versions.insert(0, default_version)
-    return versions
+        ).fetchall()
+    return [_text(row[0]) for row in rows if _text(row[0])]
 
 
 async def load_expense_forecast_meta(

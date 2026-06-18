@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import re
+import tempfile
 from pathlib import Path
 from typing import Awaitable, Callable
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
+from app.core.config import settings
 from app.schemas import (
     BudgetOutputDisplayConfigCreate,
     BudgetOutputDisplayConfigImportResponse,
@@ -32,6 +35,31 @@ from app.services.budget_output_display import (
 )
 from app.services.budget_output_export import build_budget_output_display_report_export
 from app.core.db_paths import common_db_path
+
+
+def _uses_mysql_path(path: Path | str | None) -> bool:
+    if path is None:
+        return False
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+
+
+def _path_available(path: Path | None) -> bool:
+    return bool(path and (_uses_mysql_path(path) or path.exists()))
 
 
 def build_budget_output_router(
@@ -69,7 +97,7 @@ def build_budget_output_router(
     @router.post("/api/budget-output/display-config/rebuild-from-org-product")
     async def rebuild_budget_output_display_config():
         budget_path, _, _ = await editable_context_provider()
-        effective_budget = budget_path if budget_path.exists() else None
+        effective_budget = budget_path if _path_available(budget_path) else None
         codes_json_path = common_db_path().parent / "budget_display_codes.json"
         if codes_json_path.exists():
             return await rebuild_budget_output_display_config_from_excel(

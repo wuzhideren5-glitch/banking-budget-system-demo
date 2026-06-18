@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import re
 import json
+import sqlite3
+import tempfile
 from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.schemas import SimulationBaselineRequestItem, SimulationBaselineRow
 from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
 
@@ -133,47 +136,89 @@ def _compact_text(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).strip().upper()
 
 
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+def _uses_mysql_path(path: Path | str, *, common: bool = False, budget: bool = False) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    if common:
+        return candidate.name == "common.db"
+    if budget:
+        return re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+    return False
+
+
+def _budget_year_from_path(path: Path | str) -> int | None:
+    match = re.fullmatch(r"budget_(\d{4})\.db", Path(path).name)
+    return int(match.group(1)) if match else None
+
+
 async def load_runtime_metric_bindings(common_path: Path) -> list[dict[str, str]]:
     """Load active runtime metric bindings synced from the org-product master."""
-    async with aiosqlite.connect(common_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            """
-            SELECT
-              b.data_acct_code AS binding_code,
-              b.metric_node_code,
-              COALESCE(n.node_name, ''),
-              COALESCE(n.local_metric_code, ''),
-              COALESCE(n.functional_group_code, ''),
-              COALESCE(n.metric_table_name, ''),
-              b.scope_type,
-              b.scope_code,
-              b.data_acct_code,
-              COALESCE(da.data_acct_name, ''),
-              COALESCE(da.value_type, '金额')
-            FROM data_account_metric_binding b
-            LEFT JOIN data_account_metric_node n ON n.node_code = b.metric_node_code
-            LEFT JOIN data_account da ON da.data_acct_code = b.data_acct_code
-            WHERE COALESCE(b.is_active, 1) = 1
-              AND COALESCE(n.is_active, 1) = 1
-            ORDER BY b.metric_node_code, b.scope_code, b.data_acct_code
-            """
-        )
-        rows = await cur.fetchall()
+    sql = """
+        SELECT
+          b.data_acct_code AS binding_code,
+          b.metric_node_code AS metric_node_code,
+          COALESCE(n.node_name, '') AS node_name,
+          COALESCE(n.local_metric_code, '') AS local_metric_code,
+          COALESCE(n.functional_group_code, '') AS functional_group_code,
+          COALESCE(n.metric_table_name, '') AS metric_table_name,
+          b.scope_type AS scope_type,
+          b.scope_code AS scope_code,
+          b.data_acct_code AS data_acct_code,
+          COALESCE(da.data_acct_name, '') AS data_acct_name,
+          COALESCE(da.value_type, '金额') AS value_type
+        FROM data_account_metric_binding b
+        LEFT JOIN data_account_metric_node n ON n.node_code = b.metric_node_code
+        LEFT JOIN data_account da ON da.data_acct_code = b.data_acct_code
+        WHERE COALESCE(b.is_active, 1) = 1
+          AND COALESCE(n.is_active, 1) = 1
+        ORDER BY b.metric_node_code, b.scope_code, b.data_acct_code
+        """
+    if _uses_mysql_path(common_path, common=True):
+        rows = await get_pool().fetch_all(sql)
+    else:
+        with sqlite3.connect(common_path) as db:
+            db.execute("PRAGMA foreign_keys = ON")
+            rows = db.execute(sql).fetchall()
     return [
         {
-            "binding_code": str(r[0] or "").strip().upper(),
-            "metric_node_code": str(r[1] or "").strip().upper(),
-            "node_name": str(r[2] or "").strip(),
-            "local_metric_code": str(r[3] or "").strip().upper(),
-            "functional_group_code": str(r[4] or "").strip().upper(),
-            "metric_table_name": str(r[5] or "").strip(),
-            "scope_type": str(r[6] or "").strip().upper(),
-            "scope_code": str(r[7] or "").strip().upper(),
-            "product_code": str(r[7] or "").strip().upper() if str(r[6] or "").strip().upper() == "PRODUCT" else "",
-            "data_acct_code": str(r[8] or "").strip().upper(),
-            "data_acct_name": str(r[9] or "").strip(),
-            "value_type": str(r[10] or "金额").strip(),
+            "binding_code": str(_row_value(r, "binding_code", 0) or "").strip().upper(),
+            "metric_node_code": str(_row_value(r, "metric_node_code", 1) or "").strip().upper(),
+            "node_name": str(_row_value(r, "node_name", 2) or "").strip(),
+            "local_metric_code": str(_row_value(r, "local_metric_code", 3) or "").strip().upper(),
+            "functional_group_code": str(_row_value(r, "functional_group_code", 4) or "").strip().upper(),
+            "metric_table_name": str(_row_value(r, "metric_table_name", 5) or "").strip(),
+            "scope_type": str(_row_value(r, "scope_type", 6) or "").strip().upper(),
+            "scope_code": str(_row_value(r, "scope_code", 7) or "").strip().upper(),
+            "product_code": (
+                str(_row_value(r, "scope_code", 7) or "").strip().upper()
+                if str(_row_value(r, "scope_type", 6) or "").strip().upper() == "PRODUCT"
+                else ""
+            ),
+            "data_acct_code": str(_row_value(r, "data_acct_code", 8) or "").strip().upper(),
+            "data_acct_name": str(_row_value(r, "data_acct_name", 9) or "").strip(),
+            "value_type": str(_row_value(r, "value_type", 10) or "金额").strip(),
         }
         for r in rows
     ]
@@ -181,19 +226,24 @@ async def load_runtime_metric_bindings(common_path: Path) -> list[dict[str, str]
 
 async def load_product_name_map(common_path: Path) -> dict[str, str]:
     """Load the current product organization names used by simulation read models."""
-    async with aiosqlite.connect(common_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            f"""
-            {org_product_runtime_products_cte()}
-            SELECT product_code, product_name
-            FROM org_product_runtime_products
-            WHERE product_code <> '' AND product_name <> ''
-            ORDER BY product_code
-            """
-        )
-        rows = await cur.fetchall()
-    return {str(r[0]).strip().upper(): str(r[1] or "").strip() for r in rows}
+    dialect = "mysql" if _uses_mysql_path(common_path, common=True) else "sqlite"
+    sql = f"""
+        {org_product_runtime_products_cte(dialect=dialect)}
+        SELECT product_code, product_name
+        FROM org_product_runtime_products
+        WHERE product_code <> '' AND product_name <> ''
+        ORDER BY product_code
+        """
+    if dialect == "mysql":
+        rows = await get_pool().fetch_all(sql)
+    else:
+        with sqlite3.connect(common_path) as db:
+            db.execute("PRAGMA foreign_keys = ON")
+            rows = db.execute(sql).fetchall()
+    return {
+        str(_row_value(r, "product_code", 0)).strip().upper(): str(_row_value(r, "product_name", 1) or "").strip()
+        for r in rows
+    }
 
 
 def _org_metric_children(metric: dict[str, Any]) -> list[dict[str, Any]]:
@@ -205,25 +255,29 @@ async def load_org_product_refs_by_runtime_ref_code(common_path: Path) -> dict[s
     """Load confirmed org-product metric refs grouped by runtime metric ref code."""
     refs_by_code: dict[str, list[str]] = {}
     seen: set[tuple[str, str]] = set()
-    async with aiosqlite.connect(common_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        try:
-            cur = await db.execute(
-                """
-                SELECT node_code, product_code, metric_table_name
-                FROM data_account_metric_node
-                WHERE is_active = 1
-                  AND runtime_account_enabled = 1
-                  AND COALESCE(product_code, '') <> ''
-                  AND COALESCE(metric_table_name, '') <> ''
-                ORDER BY product_code, metric_table_name, node_code
-                """
-            )
-            rows = await cur.fetchall()
-        except aiosqlite.Error:
-            return {}
+    sql = """
+        SELECT node_code, product_code, metric_table_name
+        FROM data_account_metric_node
+        WHERE is_active = 1
+          AND runtime_account_enabled = 1
+          AND COALESCE(product_code, '') <> ''
+          AND COALESCE(metric_table_name, '') <> ''
+        ORDER BY product_code, metric_table_name, node_code
+        """
+    try:
+        if _uses_mysql_path(common_path, common=True):
+            rows = await get_pool().fetch_all(sql)
+        else:
+            with sqlite3.connect(common_path) as db:
+                db.execute("PRAGMA foreign_keys = ON")
+                rows = db.execute(sql).fetchall()
+    except Exception:
+        return {}
 
-    for node_code_raw, entity_code_raw, table_name_raw in rows:
+    for row in rows:
+        node_code_raw = _row_value(row, "node_code", 0)
+        entity_code_raw = _row_value(row, "product_code", 1)
+        table_name_raw = _row_value(row, "metric_table_name", 2)
         entity_code = str(entity_code_raw or "").strip().upper()
         table_name = str(table_name_raw or "").strip()
         data_acct_code = str(node_code_raw or "").strip().upper()
@@ -327,29 +381,35 @@ async def aggregate_budget_values(
     product_code: str | None = None,
     period_ids: list[int] | None = None,
 ) -> float:
-    if not budget_path.exists() or version_id <= 0 or not runtime_ref_codes:
+    uses_mysql_budget = _uses_mysql_path(budget_path, budget=True)
+    if (not uses_mysql_budget and not budget_path.exists()) or version_id <= 0 or not runtime_ref_codes:
         return 0.0
     codes = list(dict.fromkeys(str(c).strip().upper() for c in runtime_ref_codes if str(c).strip()))
     if not codes:
         return 0.0
+    budget_year = _budget_year_from_path(budget_path) if uses_mysql_budget else None
 
     async def _fetch(scope_code: str | None) -> list[float]:
+        placeholder = "%s" if uses_mysql_budget else "?"
         filters = ["version_id = ?", "budget_actual = 0", f"data_acct_code IN ({','.join(['?'] * len(codes))})"]
         args: list[Any] = [version_id, *codes]
+        if uses_mysql_budget and budget_year is not None:
+            filters.insert(0, "budget_year = ?")
+            args.insert(0, budget_year)
         if scope_code is not None:
             filters.append("product_code = ?")
             args.append(scope_code)
         if period_ids:
             filters.append(f"period_id IN ({','.join(['?'] * len(period_ids))})")
             args.extend(period_ids)
-        async with aiosqlite.connect(budget_path) as db:
-            await db.execute("PRAGMA foreign_keys = ON")
-            cur = await db.execute(
-                f"SELECT value FROM budget_data WHERE {' AND '.join(filters)}",
-                tuple(args),
-            )
-            rows = await cur.fetchall()
-        return [float(r[0] or 0.0) for r in rows]
+        sql = f"SELECT value FROM budget_data WHERE {' AND '.join(filters)}"
+        if uses_mysql_budget:
+            rows = await get_pool().fetch_all(sql.replace("?", placeholder), tuple(args))
+        else:
+            with sqlite3.connect(budget_path) as db:
+                db.execute("PRAGMA foreign_keys = ON")
+                rows = db.execute(sql, tuple(args)).fetchall()
+        return [float(_row_value(r, "value", 0) or 0.0) for r in rows]
 
     if product_code:
         first_values: list[float] | None = None

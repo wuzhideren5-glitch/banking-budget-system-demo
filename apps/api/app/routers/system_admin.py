@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import Settings
@@ -63,7 +62,7 @@ def build_system_admin_router(
     parse_year_from_budget_filename: Callable[[str], int | None],
     get_year_period_months: Callable[[int], Awaitable[dict[int, int]]],
     iso_now: Callable[[], str],
-    purge_disallowed_budget_data_for_version: Callable[[aiosqlite.Connection, int, int, dict[int, int]], Awaitable[int]],
+    purge_disallowed_budget_data_for_version: Callable[[Any, int, int, dict[int, int]], Awaitable[int]],
     validate_password_policy: Callable[[str], None],
 ) -> APIRouter:
     router = APIRouter()

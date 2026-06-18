@@ -17,7 +17,7 @@ from openpyxl.utils import get_column_letter
 from app.db_bootstrap.business_cost_income import ensure_business_cost_income_schema
 from app.core.db_paths import budget_db_path, common_db_path
 from app.services.business_cost_income_derived import is_manual_bcir_item_for_mode
-from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
+from app.services.org_product_runtime_catalog import org_product_runtime_products_cte_for_conn
 
 ACTUAL_VALUE_SHEET = "实际数"
 BUDGET_VALUE_SHEET = "预算数"
@@ -161,7 +161,7 @@ def load_product_name_map(product_codes: list[str], *, common_path: Path | None 
     try:
         rows = conn.execute(
             f"""
-            {org_product_runtime_products_cte()}
+            {org_product_runtime_products_cte_for_conn(conn)}
             SELECT product_code, product_name
             FROM org_product_runtime_products
             WHERE UPPER(product_code) IN ({placeholders})

@@ -6,9 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from app.core.config import settings
+import app.services.org_product_budget_sync as org_product_budget_sync_module
 from app.budget_data_writer import IMPORT_INPUT_POLICY, write_budget_data_items
 from app.services.org_product_budget_sync import (
     OrgProductBudgetSyncPlan,
+    _infer_budget_year,
     apply_org_product_budget_sync_plan,
     plan_org_product_budget_sync,
 )
@@ -260,3 +263,28 @@ class OrgProductBudgetSyncTests(unittest.TestCase):
         self.assertEqual(result.summary_rows, 0)
         self.assertEqual(result.budget_aggregate_rows, 0)
         self.assertEqual(calls, ["write"])
+
+    def test_infer_budget_year_uses_mysql_for_runtime_common_path(self) -> None:
+        class FakePool:
+            async def fetch_one(self, sql, params=()):
+                self.sql = sql
+                self.params = params
+                return {"year": "Y2026"}
+
+        fake_pool = FakePool()
+        previous_get_pool = org_product_budget_sync_module.get_pool
+        org_product_budget_sync_module.get_pool = lambda: fake_pool
+        try:
+            year = asyncio.run(
+                _infer_budget_year(settings.data_dir / "common.db", {202601})
+            )
+        finally:
+            org_product_budget_sync_module.get_pool = previous_get_pool
+
+        self.assertEqual(year, 2026)
+        self.assertIn("FROM period", fake_pool.sql)
+        self.assertEqual(fake_pool.params, (202601,))
+
+    def test_org_product_budget_sync_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(org_product_budget_sync_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)

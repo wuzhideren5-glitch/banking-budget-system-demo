@@ -1,9 +1,12 @@
 """Result-row builder for budget simulation."""
 from __future__ import annotations
 
+import sqlite3
+import tempfile
 from pathlib import Path
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.schemas import SimulationInputItem, SimulationResultRow
 from app.services.budget_simulation_metrics import (
     DATA_METRIC_VALUE_HINTS,
@@ -36,11 +39,53 @@ SIM_INCOME_TAX = "07.02.01.01.001"
 ProductFactorRow = tuple[str, str, float, float, float, float, float, float, float, float, float]
 
 
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name.startswith("budget_") and candidate.suffix == ".db"
+
+
+def _budget_year_from_path(path: Path | str) -> int | None:
+    stem = Path(path).stem
+    if not stem.startswith("budget_"):
+        return None
+    suffix = stem.removeprefix("budget_")
+    return int(suffix) if suffix.isdigit() else None
+
+
 async def _latest_version_id(path: Path) -> int:
-    async with aiosqlite.connect(path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute("SELECT version_id FROM version ORDER BY version_id DESC LIMIT 1")
-        row = await cur.fetchone()
+    if _uses_mysql_path(path):
+        budget_year = _budget_year_from_path(path)
+        if budget_year is None:
+            row = await get_pool().fetch_one("SELECT version_id FROM version ORDER BY version_id DESC LIMIT 1")
+        else:
+            row = await get_pool().fetch_one(
+                """
+                SELECT version_id
+                FROM version
+                WHERE budget_year = %s
+                ORDER BY version_id DESC
+                LIMIT 1
+                """,
+                (budget_year,),
+            )
+        return int(row["version_id"]) if row else 0
+    with sqlite3.connect(path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        row = db.execute("SELECT version_id FROM version ORDER BY version_id DESC LIMIT 1").fetchone()
     return int(row[0]) if row else 0
 
 

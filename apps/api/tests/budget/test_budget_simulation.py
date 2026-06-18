@@ -5,15 +5,19 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openpyxl import load_workbook
 
+from app.core.config import settings
 from app.services.budget_simulation_export import build_budget_simulation_export_buffer
+import app.services.budget_simulation_metrics as budget_simulation_metrics_module
 from app.services.budget_simulation_metrics import (
     SIMULATION_FACTOR_METRIC_HINTS,
     build_budget_simulation_baseline_rows,
     resolve_metric_runtime_ref_codes,
 )
+import app.services.budget_simulation_results as budget_simulation_results_module
 from app.services.budget_simulation_results import (
     SIM_INTEREST_INCOME,
     SIM_REVENUE,
@@ -23,6 +27,107 @@ from app.schemas import SimulationBaselineRequestItem, SimulationBaselineRow, Si
 
 
 class BudgetSimulationMetricResolutionTests(unittest.TestCase):
+    def test_result_builder_latest_version_uses_mysql_for_runtime_budget_db(self) -> None:
+        class FakePool:
+            async def fetch_one(self, sql, params=()):
+                self.sql = sql
+                self.params = params
+                return {"version_id": 2099000007}
+
+        async def run() -> None:
+            fake_pool = FakePool()
+            runtime_budget_path = Path(settings.data_dir) / "budget_2099.db"
+            with patch.object(budget_simulation_results_module, "get_pool", return_value=fake_pool):
+                result = await budget_simulation_results_module._latest_version_id(runtime_budget_path)
+
+            self.assertEqual(result, 2099000007)
+            self.assertIn("FROM version", fake_pool.sql)
+            self.assertIn("budget_year", fake_pool.sql)
+            self.assertEqual(fake_pool.params, (2099,))
+
+        asyncio.run(run())
+
+    def test_result_builder_does_not_import_aiosqlite(self) -> None:
+        source = Path(budget_simulation_results_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+
+    def test_metric_builder_uses_mysql_for_runtime_paths(self) -> None:
+        class FakePool:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, tuple[object, ...]]] = []
+
+            async def fetch_all(self, sql, params=()):
+                normalized = " ".join(sql.lower().split())
+                self.calls.append((" ".join(sql.split()), tuple(params)))
+                if "from data_account_metric_binding b" in normalized:
+                    return [
+                        {
+                            "binding_code": "A01.01.01.01.017",
+                            "metric_node_code": "A01.01.01.01.017",
+                            "node_name": "管理贷款日均",
+                            "local_metric_code": "01.01.017",
+                            "functional_group_code": "MGMT_LOAN_DAILY",
+                            "metric_table_name": "",
+                            "scope_type": "PRODUCT",
+                            "scope_code": "A01",
+                            "data_acct_code": "A01.01.01.01.017",
+                            "data_acct_name": "管理贷款日均",
+                            "value_type": "金额",
+                        }
+                    ]
+                if "from org_product_runtime_products" in normalized:
+                    return [{"product_code": "A01", "product_name": "泛微粒贷"}]
+                if "from data_account_metric_node" in normalized and "runtime_account_enabled = 1" in normalized:
+                    return [
+                        {
+                            "node_code": "A01.01.01.01.017",
+                            "product_code": "A01",
+                            "metric_table_name": "业务状况表",
+                        }
+                    ]
+                if "from budget_data" in normalized:
+                    return [{"value": 42.5}]
+                raise AssertionError(f"Unexpected SQL: {sql}")
+
+        async def run() -> None:
+            fake_pool = FakePool()
+            with patch.object(budget_simulation_metrics_module, "get_pool", return_value=fake_pool):
+                rows = await build_budget_simulation_baseline_rows(
+                    common_path=settings.data_dir / "common.db",
+                    budget_path=settings.data_dir / "budget_2026.db",
+                    version_id=7,
+                    period_month_map={1: 1},
+                    body=[
+                        SimulationBaselineRequestItem(
+                            indicator_code="mgmt_loan_daily",
+                            product_code="a01",
+                        )
+                    ],
+                )
+
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0].baseline_value, 42.5)
+            budget_sql, budget_params = next(
+                (sql, params)
+                for sql, params in fake_pool.calls
+                if "FROM budget_data" in sql
+            )
+            self.assertIn("budget_year = %s", budget_sql)
+            self.assertEqual(
+                budget_params,
+                (2026, 7, "A01.01.01.01.017", "A01", 1),
+            )
+
+        asyncio.run(run())
+
+    def test_metric_builder_does_not_import_aiosqlite(self) -> None:
+        source = Path(budget_simulation_metrics_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+
     def test_resolves_current_product_prefixed_binding_by_local_metric_code(self) -> None:
         codes = resolve_metric_runtime_ref_codes(
             [

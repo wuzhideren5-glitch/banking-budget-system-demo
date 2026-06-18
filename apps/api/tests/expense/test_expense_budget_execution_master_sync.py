@@ -5,8 +5,10 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.core.config import settings
+from app.services import expense_budget_execution_master_sync as master_sync_module
 from app.services.expense_budget_execution_framework import (
     FrameworkBudgetDepartmentRow,
     FrameworkSubjectRow,
@@ -121,6 +123,90 @@ def _create_common_db(data_dir: Path) -> None:
         conn.close()
 
 
+class _FakeMysqlCursor:
+    def __init__(self, pool: "_FakeMasterSyncMysqlPool") -> None:
+        self.pool = pool
+
+    async def __aenter__(self) -> "_FakeMysqlCursor":
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    async def execute(self, sql: str, params: tuple[object, ...] = ()) -> None:
+        self.pool.executed.append(("execute", " ".join(sql.split()), params))
+
+    async def executemany(self, sql: str, rows: list[tuple[object, ...]]) -> None:
+        self.pool.executed.append(("executemany", " ".join(sql.split()), tuple(rows)))
+
+
+class _FakeMysqlConnection:
+    def __init__(self, pool: "_FakeMasterSyncMysqlPool") -> None:
+        self.pool = pool
+
+    async def begin(self) -> None:
+        self.pool.executed.append(("begin", "", ()))
+
+    def cursor(self) -> _FakeMysqlCursor:
+        return _FakeMysqlCursor(self.pool)
+
+    async def commit(self) -> None:
+        self.pool.executed.append(("commit", "", ()))
+
+    async def rollback(self) -> None:
+        self.pool.executed.append(("rollback", "", ()))
+
+
+class _FakeMysqlAcquire:
+    def __init__(self, pool: "_FakeMasterSyncMysqlPool") -> None:
+        self.pool = pool
+
+    async def __aenter__(self) -> _FakeMysqlConnection:
+        return _FakeMysqlConnection(self.pool)
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        return None
+
+
+class _FakeMasterSyncMysqlPool:
+    def __init__(self) -> None:
+        self.executed: list[tuple[str, str, tuple[object, ...]]] = []
+
+    async def fetch_one(self, sql: str, params: tuple[object, ...] = ()) -> dict[str, object] | None:
+        normalized_sql = " ".join(sql.lower().split())
+        if "information_schema.tables" in normalized_sql:
+            return {"exists_flag": 1}
+        raise AssertionError(f"Unexpected SQL: {sql}")
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized_sql = " ".join(sql.lower().split())
+        if "from data_account_metric_node" in normalized_sql:
+            return [
+                {
+                    "node_code": "AA.05.01",
+                    "node_name": "业务费用",
+                    "product_code": "AA",
+                    "metric_table_name": "业务支出评估",
+                    "value_type": "金额",
+                }
+            ]
+        if "from dept_account" in normalized_sql:
+            return [
+                {
+                    "dept_code": "OLD",
+                    "dept_name": "旧部门",
+                    "entity_name": "微众银行",
+                    "parent_code": None,
+                    "level": 1,
+                    "is_leaf": 0,
+                }
+            ]
+        raise AssertionError(f"Unexpected SQL: {sql}")
+
+    def acquire(self) -> _FakeMysqlAcquire:
+        return _FakeMysqlAcquire(self)
+
+
 class ExpenseBudgetExecutionMasterSyncTests(unittest.IsolatedAsyncioTestCase):
     def test_build_framework_master_plan_keeps_dept_and_subject_rules_together(self) -> None:
         parsed = _parsed_framework()
@@ -204,6 +290,60 @@ class ExpenseBudgetExecutionMasterSyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(meta["master_apply"]["row_count"], 4)
         self.assertIn("部门4行", meta["master_apply"]["note"])
         self.assertIn("指标匹配1项", meta["master_apply"]["note"])
+
+    async def test_build_framework_master_plan_uses_mysql_pool_for_runtime_common_db(self) -> None:
+        fake_pool = _FakeMasterSyncMysqlPool()
+        db_path = Path(master_sync_module.settings.data_dir) / "common.db"
+        with (
+            patch.object(master_sync_module, "get_pool", return_value=fake_pool),
+            patch.object(master_sync_module, "common_db_path", return_value=db_path),
+        ):
+            plan = await build_framework_master_plan(_parsed_framework())
+
+        self.assertEqual(plan.matched_subjects, 1)
+        self.assertEqual(plan.metric_subject_matches, [("AA.05.01", "业务费用", "金额")])
+        self.assertEqual(plan.new_subjects, ["IT费用"])
+
+    async def test_apply_framework_master_plan_uses_mysql_transaction_for_runtime_common_db(self) -> None:
+        fake_pool = _FakeMasterSyncMysqlPool()
+        sync_calls: list[tuple[str, int, str | None]] = []
+
+        async def fake_upsert_sync_meta(
+            sync_key: str,
+            source_file: str,
+            row_count: int,
+            note: str | None = None,
+        ) -> None:
+            sync_calls.append((sync_key, row_count, note))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "common.db"
+            with (
+                patch.object(master_sync_module, "get_pool", return_value=fake_pool),
+                patch.object(master_sync_module, "common_db_path", return_value=db_path),
+                patch.object(master_sync_module, "_uses_mysql_path", return_value=True),
+                patch.object(master_sync_module, "upsert_sync_meta", side_effect=fake_upsert_sync_meta),
+            ):
+                result = await apply_framework_master_plan(
+                    _parsed_framework(),
+                    build_framework_master_plan_from_metric_subjects(
+                        _parsed_framework(),
+                        {"业务费用": {"metric_code": "AA.05.01", "value_type": "金额"}},
+                    ),
+                )
+            self.assertEqual(result.backup_file.suffix, ".json")
+            self.assertTrue(result.backup_file.exists())
+            self.assertIn("mysql.dept_account", result.backup_file.read_text(encoding="utf-8"))
+
+        self.assertIn(("begin", "", ()), fake_pool.executed)
+        self.assertIn(("commit", "", ()), fake_pool.executed)
+        self.assertTrue(any(item[0] == "executemany" and "INSERT INTO dept_account" in item[1] for item in fake_pool.executed))
+        self.assertEqual(sync_calls[0][0], "master_apply")
+        self.assertEqual(sync_calls[0][1], 4)
+
+    async def test_master_sync_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(master_sync_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

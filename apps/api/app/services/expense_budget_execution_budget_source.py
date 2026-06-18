@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import sqlite3
+import tempfile
 from pathlib import Path
 import re
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
-from app.db_bootstrap.budget_version import ensure_budget_version_schema
+from app.core.config import settings
+from app.core.database import get_pool
+from app.db_bootstrap.budget_version import ensure_budget_version_schema_sync
 from app.core.db_paths import common_db_path
 from app.services.expense_budget_execution_actual_routing import route_actual_subject_by_caliber
 from app.services.expense_budget_execution_caliber_catalog import (
@@ -94,9 +97,119 @@ def _should_use_imported_prior_year_actuals(budget_db: Path) -> bool:
         return False
 
 
-async def _table_columns(db: aiosqlite.Connection, table_name: str) -> set[str]:
-    cur = await db.execute(f'PRAGMA table_info("{table_name}")')
-    return {str(row[1]) for row in await cur.fetchall()}
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+async def _table_exists_for_path(db_path: Path, table_name: str) -> bool:
+    if _uses_mysql_path(db_path):
+        row = await get_pool().fetch_one(
+            """
+            SELECT 1 AS exists_flag
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = %s
+            LIMIT 1
+            """,
+            (table_name,),
+        )
+        return bool(row)
+    with sqlite3.connect(db_path) as db:
+        row = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (table_name,),
+        ).fetchone()
+        return bool(row)
+
+
+async def _table_columns_for_path(db_path: Path, table_name: str) -> set[str]:
+    if _uses_mysql_path(db_path):
+        rows = await get_pool().fetch_all(
+            """
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = %s
+            """,
+            (table_name,),
+        )
+        return {text(_row_value(row, "COLUMN_NAME", 0)) for row in rows}
+    with sqlite3.connect(db_path) as db:
+        return {str(row[1]) for row in db.execute(f'PRAGMA table_info("{table_name}")').fetchall()}
+
+
+async def _fetch_all_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_all(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchall()
+
+
+async def _fetch_one_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> Any:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_one(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchone()
+
+
+class _SqliteCursorAdapter:
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
+        self._cursor = cursor
+
+    async def fetchone(self) -> Any:
+        return self._cursor.fetchone()
+
+    async def fetchall(self) -> list[Any]:
+        return self._cursor.fetchall()
+
+
+class _SqliteConnectionAdapter:
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    async def execute(self, sql: str, params: tuple[Any, ...] = ()) -> _SqliteCursorAdapter:
+        return _SqliteCursorAdapter(self._conn.execute(sql, params))
+
+
+async def _load_caliber_catalog_for_path(db_path: Path) -> tuple[set[str], dict[str, str]]:
+    if _uses_mysql_path(db_path):
+        catalog_names = await load_catalog_subject_names()
+        return catalog_names, await load_budget_caliber_catalog_map(catalog_names=catalog_names)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        adapter = _SqliteConnectionAdapter(db)
+        catalog_names = await load_catalog_subject_names(adapter)
+        return catalog_names, await load_budget_caliber_catalog_map(adapter, catalog_names=catalog_names)
 
 
 async def _load_imported_prior_year_actual_by_owner_subject(
@@ -107,28 +220,24 @@ async def _load_imported_prior_year_actual_by_owner_subject(
     group_name: str = "",
     owner_name: str = "",
 ) -> tuple[dict[tuple[str, str], list[float]], str] | None:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expense_actual_detail_raw'"
-        )
-        if not await cur.fetchone():
-            return None
-        columns = await _table_columns(db, "expense_actual_detail_raw")
-        required_columns = {"import_kind", "owner_name_mapped", "budget_subject_mapped", "period_ym", "amount"}
-        if not required_columns.issubset(columns):
-            return None
-        cur = await db.execute(
-            """
-            SELECT owner_name_mapped, budget_subject_mapped, period_ym, amount
-            FROM expense_actual_detail_raw
-            WHERE COALESCE(import_kind, '') = 'prior_year_actual'
-              AND owner_matched = 1
-              AND subject_matched = 1
-            ORDER BY owner_name_mapped, budget_subject_mapped, period_ym
-            """
-        )
-        rows = await cur.fetchall()
+    db_path = common_db_path()
+    if not await _table_exists_for_path(db_path, "expense_actual_detail_raw"):
+        return None
+    columns = await _table_columns_for_path(db_path, "expense_actual_detail_raw")
+    required_columns = {"import_kind", "owner_name_mapped", "budget_subject_mapped", "period_ym", "amount"}
+    if not required_columns.issubset(columns):
+        return None
+    rows = await _fetch_all_for_path(
+        db_path,
+        """
+        SELECT owner_name_mapped, budget_subject_mapped, period_ym, amount
+        FROM expense_actual_detail_raw
+        WHERE COALESCE(import_kind, '') = 'prior_year_actual'
+          AND owner_matched = 1
+          AND subject_matched = 1
+        ORDER BY owner_name_mapped, budget_subject_mapped, period_ym
+        """,
+    )
     if not rows:
         return None
 
@@ -136,7 +245,11 @@ async def _load_imported_prior_year_actual_by_owner_subject(
     selected_group = text(group_name)
     selected_owner = text(owner_name)
     monthly_map: dict[tuple[str, str], list[float]] = defaultdict(new_month_values)
-    for owner_raw, subject_raw, period_ym, value in rows:
+    for row in rows:
+        owner_raw = _row_value(row, "owner_name_mapped", 0)
+        subject_raw = _row_value(row, "budget_subject_mapped", 1)
+        period_ym = _row_value(row, "period_ym", 2)
+        value = _row_value(row, "amount", 3)
         owner = canonical_owner_name(text(owner_raw), ctx)
         subject = canonical_subject(text(subject_raw), ctx)
         month_idx = parse_month(period_ym)
@@ -162,11 +275,9 @@ async def _load_imported_prior_year_actual_by_owner_subject(
     )
 
 
-async def _latest_expense_actual_batch(
-    db: aiosqlite.Connection,
-    import_kind: str,
-) -> tuple[int, str, str] | None:
-    cur = await db.execute(
+async def _latest_expense_actual_batch(import_kind: str) -> tuple[int, str, str] | None:
+    row = await _fetch_one_for_path(
+        common_db_path(),
         """
         SELECT id, file_name, created_at
         FROM expense_actual_import_batch
@@ -176,10 +287,13 @@ async def _latest_expense_actual_batch(
         """,
         (import_kind,),
     )
-    row = await cur.fetchone()
     if not row:
         return None
-    return int(row[0]), text(row[1]), text(row[2])
+    return (
+        int(_row_value(row, "id", 0)),
+        text(_row_value(row, "file_name", 1)),
+        text(_row_value(row, "created_at", 2)),
+    )
 
 
 def _expense_import_source_label(
@@ -197,32 +311,30 @@ async def load_imported_caliber_monthly_totals(
     import_kind: str,
 ) -> tuple[dict[str, list[float]], str]:
     monthly_totals: dict[str, list[float]] = defaultdict(new_month_values)
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expense_actual_detail_raw'"
-        )
-        if not await cur.fetchone():
-            return {}, "费用明细导入（尚未初始化）"
-        columns = await _table_columns(db, "expense_actual_detail_raw")
-        required_columns = {"import_kind", "budget_release_caliber_mapped", "period_ym", "amount"}
-        if not required_columns.issubset(columns):
-            return {}, "费用明细导入（缺少预算发布口径字段）"
-        latest_batch = await _latest_expense_actual_batch(db, import_kind)
-        cur = await db.execute(
-            """
-            SELECT budget_release_caliber_mapped, period_ym, amount
-            FROM expense_actual_detail_raw
-            WHERE COALESCE(import_kind, '') = ?
-              AND TRIM(COALESCE(budget_release_caliber_mapped, '')) <> ''
-            ORDER BY budget_release_caliber_mapped, period_ym
-            """,
-            (import_kind,),
-        )
-        rows = await cur.fetchall()
-        catalog_names = await load_catalog_subject_names(db)
-        caliber_catalog_map = await load_budget_caliber_catalog_map(db, catalog_names=catalog_names)
-    for caliber, period_ym, amount in rows:
+    db_path = common_db_path()
+    if not await _table_exists_for_path(db_path, "expense_actual_detail_raw"):
+        return {}, "费用明细导入（尚未初始化）"
+    columns = await _table_columns_for_path(db_path, "expense_actual_detail_raw")
+    required_columns = {"import_kind", "budget_release_caliber_mapped", "period_ym", "amount"}
+    if not required_columns.issubset(columns):
+        return {}, "费用明细导入（缺少预算发布口径字段）"
+    latest_batch = await _latest_expense_actual_batch(import_kind)
+    rows = await _fetch_all_for_path(
+        db_path,
+        """
+        SELECT budget_release_caliber_mapped, period_ym, amount
+        FROM expense_actual_detail_raw
+        WHERE COALESCE(import_kind, '') = ?
+          AND TRIM(COALESCE(budget_release_caliber_mapped, '')) <> ''
+        ORDER BY budget_release_caliber_mapped, period_ym
+        """,
+        (import_kind,),
+    )
+    catalog_names, caliber_catalog_map = await _load_caliber_catalog_for_path(db_path)
+    for row in rows:
+        caliber = _row_value(row, "budget_release_caliber_mapped", 0)
+        period_ym = _row_value(row, "period_ym", 1)
+        amount = _row_value(row, "amount", 2)
         caliber_name = resolve_caliber_catalog_subject(
             text(caliber),
             catalog_names=catalog_names,
@@ -246,41 +358,40 @@ async def load_imported_owner_caliber_monthly_totals(
     import_kind: str,
 ) -> tuple[dict[tuple[str, str], list[float]], str]:
     monthly_totals: dict[tuple[str, str], list[float]] = defaultdict(new_month_values)
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expense_actual_detail_raw'"
-        )
-        if not await cur.fetchone():
-            return {}, "费用明细导入（尚未初始化）"
-        columns = await _table_columns(db, "expense_actual_detail_raw")
-        required_columns = {
-            "import_kind",
-            "owner_name_mapped",
-            "budget_release_caliber_mapped",
-            "period_ym",
-            "amount",
-        }
-        if not required_columns.issubset(columns):
-            return {}, "费用明细导入（缺少预算发布口径字段）"
-        latest_batch = await _latest_expense_actual_batch(db, import_kind)
-        match_filter = "AND owner_matched = 1" if "owner_matched" in columns else ""
-        cur = await db.execute(
-            f"""
-            SELECT owner_name_mapped, budget_release_caliber_mapped, period_ym, amount
-            FROM expense_actual_detail_raw
-            WHERE COALESCE(import_kind, '') = ?
-              AND TRIM(COALESCE(owner_name_mapped, '')) <> ''
-              AND TRIM(COALESCE(budget_release_caliber_mapped, '')) <> ''
-              {match_filter}
-            ORDER BY owner_name_mapped, budget_release_caliber_mapped, period_ym
-            """,
-            (import_kind,),
-        )
-        rows = await cur.fetchall()
-        catalog_names = await load_catalog_subject_names(db)
-        caliber_catalog_map = await load_budget_caliber_catalog_map(db, catalog_names=catalog_names)
-    for owner_name, caliber, period_ym, amount in rows:
+    db_path = common_db_path()
+    if not await _table_exists_for_path(db_path, "expense_actual_detail_raw"):
+        return {}, "费用明细导入（尚未初始化）"
+    columns = await _table_columns_for_path(db_path, "expense_actual_detail_raw")
+    required_columns = {
+        "import_kind",
+        "owner_name_mapped",
+        "budget_release_caliber_mapped",
+        "period_ym",
+        "amount",
+    }
+    if not required_columns.issubset(columns):
+        return {}, "费用明细导入（缺少预算发布口径字段）"
+    latest_batch = await _latest_expense_actual_batch(import_kind)
+    match_filter = "AND owner_matched = 1" if "owner_matched" in columns else ""
+    rows = await _fetch_all_for_path(
+        db_path,
+        f"""
+        SELECT owner_name_mapped, budget_release_caliber_mapped, period_ym, amount
+        FROM expense_actual_detail_raw
+        WHERE COALESCE(import_kind, '') = ?
+          AND TRIM(COALESCE(owner_name_mapped, '')) <> ''
+          AND TRIM(COALESCE(budget_release_caliber_mapped, '')) <> ''
+          {match_filter}
+        ORDER BY owner_name_mapped, budget_release_caliber_mapped, period_ym
+        """,
+        (import_kind,),
+    )
+    catalog_names, caliber_catalog_map = await _load_caliber_catalog_for_path(db_path)
+    for row in rows:
+        owner_name = _row_value(row, "owner_name_mapped", 0)
+        caliber = _row_value(row, "budget_release_caliber_mapped", 1)
+        period_ym = _row_value(row, "period_ym", 2)
+        amount = _row_value(row, "amount", 3)
         owner = canonical_owner_name(text(owner_name), ctx)
         subject = resolve_caliber_catalog_subject(
             text(caliber),
@@ -349,14 +460,13 @@ async def load_budget_rows(
     dict[tuple[str, str], float],
     str | None,
 ]:
-    async with aiosqlite.connect(budget_db) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_budget_version_schema(db)
-        cur = await db.execute(
+    with sqlite3.connect(budget_db) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        ensure_budget_version_schema_sync(db)
+        version_row = db.execute(
             "SELECT version_name, current_month FROM version WHERE version_id = ?",
             (version_id,),
-        )
-        version_row = await cur.fetchone()
+        ).fetchone()
         if not version_row:
             raise BudgetSourceError(f"版本 {version_id} 不存在")
         version_name = text(version_row[0]) or f"V{version_id}"
@@ -415,23 +525,21 @@ async def load_previous_year_actual_subject_monthly(
     if not previous_year_db.exists():
         return {}, {}, f"{previous_year_db}（未找到上一年度库）"
 
-    async with aiosqlite.connect(previous_year_db) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute("SELECT version_id, version_name FROM version ORDER BY version_id DESC LIMIT 1")
-        version_row = await cur.fetchone()
+    with sqlite3.connect(previous_year_db) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        version_row = db.execute("SELECT version_id, version_name FROM version ORDER BY version_id DESC LIMIT 1").fetchone()
         if not version_row:
             return {}, {}, f"{previous_year_db}（缺少 version 配置）"
         version_id = int(version_row[0])
         version_name = text(version_row[1]) or f"V{version_id}"
-        cur = await db.execute(
+        rows = db.execute(
             """
             SELECT product_code_name, data_code_name, month, value
             FROM budget_summary
             WHERE version_id = ? AND budget_actual = 1
             """,
             (version_id,),
-        )
-        rows = await cur.fetchall()
+        ).fetchall()
 
     monthly_map: dict[str, list[float]] = defaultdict(new_month_values)
     selected_entity = text(entity_name)
@@ -477,23 +585,21 @@ async def load_previous_year_actual_by_owner_subject(
     if not previous_year_db.exists():
         return {}, f"{previous_year_db}（未找到上一年度库）"
 
-    async with aiosqlite.connect(previous_year_db) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute("SELECT version_id, version_name FROM version ORDER BY version_id DESC LIMIT 1")
-        version_row = await cur.fetchone()
+    with sqlite3.connect(previous_year_db) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        version_row = db.execute("SELECT version_id, version_name FROM version ORDER BY version_id DESC LIMIT 1").fetchone()
         if not version_row:
             return {}, f"{previous_year_db}（缺少 version 配置）"
         version_id = int(version_row[0])
         version_name = text(version_row[1]) or f"V{version_id}"
-        cur = await db.execute(
+        rows = db.execute(
             """
             SELECT product_code_name, data_code_name, month, value
             FROM budget_summary
             WHERE version_id = ? AND budget_actual = 1
             """,
             (version_id,),
-        )
-        rows = await cur.fetchall()
+        ).fetchall()
 
     monthly_map: dict[tuple[str, str], list[float]] = defaultdict(new_month_values)
     for product_code_name, data_code_name, month_text, value in rows:

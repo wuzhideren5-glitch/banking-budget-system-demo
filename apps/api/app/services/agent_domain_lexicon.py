@@ -11,7 +11,7 @@ from typing import Any
 
 from app.knowledge_base import KnowledgeBaseService
 from app.services.org_product_metric_runtime_snapshot import load_org_product_metric_table_rows_from_runtime_tree
-from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
+from app.services.org_product_runtime_catalog import org_product_runtime_products_cte_for_cursor
 from app.services.runtime_metric_refs import derive_runtime_ref_from_org_product_metric_code
 
 
@@ -120,15 +120,6 @@ WEAK_BUDGET_TERMS = {
 GENERIC_STRONG_STOP_WORDS = {"系统", "数据", "数据库", "分析", "管理", "银行", "预算"}
 SYNONYM_FIELDS = ("term", "normalized_name", "normalized_code")
 DATA_DICTIONARY_FIELDS = ("entity_code", "entity_name", "entity_type")
-CURRENT_ENTITY_SQLS = (
-    "SELECT dept_code AS code, dept_name AS name FROM dept_account",
-    f"""
-    {org_product_runtime_products_cte()}
-    SELECT product_code AS code, product_name AS name
-    FROM org_product_runtime_products
-    WHERE product_code <> '' AND product_name <> ''
-    """,
-)
 BUDGET_SUMMARY_LABEL_FIELDS = (
     "metric_level1",
     "metric_level2",
@@ -201,7 +192,17 @@ def _load_current_entity_terms(common_path: Path) -> set[str]:
     try:
         with sqlite3.connect(common_path) as conn:
             conn.row_factory = sqlite3.Row
-            for sql in CURRENT_ENTITY_SQLS:
+            cur = conn.cursor()
+            current_entity_sqls = (
+                "SELECT dept_code AS code, dept_name AS name FROM dept_account",
+                f"""
+                {org_product_runtime_products_cte_for_cursor(cur)}
+                SELECT product_code AS code, product_name AS name
+                FROM org_product_runtime_products
+                WHERE product_code <> '' AND product_name <> ''
+                """,
+            )
+            for sql in current_entity_sqls:
                 for row in conn.execute(sql).fetchall():
                     code = normalize_for_match(str(row["code"] or ""))
                     name = normalize_for_match(str(row["name"] or ""))
@@ -226,7 +227,22 @@ def _load_org_product_metric_terms(common_path: Path) -> set[str]:
     try:
         with sqlite3.connect(common_path) as conn:
             conn.row_factory = sqlite3.Row
-            rows = load_org_product_metric_table_rows_from_runtime_tree(conn)
+            try:
+                rows = load_org_product_metric_table_rows_from_runtime_tree(conn)
+            except Exception:
+                rows = []
+            if not rows and conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name='org_product_metric_table'"
+            ).fetchone():
+                rows = [
+                    dict(row)
+                    for row in conn.execute(
+                        """
+                        SELECT entity_code, table_name, payload_json
+                        FROM org_product_metric_table
+                        """
+                    ).fetchall()
+                ]
     except Exception:
         return terms
 

@@ -85,7 +85,11 @@ def _table_sql(conn: sqlite3.Connection, table_name: str) -> str:
         row = conn.execute(f"SHOW CREATE TABLE `{table_name}`").fetchone()
         return str(row[1] or "") if row else ""
     except Exception:
-        return ""
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return str(row[0] or "") if row else ""
 
 
 def _missing_sql_markers(table_sql: str, markers: tuple[str, ...]) -> list[str]:
@@ -121,4 +125,3 @@ def ensure_smart_report_schema_sync(conn: sqlite3.Connection) -> None:
                 f"智能报告表 {table_name} 缺少当前约束，系统不再自动迁移："
                 + ", ".join(missing_markers)
             )
-

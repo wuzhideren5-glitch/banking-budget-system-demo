@@ -5,8 +5,10 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.db_bootstrap.expense import ensure_bi_ai_subject_mapping_schema_sync
+from app.services import expense_actual_import_context as context_module
 from app.services.expense_actual_import_context import (
     ExpenseActualImportContextError,
     load_expense_actual_import_context,
@@ -78,6 +80,65 @@ def _seed_context_db(db_path: Path) -> None:
         conn.close()
 
 
+class _FakeMysqlPool:
+    async def fetch_one(self, sql: str, params: tuple[object, ...] = ()) -> dict[str, object] | None:
+        normalized_sql = " ".join(sql.lower().split())
+        if "information_schema.tables" in normalized_sql:
+            return {"exists_flag": 1}
+        raise AssertionError(f"Unexpected SQL: {sql}")
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized_sql = " ".join(sql.lower().split())
+        if "information_schema.columns" in normalized_sql:
+            return [{"COLUMN_NAME": "dept_name"}, {"COLUMN_NAME": "level"}]
+        if normalized_sql.startswith("select distinct coalesce"):
+            return [{"dept_name": "映射归口"}]
+        if normalized_sql.startswith("select subject_name"):
+            return [{"subject_name": "映射预算科目"}]
+        if normalized_sql.startswith("select level5_code"):
+            return [
+                {
+                    "level5_code": "L5",
+                    "level5_name": "五级",
+                    "level6_code": "L6",
+                    "level6_name": "六级",
+                    "budget_release_caliber": "预算发布",
+                    "fee_category": "费用类别一级",
+                    "fee_major": "费用大类",
+                }
+            ]
+        if normalized_sql.startswith("select manage_department, owner_department"):
+            return [{"manage_department": "原始管理部门", "owner_department": "映射归口"}]
+        if normalized_sql.startswith("select id, parent_id, subject_name, manage_department"):
+            return [
+                {
+                    "id": 1,
+                    "parent_id": None,
+                    "subject_name": "映射预算科目",
+                    "manage_department": "映射归口",
+                }
+            ]
+        if normalized_sql.startswith("select id, level5_code"):
+            return [
+                {
+                    "id": 1,
+                    "level5_code": "L5",
+                    "level5_name": "五级",
+                    "level6_code": "L6",
+                    "level6_name": "六级",
+                    "budget_release_caliber": "预算发布",
+                    "fee_category": "费用类别一级",
+                    "fee_major": "费用大类",
+                    "manage_department_override": "",
+                    "sort_order": 1,
+                    "source_file": "BI科目匹配表.xlsx",
+                }
+            ]
+        if normalized_sql.startswith("select dept_name"):
+            return [{"dept_name": "映射归口"}]
+        raise AssertionError(f"Unexpected SQL: {sql}")
+
+
 class ExpenseActualImportContextTests(unittest.TestCase):
     def test_loads_current_master_mapping_context(self) -> None:
         async def run() -> None:
@@ -118,6 +179,37 @@ class ExpenseActualImportContextTests(unittest.TestCase):
                     await load_expense_actual_import_context(db_path, root)
 
         asyncio.run(run())
+
+    def test_runtime_common_db_uses_mysql_pool_for_context(self) -> None:
+        async def run() -> None:
+            db_path = Path(context_module.settings.data_dir) / "common.db"
+            with (
+                patch.object(context_module, "get_pool", return_value=_FakeMysqlPool()),
+                patch.object(
+                    context_module,
+                    "ensure_bi_ai_subject_mapping_seeded",
+                    side_effect=AssertionError("runtime MySQL context must not seed through SQLite path"),
+                ),
+            ):
+                ctx = await load_expense_actual_import_context(db_path, Path("/repo"))
+
+            self.assertIn("映射归口", ctx.owner_names)
+            self.assertIn("映射预算科目", ctx.subject_names)
+            self.assertEqual(ctx.manage_dept_owner_map[normalize_key("原始管理部门")], "映射归口")
+            self.assertEqual(
+                ctx.bi_ai_subject_mapping_detail[normalize_key("L6")],
+                ("费用大类", "费用类别一级", "预算发布"),
+            )
+            self.assertEqual(
+                ctx.bi_mapping_manage_departments_by_caliber[normalize_key("预算发布")],
+                ["映射归口"],
+            )
+
+        asyncio.run(run())
+
+    def test_actual_import_context_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(context_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

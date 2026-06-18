@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from copy import copy
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 import re
+import sqlite3
+import tempfile
 import unicodedata
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.schemas import DeptAccountCreate, DeptAccountRow, DeptAccountUpdate
 from app.services.department_expense_contracts import DEPT_GROUP_LEVEL, DEPT_OWNER_LEVEL, MAX_DEPT_LEVEL
 from app.services.expense_master_data import sync_expense_dept_name_refs
@@ -70,8 +74,233 @@ class DeptAccountImportResultWorkbook:
     filename: str = "dept_account_import_result.xlsx"
 
 
+class _MemoryCursor:
+    def __init__(self, rows: list[Any] | None = None, rowcount: int = 0):
+        self._rows = rows or []
+        self.rowcount = rowcount
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SqliteCursorAdapter:
+    def __init__(self, cursor: sqlite3.Cursor):
+        self._cursor = cursor
+        self.rowcount = max(0, int(cursor.rowcount or 0))
+
+    async def fetchone(self) -> Any | None:
+        return self._cursor.fetchone()
+
+    async def fetchall(self) -> list[Any]:
+        return self._cursor.fetchall()
+
+
+class _SqliteDeptDb:
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> Any:
+        return _SqliteCursorAdapter(self._conn.execute(sql, tuple(params)))
+
+    async def commit(self) -> None:
+        self._conn.commit()
+
+    async def rollback(self) -> None:
+        self._conn.rollback()
+
+    async def close(self) -> None:
+        self._conn.close()
+
+
+class _MysqlDeptDb:
+    def __init__(self, conn: Any):
+        self._conn = conn
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _MemoryCursor:
+        if sql.strip().upper().startswith("PRAGMA "):
+            return _MemoryCursor()
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), tuple(params))
+            rows = await cur.fetchall() if cur.description else []
+            return _MemoryCursor(list(rows), rowcount=max(0, int(cur.rowcount or 0)))
+
+    async def commit(self) -> None:
+        await self._conn.commit()
+
+    async def rollback(self) -> None:
+        await self._conn.rollback()
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+@asynccontextmanager
+async def _open_dept_db(db_path: Path | str, *, transaction: bool = False):
+    if _uses_mysql_path(db_path):
+        async with get_pool().acquire() as conn:
+            if transaction:
+                await conn.begin()
+            db = _MysqlDeptDb(conn)
+            try:
+                yield db
+                if transaction:
+                    await db.commit()
+            except Exception:
+                if transaction:
+                    await db.rollback()
+                raise
+        return
+
+    conn = sqlite3.connect(db_path)
+    db = _SqliteDeptDb(conn)
+    try:
+        await db.execute("PRAGMA foreign_keys = ON")
+        yield db
+        if transaction:
+            await db.commit()
+    except Exception:
+        if transaction:
+            await db.rollback()
+        raise
+    finally:
+        await db.close()
+
+
+async def _sync_expense_dept_name_refs_mysql(
+    db: Any,
+    *,
+    dept_level: int,
+    old_name: str,
+    new_name: str,
+) -> dict[str, int]:
+    old_text = str(old_name or "").strip()
+    new_text = str(new_name or "").strip()
+    if not old_text or not new_text or old_text == new_text:
+        return {}
+
+    sync_counts: dict[str, int] = {}
+
+    async def table_exists(table_name: str) -> bool:
+        cur = await db.execute(
+            """
+            SELECT 1
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = ?
+            LIMIT 1
+            """,
+            (table_name,),
+        )
+        return bool(await cur.fetchone())
+
+    async def track(
+        table_name: str,
+        sync_key: str,
+        sql: str,
+        params: tuple[Any, ...],
+    ) -> None:
+        if not await table_exists(table_name):
+            return
+        cur = await db.execute(sql, params)
+        if cur.rowcount > 0:
+            sync_counts[sync_key] = cur.rowcount
+
+    if dept_level == 1:
+        await track(
+            "expense_framework_budget_department",
+            "expense_framework_budget_department.group_name",
+            "UPDATE expense_framework_budget_department SET group_name = ? WHERE group_name = ?",
+            (new_text, old_text),
+        )
+        await track(
+            "expense_framework_product_department",
+            "expense_framework_product_department.group_name",
+            "UPDATE expense_framework_product_department SET group_name = ? WHERE group_name = ?",
+            (new_text, old_text),
+        )
+        await track(
+            "expense_forecast_entry",
+            "expense_forecast_entry.scope_value[group]",
+            "UPDATE expense_forecast_entry SET scope_value = ? WHERE scope_type = 'group' AND scope_value = ?",
+            (new_text, old_text),
+        )
+        await track(
+            "expense_forecast_annual_entry",
+            "expense_forecast_annual_entry.scope_value[group]",
+            "UPDATE expense_forecast_annual_entry SET scope_value = ? WHERE scope_type = 'group' AND scope_value = ?",
+            (new_text, old_text),
+        )
+        return sync_counts
+
+    if dept_level == 2:
+        await track(
+            "expense_framework_budget_department",
+            "expense_framework_budget_department.owner_name",
+            """
+            UPDATE expense_framework_budget_department
+            SET owner_name = ?,
+                budget_department = CASE WHEN budget_department = ? THEN ? ELSE budget_department END
+            WHERE owner_name = ?
+            """,
+            (new_text, old_text, new_text, old_text),
+        )
+        await track(
+            "expense_framework_product_department",
+            "expense_framework_product_department.owner_name",
+            """
+            UPDATE expense_framework_product_department
+            SET owner_name = ?,
+                product_department = CASE WHEN product_department = ? THEN ? ELSE product_department END
+            WHERE owner_name = ?
+            """,
+            (new_text, old_text, new_text, old_text),
+        )
+        await track(
+            "expense_forecast_entry",
+            "expense_forecast_entry.scope_value[owner]",
+            "UPDATE expense_forecast_entry SET scope_value = ? WHERE scope_type = 'owner' AND scope_value = ?",
+            (new_text, old_text),
+        )
+        await track(
+            "expense_forecast_annual_entry",
+            "expense_forecast_annual_entry.scope_value[owner]",
+            "UPDATE expense_forecast_annual_entry SET scope_value = ? WHERE scope_type = 'owner' AND scope_value = ?",
+            (new_text, old_text),
+        )
+        await track(
+            "expense_actual_detail_raw",
+            "expense_actual_detail_raw.owner_name_mapped",
+            "UPDATE expense_actual_detail_raw SET owner_name_mapped = ? WHERE owner_name_mapped = ?",
+            (new_text, old_text),
+        )
+    return sync_counts
+
+
 async def list_dept_accounts(common_db: Path | str) -> list[DeptAccountRow]:
-    async with aiosqlite.connect(common_db) as db:
+    async with _open_dept_db(common_db) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -86,7 +315,7 @@ async def list_dept_accounts(common_db: Path | str) -> list[DeptAccountRow]:
 
 async def create_dept_account(common_db: Path | str, body: DeptAccountCreate) -> DeptAccountRow:
     _validate_level(body.level)
-    async with aiosqlite.connect(common_db) as db:
+    async with _open_dept_db(common_db, transaction=True) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute("SELECT 1 FROM dept_account WHERE dept_code = ?", (body.dept_code,))
         if await cur.fetchone():
@@ -114,7 +343,7 @@ async def update_dept_account(
     rename_sync: Callable[..., Awaitable[dict[str, int]]] = sync_expense_dept_name_refs,
 ) -> DeptAccountUpdateResult:
     sync_counts: dict[str, int] = {}
-    async with aiosqlite.connect(common_db) as db:
+    async with _open_dept_db(common_db, transaction=True) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         before = await _fetch_dept_row(db, code)
         if not before:
@@ -157,12 +386,20 @@ async def update_dept_account(
             new_name = body.dept_name.strip() if body.dept_name is not None else str(before[1] or "")
             old_name = str(before[1] or "").strip()
             dept_level = int(before[4] or 0)
-            sync_counts = await rename_sync(
-                db,
-                dept_level=dept_level,
-                old_name=old_name,
-                new_name=new_name,
-            )
+            if _uses_mysql_path(common_db) and rename_sync is sync_expense_dept_name_refs:
+                sync_counts = await _sync_expense_dept_name_refs_mysql(
+                    db,
+                    dept_level=dept_level,
+                    old_name=old_name,
+                    new_name=new_name,
+                )
+            else:
+                sync_counts = await rename_sync(
+                    db,
+                    dept_level=dept_level,
+                    old_name=old_name,
+                    new_name=new_name,
+                )
             await db.commit()
 
         row = await _fetch_dept_row(db, code)
@@ -180,7 +417,7 @@ async def update_dept_account(
 
 
 async def delete_dept_account(common_db: Path | str, code: str) -> DeptAccountDeletion:
-    async with aiosqlite.connect(common_db) as db:
+    async with _open_dept_db(common_db, transaction=True) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         before = await _fetch_dept_row(db, code)
         if not before:
@@ -264,7 +501,7 @@ async def apply_dept_account_import(
     overwrite_count = 0
     failed_count = 0
 
-    async with aiosqlite.connect(common_db) as db:
+    async with _open_dept_db(common_db, transaction=True) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         existing_dept = await _load_existing_dept_map(db)
 
@@ -334,7 +571,7 @@ async def apply_dept_account_import(
 
 
 async def _load_dept_tree_rows(common_db: Path | str) -> list[dict[str, Any]]:
-    async with aiosqlite.connect(common_db) as db:
+    async with _open_dept_db(common_db) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
@@ -508,7 +745,7 @@ def _parse_dept_import_rows(
     return rows
 
 
-async def _load_existing_dept_map(db: aiosqlite.Connection) -> dict[str, dict[str, Any]]:
+async def _load_existing_dept_map(db: Any) -> dict[str, dict[str, Any]]:
     cur = await db.execute("SELECT dept_code, dept_name, entity_name, parent_code, level, is_leaf FROM dept_account")
     rows = await cur.fetchall()
     return {
@@ -562,7 +799,7 @@ def _validate_import_row(
 
 
 async def _upsert_import_dept(
-    db: aiosqlite.Connection,
+    db: Any,
     existing_dept: dict[str, dict[str, Any]],
     *,
     code: str,
@@ -695,7 +932,7 @@ def _display_width(value: str) -> int:
     return width
 
 
-async def _fetch_dept_row(db: aiosqlite.Connection, code: str) -> tuple[Any, ...] | None:
+async def _fetch_dept_row(db: Any, code: str) -> tuple[Any, ...] | None:
     cur = await db.execute(
         """
         SELECT dept_code, dept_name, entity_name, parent_code, level, is_leaf

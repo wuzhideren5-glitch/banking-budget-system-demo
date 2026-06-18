@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS operation_log (
   user_id VARCHAR(64),
   action_type VARCHAR(64) NOT NULL,
   action_desc TEXT NOT NULL,
-  target_table VARCHAR(64),
+  target_table VARCHAR(255),
   affected_rows INT,
   before_data TEXT,
   after_data TEXT,
@@ -655,34 +655,10 @@ CREATE INDEX idx_budget_pivot_aggregate_version
 ON budget_pivot_aggregate(version_id, grain);
 
 {BUSINESS_COST_INCOME_SCHEMA}
-
-DELIMITER $$
-
-DROP TRIGGER IF EXISTS trg_budget_data_set_update_time_insert$$
-
-CREATE TRIGGER trg_budget_data_set_update_time_insert
-BEFORE INSERT ON budget_data
-FOR EACH ROW
-BEGIN
-  IF NEW.update_time IS NULL OR TRIM(NEW.update_time) = '' THEN
-    SET NEW.update_time = NOW();
-  END IF;
-END$$
-
-DROP TRIGGER IF EXISTS trg_budget_data_set_update_time_update$$
-
-CREATE TRIGGER trg_budget_data_set_update_time_update
-BEFORE UPDATE ON budget_data
-FOR EACH ROW
-BEGIN
-  SET NEW.update_time = NOW();
-END$$
-
-DELIMITER ;
 """
 
 COMPARE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS settings (
+CREATE TABLE IF NOT EXISTS compare_settings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   setting_key VARCHAR(255) NOT NULL UNIQUE,
   setting_value TEXT NOT NULL

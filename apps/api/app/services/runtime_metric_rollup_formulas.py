@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
+
 @dataclass(frozen=True)
 class RuntimeMetricRollupFormulaSyncResult:
     created: int = 0
@@ -14,7 +15,7 @@ class RuntimeMetricRollupFormulaSyncResult:
 
 
 async def sync_runtime_metric_rollup_formulas(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     metric_node_codes: set[str] | None = None,
 ) -> RuntimeMetricRollupFormulaSyncResult:

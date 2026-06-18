@@ -60,6 +60,7 @@ class DatabasePool:
             "connect_timeout": connect_timeout,
             "charset": charset,
             "autocommit": autocommit,
+            "init_command": "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
         }
         self._pool: aiomysql.Pool | None = None
 

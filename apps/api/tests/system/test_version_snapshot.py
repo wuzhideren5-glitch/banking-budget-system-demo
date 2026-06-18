@@ -242,7 +242,7 @@ class VersionSnapshotTests(unittest.TestCase):
         asyncio.run(run())
 
     def test_main_no_longer_keeps_editable_context_sql(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("SELECT d.data_file_name, d.year, e.version_id", main_source)
         self.assertNotIn("WHERE e.edit_show_sign = 0", main_source)

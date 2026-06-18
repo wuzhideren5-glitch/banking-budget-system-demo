@@ -5,8 +5,10 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.db_bootstrap.expense import ensure_expense_actual_import_schema_sync
+from app.services import expense_actual_import_apply as apply_module
 from app.services.expense_actual_import_apply import apply_expense_actual_import_rows
 from app.services.expense_actual_import_parser import ParsedActualDetailRow
 
@@ -54,6 +56,62 @@ def _init_db(db_path: Path) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+class _FakeMysqlCursor:
+    def __init__(self, state: dict[str, object]) -> None:
+        self._state = state
+        self.lastrowid = 99
+
+    async def __aenter__(self) -> "_FakeMysqlCursor":
+        return self
+
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+        return None
+
+    async def execute(self, sql: str, params: tuple[object, ...]) -> None:
+        normalized_sql = " ".join(sql.lower().split())
+        self._state.setdefault("execute_calls", []).append((normalized_sql, params))  # type: ignore[union-attr]
+
+    async def executemany(self, sql: str, rows: list[tuple[object, ...]]) -> None:
+        normalized_sql = " ".join(sql.lower().split())
+        self._state.setdefault("executemany_calls", []).append((normalized_sql, rows))  # type: ignore[union-attr]
+
+
+class _FakeMysqlConnection:
+    def __init__(self, state: dict[str, object]) -> None:
+        self._state = state
+
+    async def begin(self) -> None:
+        self._state["began"] = True
+
+    async def commit(self) -> None:
+        self._state["committed"] = True
+
+    async def rollback(self) -> None:
+        self._state["rolled_back"] = True
+
+    def cursor(self) -> _FakeMysqlCursor:
+        return _FakeMysqlCursor(self._state)
+
+
+class _FakeAcquire:
+    def __init__(self, state: dict[str, object]) -> None:
+        self._state = state
+
+    async def __aenter__(self) -> _FakeMysqlConnection:
+        return _FakeMysqlConnection(self._state)
+
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+        return None
+
+
+class _FakeMysqlPool:
+    def __init__(self) -> None:
+        self.state: dict[str, object] = {"execute_calls": [], "executemany_calls": []}
+
+    def acquire(self) -> _FakeAcquire:
+        return _FakeAcquire(self.state)
 
 
 class ExpenseActualImportApplyServiceTests(unittest.TestCase):
@@ -156,6 +214,42 @@ class ExpenseActualImportApplyServiceTests(unittest.TestCase):
                     )
 
         asyncio.run(run())
+
+    def test_runtime_common_db_uses_mysql_transaction_for_overwrite_apply(self) -> None:
+        async def run() -> None:
+            fake_pool = _FakeMysqlPool()
+            db_path = Path(apply_module.settings.data_dir) / "common.db"
+            with patch.object(apply_module, "get_pool", return_value=fake_pool):
+                result = await apply_expense_actual_import_rows(
+                    db_path,
+                    import_kind="current_year_actual",
+                    import_mode="overwrite",
+                    file_name="actual.xlsx",
+                    rows=[_row()],
+                    created_at="2026-06-02T00:00:00Z",
+                )
+
+            execute_calls = fake_pool.state["execute_calls"]
+            executemany_calls = fake_pool.state["executemany_calls"]
+            self.assertEqual(result.batch_id, 99)
+            self.assertEqual(result.import_mode, "overwrite")
+            self.assertTrue(fake_pool.state.get("began"))
+            self.assertTrue(fake_pool.state.get("committed"))
+            self.assertNotIn("rolled_back", fake_pool.state)
+            self.assertEqual(len(execute_calls), 2)
+            self.assertIn("delete from expense_actual_detail_raw", execute_calls[0][0])
+            self.assertEqual(execute_calls[0][1], ("current_year_actual", "2026-04"))
+            self.assertIn("insert into expense_actual_import_batch", execute_calls[1][0])
+            self.assertEqual(len(executemany_calls), 1)
+            self.assertIn("insert into expense_actual_detail_raw", executemany_calls[0][0])
+            self.assertEqual(executemany_calls[0][1][0][0], 99)
+            self.assertEqual(executemany_calls[0][1][0][1], "current_year_actual")
+
+        asyncio.run(run())
+
+    def test_actual_import_apply_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(apply_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

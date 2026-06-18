@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import ast
+from pathlib import Path
+import sqlite3
+import tempfile
+from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.formula_refs import (
     ANGLE_RUNTIME_METRIC_REF_CODE_RE,
     RUNTIME_METRIC_REF_CODE_RE,
@@ -17,7 +22,63 @@ def normalize_formula(value: str | None) -> str:
     return (value or "").strip()
 
 
-async def load_runtime_metric_scope_map(db: aiosqlite.Connection) -> dict[str, bool]:
+def _uses_mysql_common_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+def _scope_map_from_rows(rows: list[Any]) -> dict[str, bool]:
+    return {
+        str(_row_value(row, "data_acct_code", 0)).strip().upper(): (
+            str(_row_value(row, "scope_code", 1) or "").strip().upper() == "CORP"
+        )
+        for row in rows
+        if _row_value(row, "data_acct_code", 0)
+    }
+
+
+async def load_runtime_metric_scope_map_from_path(common_path: Path | str) -> dict[str, bool]:
+    sql = """
+        SELECT data_acct_code, scope_code
+        FROM data_account_metric_binding
+        WHERE is_active = 1
+        """
+    if _uses_mysql_common_path(common_path):
+        rows = await get_pool().fetch_all(sql)
+    else:
+        with sqlite3.connect(common_path) as db:
+            rows = db.execute(sql).fetchall()
+    return _scope_map_from_rows(rows)
+
+
+async def load_runtime_metric_scope_map(db_or_path: Any) -> dict[str, bool]:
+    if isinstance(db_or_path, (str, Path)):
+        return await load_runtime_metric_scope_map_from_path(db_or_path)
+
+    db = db_or_path
     cur = await db.execute(
         """
         SELECT data_acct_code, scope_code
@@ -26,7 +87,7 @@ async def load_runtime_metric_scope_map(db: aiosqlite.Connection) -> dict[str, b
         """
     )
     rows = await cur.fetchall()
-    return {str(r[0]).strip().upper(): str(r[1] or "").strip().upper() == "CORP" for r in rows if r[0]}
+    return _scope_map_from_rows(rows)
 
 
 def validate_formula_reference_scope(

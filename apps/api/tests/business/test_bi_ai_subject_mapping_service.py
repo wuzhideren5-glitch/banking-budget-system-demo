@@ -8,6 +8,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
+from app.services import bi_ai_subject_mapping as bi_ai_subject_mapping_module
 from app.services.bi_ai_subject_mapping import (
     BiAiSubjectMappingHeaderError,
     BiAiSubjectMappingSourceMissingError,
@@ -29,6 +30,14 @@ def _write_workbook(path: Path, headers: list[str], rows: list[list[str]]) -> No
 
 
 class BiAiSubjectMappingServiceTests(unittest.TestCase):
+    def test_service_uses_mysql_gateway_path(self) -> None:
+        source = Path(bi_ai_subject_mapping_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+        self.assertIn("SHOW COLUMNS FROM", source)
+        self.assertIn("SHOW TABLES LIKE", source)
+
     def test_seed_allows_empty_table_when_source_workbook_is_absent(self) -> None:
         async def run() -> None:
             with tempfile.TemporaryDirectory() as tmp:

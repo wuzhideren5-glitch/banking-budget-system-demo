@@ -4,9 +4,12 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import aiosqlite
 
+from app.core.config import settings
+from app.services import metric_tree_rollups as metric_tree_rollups_module
 from app.budget_data_writer import (
     BudgetDataWriteError,
     BudgetDataWriteItem,
@@ -401,3 +404,160 @@ class MetricTreeRollupTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 conn.close()
             self.assertEqual(rows, [])
+
+
+class _FakeMetricTreeRollupMysqlPool:
+    def __init__(self) -> None:
+        self.fetch_all_calls: list[tuple[str, tuple[object, ...]]] = []
+        self.fetch_one_calls: list[tuple[str, tuple[object, ...]]] = []
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized = " ".join(sql.lower().split())
+        self.fetch_all_calls.append((" ".join(sql.split()), tuple(params)))
+        if "from data_account_metric_node" in normalized and "select node_code, node_name" in normalized:
+            return [
+                {
+                    "node_code": "A01",
+                    "node_name": "开鑫贷",
+                    "parent_code": None,
+                    "node_type": "CATEGORY",
+                    "level": 1,
+                    "product_code": "A01",
+                    "logic_code": "",
+                    "horizontal_rollup": 0,
+                    "vertical_rollup": 0,
+                },
+                {
+                    "node_code": "A01.01",
+                    "node_name": "贷款资产",
+                    "parent_code": "A01",
+                    "node_type": "GROUP",
+                    "level": 2,
+                    "product_code": "A01",
+                    "logic_code": "01",
+                    "horizontal_rollup": 0,
+                    "vertical_rollup": 0,
+                },
+                {
+                    "node_code": "A01.01.01",
+                    "node_name": "贷款余额",
+                    "parent_code": "A01.01",
+                    "node_type": "GROUP",
+                    "level": 3,
+                    "product_code": "A01",
+                    "logic_code": "01.01",
+                    "horizontal_rollup": 0,
+                    "vertical_rollup": 1,
+                },
+                {
+                    "node_code": "A01.01.01.001",
+                    "node_name": "日均余额",
+                    "parent_code": "A01.01.01",
+                    "node_type": "METRIC",
+                    "level": 4,
+                    "product_code": "A01",
+                    "logic_code": "01.01.001",
+                    "horizontal_rollup": 0,
+                    "vertical_rollup": 0,
+                },
+            ]
+        if "from data_account_metric_binding" in normalized:
+            return [
+                {
+                    "metric_node_code": "A01.01.01.001",
+                    "scope_type": "PRODUCT",
+                    "scope_code": "A01",
+                    "data_acct_code": "A01.01.01.001",
+                    "data_acct_name": "开鑫贷日均余额",
+                    "value_type": "金额",
+                    "budget_formula": None,
+                    "actual_formula": None,
+                    "sort_order": 1,
+                },
+                {
+                    "metric_node_code": "A01.01.01",
+                    "scope_type": "PRODUCT",
+                    "scope_code": "A01",
+                    "data_acct_code": "A01.01.01",
+                    "data_acct_name": "开鑫贷贷款余额",
+                    "value_type": "金额",
+                    "budget_formula": None,
+                    "actual_formula": None,
+                    "sort_order": 0,
+                },
+            ]
+        if "from period" in normalized:
+            return [{"period_id": 1}, {"period_id": 2}]
+        if "from budget_data" in normalized:
+            return [
+                {
+                    "data_acct_code": "A01.01.01.001",
+                    "product_code": "A01",
+                    "period_id": 1,
+                    "budget_actual": 1,
+                    "value": 10,
+                },
+                {
+                    "data_acct_code": "A01.01.01.001",
+                    "product_code": "A01",
+                    "period_id": 2,
+                    "budget_actual": 1,
+                    "value": 20,
+                },
+            ]
+        raise AssertionError(f"Unexpected fetch_all SQL: {sql}")
+
+    async def fetch_one(self, sql: str, params: tuple[object, ...] = ()) -> dict[str, object] | None:
+        normalized = " ".join(sql.lower().split())
+        self.fetch_one_calls.append((" ".join(sql.split()), tuple(params)))
+        if "from org_product_tree_snapshot" in normalized:
+            return {
+                "payload_json": '{"code":"AA","name":"微众银行","children":[{"code":"A","name":"个金群","children":[{"code":"A01","name":"开鑫贷","children":[]}]}]}'
+            }
+        raise AssertionError(f"Unexpected fetch_one SQL: {sql}")
+
+
+class MetricTreeRollupMysqlPathTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rebuild_metric_tree_rollups_uses_mysql_for_runtime_paths(self) -> None:
+        fake_pool = _FakeMetricTreeRollupMysqlPool()
+        captured: dict[str, object] = {}
+
+        async def fake_delete_rollup_budget_data_rows(**kwargs):
+            captured["delete_kwargs"] = kwargs
+            return 0
+
+        async def fake_write_budget_data_items(**kwargs):
+            captured["write_kwargs"] = kwargs
+
+            class Result:
+                saved_cells = len(kwargs["items"])
+                warnings: list[str] = []
+
+            return Result()
+
+        with (
+            patch.object(metric_tree_rollups_module, "get_pool", return_value=fake_pool),
+            patch.object(metric_tree_rollups_module, "delete_rollup_budget_data_rows", fake_delete_rollup_budget_data_rows),
+            patch.object(metric_tree_rollups_module, "write_budget_data_items", fake_write_budget_data_items),
+        ):
+            result = await rebuild_metric_tree_rollups(
+                common_path=settings.data_dir / "common.db",
+                budget_path=settings.data_dir / "budget_2026.db",
+                budget_year=2026,
+                version_id=2026000003,
+                product_codes=["A01"],
+                budget_actuals=[1],
+            )
+
+        self.assertEqual(result.written_cells, 2)
+        budget_sql, budget_params = next(
+            (sql, params)
+            for sql, params in fake_pool.fetch_all_calls
+            if "FROM budget_data" in sql
+        )
+        self.assertIn("budget_year = %s", budget_sql)
+        self.assertEqual(budget_params[:2], (2026, 2026000003))
+        write_items = captured["write_kwargs"]["items"]  # type: ignore[index]
+        self.assertEqual([item.value for item in write_items], [10.0, 20.0])
+        source = Path(metric_tree_rollups_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)

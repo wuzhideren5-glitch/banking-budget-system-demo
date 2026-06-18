@@ -324,6 +324,7 @@ async def save_org_product_metrics_table(payload: MetricSaveTablePayload):
                 entity_code=entity_code,
                 table_name=table_name,
                 metrics=metrics,
+                overwrite_existing_metadata=True,
             )
             conn.commit()
     except OrgProductMetricRuntimeSyncError as exc:
@@ -358,6 +359,7 @@ async def save_org_product_metrics(payload: MetricSavePayload):
                         entity_code=entity.entity_code.strip(),
                         table_name=table_name,
                         metrics=metrics,
+                        overwrite_existing_metadata=True,
                     )
                     saved_tables += 1
             conn.commit()

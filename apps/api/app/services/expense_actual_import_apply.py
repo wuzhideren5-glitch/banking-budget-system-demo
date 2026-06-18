@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import sqlite3
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.services.expense_actual_import_batches import normalize_import_kind
 from app.services.expense_actual_import_parser import ParsedActualDetailRow, build_preview_response
 from app.schemas import ExpenseActualImportManageDepartmentWarning
@@ -41,6 +45,194 @@ def _normalize_import_mode(value: str | None) -> str:
     return import_mode
 
 
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+def _detail_values(
+    *,
+    batch_id: int,
+    import_kind: str,
+    rows: list[ParsedActualDetailRow],
+) -> list[tuple[Any, ...]]:
+    return [
+        (
+            batch_id,
+            import_kind,
+            row.data_date,
+            row.period_ym,
+            row.period_text,
+            row.org_code,
+            row.org_name,
+            row.dep_code,
+            row.dep_name,
+            row.subject_code,
+            row.subject_name,
+            row.journal_name,
+            row.serial_no,
+            row.line_desc,
+            row.amount,
+            row.fee_type_code,
+            row.fee_type_name,
+            row.bi_ai_source_code,
+            row.bi_ai_source_name,
+            row.manage_department_code,
+            row.owner_name_raw,
+            row.owner_name_mapped,
+            row.monthly_caliber,
+            row.budget_subject_raw,
+            row.budget_subject_mapped,
+            row.fee_major_mapped,
+            row.fee_category_mapped,
+            row.budget_release_caliber_mapped,
+            row.manage_department2,
+            row.special_control_tag,
+            1 if row.owner_matched else 0,
+            1 if row.subject_matched else 0,
+            row.match_note,
+        )
+        for row in rows
+    ]
+
+
+BATCH_INSERT_SQL = """
+INSERT INTO expense_actual_import_batch(
+  import_kind, file_name, import_mode, periods_text, total_rows,
+  matched_owner_rows, matched_subject_rows, unmatched_rows, created_at, note
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+
+DETAIL_INSERT_SQL = """
+INSERT INTO expense_actual_detail_raw(
+  batch_id, import_kind, data_date, period_ym, period_text, org_code, org_name, dep_code, dep_name,
+  subject_code, subject_name, journal_name, serial_no, line_desc,
+  amount, fee_type_code, fee_type_name,
+  bi_ai_source_code, bi_ai_source_name, manage_department_code,
+  owner_name_raw, owner_name_mapped, monthly_caliber,
+  budget_subject_raw, budget_subject_mapped,
+  fee_major_mapped, fee_category_mapped, budget_release_caliber_mapped,
+  manage_department2, special_control_tag,
+  owner_matched, subject_matched, match_note
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+
+async def _apply_expense_actual_import_rows_mysql(
+    db_path: Path,
+    *,
+    import_kind: str,
+    import_mode: str,
+    file_name: str,
+    rows: list[ParsedActualDetailRow],
+    periods: list[str],
+    row_count: int,
+    matched_owner_rows: int,
+    matched_subject_rows: int,
+    unmatched_rows: int,
+    created_at: str,
+) -> int:
+    _ = db_path
+    async with get_pool().acquire() as conn:
+        await conn.begin()
+        try:
+            async with conn.cursor() as cur:
+                if import_mode == "overwrite" and periods:
+                    placeholders = ",".join("%s" for _ in periods)
+                    await cur.execute(
+                        f"DELETE FROM expense_actual_detail_raw WHERE import_kind = %s AND period_ym IN ({placeholders})",
+                        (import_kind, *periods),
+                    )
+                await cur.execute(
+                    _mysql_sql(BATCH_INSERT_SQL),
+                    (
+                        import_kind,
+                        file_name,
+                        import_mode,
+                        ",".join(periods),
+                        row_count,
+                        matched_owner_rows,
+                        matched_subject_rows,
+                        unmatched_rows,
+                        created_at,
+                        NOTE_ALLOW_UNMATCHED,
+                    ),
+                )
+                batch_id = int(cur.lastrowid)
+                detail_values = _detail_values(batch_id=batch_id, import_kind=import_kind, rows=rows)
+                if detail_values:
+                    await cur.executemany(_mysql_sql(DETAIL_INSERT_SQL), detail_values)
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+    return batch_id
+
+
+async def _apply_expense_actual_import_rows_sqlite(
+    db_path: Path,
+    *,
+    import_kind: str,
+    import_mode: str,
+    file_name: str,
+    rows: list[ParsedActualDetailRow],
+    periods: list[str],
+    row_count: int,
+    matched_owner_rows: int,
+    matched_subject_rows: int,
+    unmatched_rows: int,
+    created_at: str,
+) -> int:
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        if import_mode == "overwrite" and periods:
+            placeholders = ",".join("?" for _ in periods)
+            db.execute(
+                f"DELETE FROM expense_actual_detail_raw WHERE import_kind = ? AND period_ym IN ({placeholders})",
+                (import_kind, *periods),
+            )
+        cur = db.execute(
+            BATCH_INSERT_SQL,
+            (
+                import_kind,
+                file_name,
+                import_mode,
+                ",".join(periods),
+                row_count,
+                matched_owner_rows,
+                matched_subject_rows,
+                unmatched_rows,
+                created_at,
+                NOTE_ALLOW_UNMATCHED,
+            ),
+        )
+        batch_id = int(cur.lastrowid)
+        detail_values = _detail_values(batch_id=batch_id, import_kind=import_kind, rows=rows)
+        if detail_values:
+            db.executemany(DETAIL_INSERT_SQL, detail_values)
+        db.commit()
+    return batch_id
+
+
 async def apply_expense_actual_import_rows(
     db_path: str | Path,
     *,
@@ -54,90 +246,24 @@ async def apply_expense_actual_import_rows(
     normalized_import_mode = _normalize_import_mode(import_mode)
     preview = build_preview_response(file_name, rows)
     periods = preview.periods
-
-    async with aiosqlite.connect(db_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        if normalized_import_mode == "overwrite" and periods:
-            placeholders = ",".join("?" for _ in periods)
-            await db.execute(
-                f"DELETE FROM expense_actual_detail_raw WHERE import_kind = ? AND period_ym IN ({placeholders})",
-                (normalized_import_kind, *periods),
-            )
-        cur = await db.execute(
-            """
-            INSERT INTO expense_actual_import_batch(
-              import_kind, file_name, import_mode, periods_text, total_rows,
-              matched_owner_rows, matched_subject_rows, unmatched_rows, created_at, note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                normalized_import_kind,
-                file_name,
-                normalized_import_mode,
-                ",".join(periods),
-                preview.row_count,
-                preview.matched_owner_rows,
-                preview.matched_subject_rows,
-                preview.unmatched_rows,
-                created_at or _iso_now(),
-                NOTE_ALLOW_UNMATCHED,
-            ),
-        )
-        batch_id = int(cur.lastrowid)
-        await db.executemany(
-            """
-            INSERT INTO expense_actual_detail_raw(
-              batch_id, import_kind, data_date, period_ym, period_text, org_code, org_name, dep_code, dep_name,
-              subject_code, subject_name, journal_name, serial_no, line_desc,
-              amount, fee_type_code, fee_type_name,
-              bi_ai_source_code, bi_ai_source_name, manage_department_code,
-              owner_name_raw, owner_name_mapped, monthly_caliber,
-              budget_subject_raw, budget_subject_mapped,
-              fee_major_mapped, fee_category_mapped, budget_release_caliber_mapped,
-              manage_department2, special_control_tag,
-              owner_matched, subject_matched, match_note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    batch_id,
-                    normalized_import_kind,
-                    row.data_date,
-                    row.period_ym,
-                    row.period_text,
-                    row.org_code,
-                    row.org_name,
-                    row.dep_code,
-                    row.dep_name,
-                    row.subject_code,
-                    row.subject_name,
-                    row.journal_name,
-                    row.serial_no,
-                    row.line_desc,
-                    row.amount,
-                    row.fee_type_code,
-                    row.fee_type_name,
-                    row.bi_ai_source_code,
-                    row.bi_ai_source_name,
-                    row.manage_department_code,
-                    row.owner_name_raw,
-                    row.owner_name_mapped,
-                    row.monthly_caliber,
-                    row.budget_subject_raw,
-                    row.budget_subject_mapped,
-                    row.fee_major_mapped,
-                    row.fee_category_mapped,
-                    row.budget_release_caliber_mapped,
-                    row.manage_department2,
-                    row.special_control_tag,
-                    1 if row.owner_matched else 0,
-                    1 if row.subject_matched else 0,
-                    row.match_note,
-                )
-                for row in rows
-            ],
-        )
-        await db.commit()
+    effective_created_at = created_at or _iso_now()
+    apply_kwargs = {
+        "import_kind": normalized_import_kind,
+        "import_mode": normalized_import_mode,
+        "file_name": file_name,
+        "rows": rows,
+        "periods": periods,
+        "row_count": preview.row_count,
+        "matched_owner_rows": preview.matched_owner_rows,
+        "matched_subject_rows": preview.matched_subject_rows,
+        "unmatched_rows": preview.unmatched_rows,
+        "created_at": effective_created_at,
+    }
+    path = Path(db_path)
+    if _uses_mysql_path(path):
+        batch_id = await _apply_expense_actual_import_rows_mysql(path, **apply_kwargs)
+    else:
+        batch_id = await _apply_expense_actual_import_rows_sqlite(path, **apply_kwargs)
 
     return ExpenseActualImportApplyResult(
         batch_id=batch_id,

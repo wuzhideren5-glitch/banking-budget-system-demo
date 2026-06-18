@@ -144,7 +144,7 @@ class GlobalRefreshStatusTests(unittest.TestCase):
         self.assertEqual(route.response_model.__name__, "GlobalRefreshStatusResponse")
 
     def test_main_no_longer_assembles_global_refresh_status_response(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("GlobalRefreshAnnualStatus(", main_source)
         self.assertNotIn("annual_items.sort(key=lambda x: (-x.year, x.data_file_name))", main_source)

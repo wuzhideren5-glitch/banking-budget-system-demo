@@ -4,7 +4,10 @@ from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from app.core.config import settings
+import app.services.expense_forecast_data_context as module
 from app.services.expense_forecast_data_context import (
     ExpenseForecastDataContextError,
     build_expense_forecast_effective_manage_departments,
@@ -158,6 +161,112 @@ class ExpenseForecastDataContextTests(unittest.IsolatedAsyncioTestCase):
         )
         conn.commit()
         conn.close()
+
+    async def test_runtime_common_and_budget_reads_use_mysql_pool(self) -> None:
+        class FakePool:
+            def __init__(self) -> None:
+                self.fetch_all_calls: list[tuple[str, tuple]] = []
+                self.fetch_one_calls: list[tuple[str, tuple]] = []
+
+            async def fetch_all(self, sql, params=()):
+                self.fetch_all_calls.append((sql, params))
+                if "FROM dept_account child" in sql:
+                    return [
+                        {"entity_name": "微众银行", "group_name": "事业群A", "owner_name": "部门A"},
+                        {"entity_name": "微众银行", "group_name": "事业群A", "owner_name": "部门B"},
+                    ]
+                if "FROM budget_subject_catalog c" in sql:
+                    return [
+                        {
+                            "id": 1,
+                            "parent_id": None,
+                            "level_number": 1,
+                            "subject_name": "费用合计",
+                            "manage_department": "科技管理部",
+                            "formula_text": None,
+                            "sort_order": 1,
+                            "has_children": 1,
+                        },
+                        {
+                            "id": 2,
+                            "parent_id": 1,
+                            "level_number": 2,
+                            "subject_name": "差旅费",
+                            "manage_department": "",
+                            "formula_text": None,
+                            "sort_order": 2,
+                            "has_children": 0,
+                        },
+                    ]
+                if "SELECT subject_name, manage_department" in sql:
+                    return [{"subject_name": "费用合计", "manage_department": "科技管理部"}]
+                if "FROM expense_actual_detail_raw" in sql and "MAX" not in sql:
+                    return [{"owner_name_mapped": "部门A", "budget_subject_mapped": "差旅费", "month": 1, "amount": 150.0}]
+                if "FROM expense_forecast_entry" in sql:
+                    return [{"scope_value": "部门A", "subject_id": 2, "month": 3, "forecast_value": 88.0}]
+                if "FROM expense_forecast_annual_entry" in sql:
+                    return [{"scope_value": "部门A", "subject_id": 2, "field_name": "business_submission", "field_value": 188.0}]
+                if "FROM budget_summary" in sql:
+                    return [
+                        {"product_code_name": "部门A-产品", "data_code_name": "01 差旅费", "value": 100.125},
+                        {"product_code_name": "部门A-产品", "data_code_name": "差旅费", "value": 10.0},
+                    ]
+                raise AssertionError(sql)
+
+            async def fetch_one(self, sql, params=()):
+                self.fetch_one_calls.append((sql, params))
+                if "MAX" in sql:
+                    return {"cutoff_month": 2}
+                if "FROM version" in sql:
+                    return {"version_id": 2026000003}
+                raise AssertionError(sql)
+
+        fake_pool = FakePool()
+        runtime_common = Path(settings.data_dir) / "common.db"
+        runtime_budget = Path(settings.data_dir) / "budget_2026.db"
+
+        with patch.object(module, "get_pool", return_value=fake_pool):
+            scope_rows = await load_expense_forecast_scope_rows(runtime_common)
+            subject_rows = await load_expense_forecast_budget_subject_rows(runtime_common)
+            manage_map = await load_expense_forecast_manage_department_map(runtime_common)
+            actual_map = await load_expense_forecast_actual_map(runtime_common, year=2026, owner_names=["部门A"])
+            cutoff = await load_expense_forecast_actual_cutoff_month(runtime_common, year=2026)
+            forecast_map = await load_expense_forecast_forecast_map(
+                runtime_common,
+                year=2026,
+                forecast_version="V1",
+                owner_names=["部门A"],
+            )
+            annual_input_map = await load_expense_forecast_annual_input_map(
+                runtime_common,
+                year=2026,
+                forecast_version="V1",
+                owner_names=["部门A"],
+            )
+            annual_budget_map = await load_expense_forecast_annual_budget_map(
+                runtime_budget,
+                owner_names=["部门A"],
+            )
+
+        self.assertEqual(scope_rows[0], ("微众银行", "事业群A", "部门A"))
+        self.assertTrue(subject_rows[1]["is_leaf"])
+        self.assertEqual(manage_map, {"费用合计": "科技管理部"})
+        self.assertEqual(actual_map, {("部门A", "差旅费", 1): 150.0})
+        self.assertEqual(cutoff, 2)
+        self.assertEqual(forecast_map, {("部门A", 2, 3): 88.0})
+        self.assertEqual(annual_input_map, {("部门A", 2, "business_submission"): 188.0})
+        self.assertEqual(annual_budget_map, {("部门A", "差旅费"): 110.12})
+        self.assertEqual(fake_pool.fetch_one_calls[-1][1], (2026,))
+        budget_sql, budget_params = fake_pool.fetch_all_calls[-1]
+        self.assertIn("FROM budget_summary", budget_sql)
+        self.assertIn("budget_year = %s", budget_sql)
+        self.assertEqual(budget_params, (2026000003, 2026))
+
+    def test_data_context_does_not_import_aiosqlite(self) -> None:
+        source = Path(module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
 
     async def test_scope_rows_and_owner_resolution_use_current_department_tree(self) -> None:
         self.setup_common_db()

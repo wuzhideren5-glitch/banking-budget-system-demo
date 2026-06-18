@@ -35,6 +35,9 @@ Key design points
 from __future__ import annotations
 
 import re
+import sqlite3
+import tempfile
+from pathlib import Path
 from typing import Any, AsyncIterator
 
 import aiomysql
@@ -51,7 +54,7 @@ OperationalError = pymysql.err.OperationalError
 ProgrammingError = pymysql.err.ProgrammingError
 IntegrityError = pymysql.err.IntegrityError
 
-Row = dict  # type: ignore[assignment]
+Row = sqlite3.Row  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +115,7 @@ _SQLITE_MASTER_RE = re.compile(r"sqlite_master", re.IGNORECASE)
 
 _AUTOINCREMENT_RE = re.compile(r"\bAUTOINCREMENT\b", re.IGNORECASE)
 
-_DATETIME_NOW_RE = re.compile(r"datetime\s*\(\s*'now'\s*\)", re.IGNORECASE)
+_DATETIME_NOW_RE = re.compile(r"datetime\s*\(\s*'now'\s*(?:,\s*'localtime'\s*)?\)", re.IGNORECASE)
 _DATE_NOW_RE = re.compile(r"date\s*\(\s*'now'\s*\)", re.IGNORECASE)
 
 
@@ -144,7 +147,7 @@ def _translate_sql(sql: str) -> str:
         tn = m.group(1)
         return (
             "SELECT 0 AS cid, COLUMN_NAME AS name, DATA_TYPE AS type, "
-            "IF(IS_NULLABLE='YES',1,0) AS notnull, "
+            "IF(IS_NULLABLE='NO',1,0) AS notnull, "
             "COLUMN_DEFAULT AS dflt_value, "
             "IF(COLUMN_KEY='PRI',1,0) AS pk "
             "FROM INFORMATION_SCHEMA.COLUMNS "
@@ -192,15 +195,21 @@ def _translate_sql(sql: str) -> str:
     # Translate "SELECT type FROM sqlite_master" → "SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES"
     sql = re.sub(
         r"SELECT\s+type\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
-        r"SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES",
+        r"SELECT CASE WHEN TABLE_TYPE = 'BASE TABLE' THEN 'table' WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE LOWER(TABLE_TYPE) END AS type FROM INFORMATION_SCHEMA.TABLES",
         sql,
         flags=re.IGNORECASE,
     )
 
     # Translate "SELECT name FROM sqlite_master" → "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES"
     sql = re.sub(
+        r"SELECT\s+name\s*,\s*type\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
+        r"SELECT TABLE_NAME AS name, CASE WHEN TABLE_TYPE = 'BASE TABLE' THEN 'table' WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE LOWER(TABLE_TYPE) END AS type FROM INFORMATION_SCHEMA.TABLES",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
         r"SELECT\s+name\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
-        r"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
+        r"SELECT TABLE_NAME AS name FROM INFORMATION_SCHEMA.TABLES",
         sql,
         flags=re.IGNORECASE,
     )
@@ -263,6 +272,30 @@ def _translate_sql(sql: str) -> str:
         r"\1TABLE_NAME =",
         sql,
         flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s+NOT\s+LIKE\b",
+        r"\1TABLE_NAME NOT LIKE",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s+LIKE\b",
+        r"\1TABLE_NAME LIKE",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s+IN\s*\(",
+        r"\1TABLE_NAME IN (",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"\bORDER\s+BY\s+name\b",
+        "ORDER BY TABLE_NAME",
+        sql,
+        flags=re.IGNORECASE,
     )
     sql = re.sub(
         r"(INFORMATION_SCHEMA\.TABLES.*?)\btbl_name\s*=",
@@ -519,6 +552,121 @@ class _CompatConnection:
         return 0
 
 
+class _SqliteCursorAdapter:
+    """Tiny async wrapper around a real sqlite3 cursor for isolated fixtures."""
+
+    __slots__ = ("_cur",)
+
+    def __init__(self, cur: sqlite3.Cursor):
+        self._cur = cur
+
+    async def execute(self, sql: str, parameters: tuple | list = ()) -> "_SqliteCursorAdapter":
+        self._cur.execute(sql, parameters)
+        return self
+
+    async def executemany(self, sql: str, seq_of_parameters: list[tuple] | list[list]) -> "_SqliteCursorAdapter":
+        self._cur.executemany(sql, seq_of_parameters)
+        return self
+
+    async def fetchone(self):
+        return self._cur.fetchone()
+
+    async def fetchall(self):
+        return self._cur.fetchall()
+
+    async def fetchmany(self, size: int | None = None):
+        if size is None:
+            return self._cur.fetchmany()
+        return self._cur.fetchmany(size)
+
+    async def close(self) -> None:
+        self._cur.close()
+
+    async def __aenter__(self) -> "_SqliteCursorAdapter":
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self.close()
+
+    @property
+    def lastrowid(self) -> int | None:
+        return self._cur.lastrowid
+
+    @property
+    def rowcount(self) -> int:
+        return self._cur.rowcount
+
+    @property
+    def description(self):
+        return self._cur.description
+
+    @property
+    def arraysize(self) -> int:
+        return self._cur.arraysize
+
+    @arraysize.setter
+    def arraysize(self, value: int) -> None:
+        self._cur.arraysize = value
+
+
+class _SqliteConnectionAdapter:
+    """Async-looking wrapper that preserves aiosqlite call shapes for tests."""
+
+    __slots__ = ("_conn",)
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+
+    @property
+    def row_factory(self) -> Any:
+        return self._conn.row_factory
+
+    @row_factory.setter
+    def row_factory(self, value: Any) -> None:
+        self._conn.row_factory = value
+
+    async def execute(self, sql: str, parameters: tuple | list = ()) -> _SqliteCursorAdapter:
+        return _SqliteCursorAdapter(self._conn.execute(sql, parameters))
+
+    async def executemany(self, sql: str, seq_of_parameters: list[tuple] | list[list]) -> _SqliteCursorAdapter:
+        return _SqliteCursorAdapter(self._conn.executemany(sql, seq_of_parameters))
+
+    async def executescript(self, sql_script: str) -> None:
+        self._conn.executescript(sql_script)
+
+    async def cursor(self, *args, **kwargs) -> _SqliteCursorAdapter:
+        return _SqliteCursorAdapter(self._conn.cursor(*args, **kwargs))
+
+    async def commit(self) -> None:
+        self._conn.commit()
+
+    async def rollback(self) -> None:
+        self._conn.rollback()
+
+    async def close(self) -> None:
+        self._conn.close()
+
+    @property
+    def lastrowid(self) -> int | None:
+        return None
+
+    @property
+    def in_transaction(self) -> bool:
+        return self._conn.in_transaction
+
+    @property
+    def isolation_level(self) -> str | None:
+        return self._conn.isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, value: str | None) -> None:
+        self._conn.isolation_level = value
+
+    @property
+    def total_changes(self) -> int:
+        return self._conn.total_changes
+
+
 # ---------------------------------------------------------------------------
 # connect() — drop-in replacement for aiosqlite.connect()
 # ---------------------------------------------------------------------------
@@ -556,13 +704,75 @@ class _ConnectContextManager:
         return self._conn
 
 
-def connect(path: Any = None, **kwargs) -> _ConnectContextManager:
+class _SqliteConnectContextManager:
+    """Async context manager for real sqlite3 connections."""
+
+    __slots__ = ("_path", "_kwargs", "_conn")
+
+    def __init__(self, path: Any = None, **kwargs):
+        self._path = path
+        self._kwargs = kwargs
+        self._conn: _SqliteConnectionAdapter | None = None
+
+    async def __aenter__(self) -> _SqliteConnectionAdapter:
+        raw = sqlite3.connect(self._path, **self._kwargs)
+        self._conn = _SqliteConnectionAdapter(raw)
+        return self._conn
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            await self._conn.close()
+        self._conn = None
+
+    def __await__(self):
+        return self._await().__await__()
+
+    async def _await(self) -> _SqliteConnectionAdapter:
+        raw = sqlite3.connect(self._path, **self._kwargs)
+        self._conn = _SqliteConnectionAdapter(raw)
+        return self._conn
+
+
+def _should_route_path_to_mysql(path: Any) -> bool:
+    if path is None or path == ":memory:":
+        return False
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+
+    import app.core.config as _cfg
+
+    data_dir = Path(_cfg.settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or candidate.name == "compare.db" or (
+        candidate.name.startswith("budget_") and candidate.suffix == ".db"
+    )
+
+
+def connect(path: Any = None, **kwargs):
     """Drop-in replacement for :func:`aiosqlite.connect`.
 
-    The *path* argument is ignored — all connections come from the
-    global MySQL pool.
+    Runtime database paths under ``settings.data_dir`` use the global MySQL
+    pool. Temporary fixtures and migration source files stay on real SQLite.
     """
-    return _ConnectContextManager()
+    if not _should_route_path_to_mysql(path):
+        return _SqliteConnectContextManager(path, **kwargs)
+    try:
+        return _ConnectContextManager()
+    except RuntimeError as exc:
+        if "DatabasePool not initialized" in str(exc):
+            return _SqliteConnectContextManager(path, **kwargs)
+        raise
 
 
 # ---------------------------------------------------------------------------

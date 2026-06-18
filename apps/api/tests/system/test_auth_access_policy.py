@@ -90,7 +90,7 @@ class AuthAccessPolicyTests(unittest.TestCase):
         self.assertEqual(denied.detail, "权限不足")
 
     def test_main_no_longer_keeps_auth_policy_helpers(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("def _role_name_from_permission", main_source)
         self.assertNotIn("def _permission_set", main_source)
@@ -157,7 +157,7 @@ class AuthAccessPolicyTests(unittest.TestCase):
         asyncio.run(run())
 
     def test_main_no_longer_keeps_auth_request_middleware_flow(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertIn("build_auth_request_middleware", main_source)
         self.assertNotIn('@app.middleware("http")', main_source)

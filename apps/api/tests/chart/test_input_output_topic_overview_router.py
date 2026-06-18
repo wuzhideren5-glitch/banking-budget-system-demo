@@ -10,6 +10,7 @@ from openpyxl import Workbook
 
 from app.routers import input_output_topic_overview as input_output_topic_overview_module
 from app.routers.business_cost_income_ratio import build_business_cost_income_ratio_router
+from app.services import input_output_topic_overview as input_output_topic_overview_service
 from app.services.input_output_topic_overview import (
     _org_product_refs_for_data_acct_code,
     build_input_output_topic_workbook,
@@ -175,6 +176,14 @@ class InputOutputTopicOverviewRouterTests(unittest.TestCase):
             ["A01:业务状况表:A0114010702 渠道费率"],
         )
         self.assertEqual(_org_product_refs_for_data_acct_code("", refs), [])
+
+    def test_topic_overview_service_uses_mysql_gateway_path(self) -> None:
+        source = Path(input_output_topic_overview_service.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+        self.assertIn("get_pool().fetch_all", source)
+        self.assertIn("WHERE budget_year = ?", source)
 
 
 if __name__ == "__main__":

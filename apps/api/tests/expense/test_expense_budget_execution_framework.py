@@ -5,10 +5,12 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openpyxl import Workbook
 
 from app.core.config import settings
+from app.services import expense_budget_execution_framework as framework_module
 from app.services.expense_budget_execution_framework import (
     ExpenseFrameworkError,
     FrameworkBudgetDepartmentRow,
@@ -46,6 +48,30 @@ def _framework_workbook_bytes() -> bytes:
     out = BytesIO()
     wb.save(out)
     return out.getvalue()
+
+
+class _FakeFrameworkMysqlPool:
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized_sql = " ".join(sql.lower().split())
+        if "from dept_account child" in normalized_sql:
+            return [
+                {
+                    "entity_name": "微众银行",
+                    "group_name": "个人金融事业群",
+                    "owner_name": "零售部",
+                }
+            ]
+        if "from budget_subject_catalog" in normalized_sql:
+            return [
+                {
+                    "level_number": 1,
+                    "subject_name": "业务费用",
+                    "manage_department": "零售部",
+                    "formula_text": "0",
+                    "sort_order": 1,
+                }
+            ]
+        raise AssertionError(f"Unexpected SQL: {sql}")
 
 
 class ExpenseBudgetExecutionFrameworkTests(unittest.IsolatedAsyncioTestCase):
@@ -182,6 +208,20 @@ class ExpenseBudgetExecutionFrameworkTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([subject.budget_subject for subject in parsed.subjects], ["业务费用"])
         self.assertEqual(ctx.owner_to_group["零售部"], "个人金融事业群")
 
+    async def test_load_framework_context_uses_mysql_pool_for_runtime_common_db(self) -> None:
+        db_path = Path(framework_module.settings.data_dir) / "common.db"
+        with (
+            patch.object(framework_module, "get_pool", return_value=_FakeFrameworkMysqlPool()),
+            patch.object(framework_module, "common_db_path", return_value=db_path),
+        ):
+            ctx, source_mode, source_desc, parsed = await load_framework_context()
+
+        self.assertEqual(source_mode, "master")
+        self.assertIn("系统主数据", source_desc)
+        self.assertEqual([row.owner_name for row in parsed.budget_departments], ["零售部"])
+        self.assertEqual([subject.budget_subject for subject in parsed.subjects], ["业务费用"])
+        self.assertEqual(ctx.owner_to_group["零售部"], "个人金融事业群")
+
     async def test_load_framework_context_does_not_fall_back_to_internal_snapshot(self) -> None:
         original_data_dir = settings.data_dir
         with tempfile.TemporaryDirectory() as tmp:
@@ -255,6 +295,10 @@ class ExpenseBudgetExecutionFrameworkTests(unittest.IsolatedAsyncioTestCase):
                     await load_framework_context()
             finally:
                 settings.data_dir = original_data_dir
+
+    async def test_framework_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(framework_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

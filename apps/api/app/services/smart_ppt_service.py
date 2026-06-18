@@ -8,13 +8,15 @@ import math
 import re
 import sqlite3
 import app.core.pymysql_compat  # noqa: F401 -- SQLite->MySQL compat
+import tempfile
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
+from app.core.database import get_pool
 from app.core.config import settings
 from app.core.db_paths import budget_db_path, common_db_path
 from app.schemas import (
@@ -53,6 +55,120 @@ _SUPPORTED_CHART_TYPES = SUPPORTED_NATIVE_CHART_TYPES
 
 
 # ─── 模块辅助函数 ───
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+class _CursorAdapter:
+    def __init__(self, rows: list[Any] | None = None, *, rowcount: int = 0, lastrowid: int | None = None):
+        self._rows = rows or []
+        self.rowcount = rowcount
+        self.lastrowid = lastrowid
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteConnection:
+    def __init__(self, path: Path):
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            if exc_type is not None:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        cur = self._conn.execute(sql, tuple(params))
+        return _CursorAdapter(
+            cur.fetchall() if cur.description else [],
+            rowcount=max(0, int(cur.rowcount or 0)),
+            lastrowid=cur.lastrowid,
+        )
+
+    async def commit(self) -> None:
+        assert self._conn is not None
+        self._conn.commit()
+
+
+class _MySQLConnection:
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+
+    async def __aenter__(self) -> "_MySQLConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None and self._conn is not None:
+            rollback = getattr(self._conn, "rollback", None)
+            if rollback is not None:
+                await rollback()
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        if sql.strip().lower().startswith("pragma foreign_keys"):
+            return _CursorAdapter([(1,)])
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), tuple(params))
+            rows = await cur.fetchall() if cur.description else []
+            return _CursorAdapter(
+                list(rows),
+                rowcount=max(0, int(cur.rowcount or 0)),
+                lastrowid=getattr(cur, "lastrowid", None),
+            )
+
+    async def commit(self) -> None:
+        if self._conn is not None:
+            await self._conn.commit()
+
+
+@asynccontextmanager
+async def _connect_db(path: Path):
+    if _uses_mysql_path(path):
+        async with _MySQLConnection() as db:
+            yield db
+    else:
+        async with _SQLiteConnection(path) as db:
+            yield db
 
 def _iso_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -145,7 +261,7 @@ class SmartPptService:
     # ── 场景管理 ──────────────────────────────────────────────
 
     async def list_scenes(self) -> list[SmartPptSceneRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """SELECT scene_id, scene_code, scene_name, scene_type,
                           description, slide_template_json, default_params_json,
@@ -173,7 +289,7 @@ class SmartPptService:
         ]
 
     async def get_scene(self, scene_id: int) -> SmartPptSceneRow:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute("SELECT * FROM smart_ppt_scene WHERE scene_id = ?", (scene_id,))
             row = await cur.fetchone()
         if not row:
@@ -193,7 +309,7 @@ class SmartPptService:
         )
 
     async def get_chart_config_by_code(self, config_code: str) -> SmartPptChartConfigRow | None:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """SELECT config_id, config_code, chart_type, metric_config_json,
                           visual_config_json, remark, created_at, updated_at
@@ -236,7 +352,7 @@ class SmartPptService:
         now = _iso_now()
         name = instance_name or f"{scene.scene_name} {now}"
 
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """INSERT INTO smart_ppt_instance (
                      scene_id, instance_name, parameter_values_json,
@@ -263,7 +379,7 @@ class SmartPptService:
             )
             self._compose_pptx(scene, payloads, output_path)
             finished = _iso_now()
-            async with aiosqlite.connect(common_db_path()) as db:
+            async with _connect_db(common_db_path()) as db:
                 await db.execute(
                     """UPDATE smart_ppt_instance
                        SET output_file_path = ?, generation_status = 'success',
@@ -274,7 +390,7 @@ class SmartPptService:
                 await db.commit()
         except Exception as exc:
             finished = _iso_now()
-            async with aiosqlite.connect(common_db_path()) as db:
+            async with _connect_db(common_db_path()) as db:
                 await db.execute(
                     """UPDATE smart_ppt_instance
                        SET generation_status = 'failed', error_message = ?, updated_at = ?
@@ -653,9 +769,9 @@ class SmartPptService:
     async def _sum_metric_value(self, metric_code: str, params: dict[str, Any], *, budget_actual: int) -> float:
         where, values = self._budget_summary_where(params, budget_actual=budget_actual, metric_code=metric_code)
         path = budget_db_path(_plain_year(params.get("year")))
-        if not path.exists():
+        if not _uses_mysql_path(path) and not path.exists():
             return 0.0
-        async with aiosqlite.connect(path) as db:
+        async with _connect_db(path) as db:
             cur = await db.execute(
                 f"SELECT COALESCE(SUM(value), 0) FROM budget_summary WHERE {' AND '.join(where)}",
                 values,
@@ -674,12 +790,12 @@ class SmartPptService:
     ) -> list[tuple[str, float]]:
         where, values = self._budget_summary_where(params, budget_actual=budget_actual, metric_code=metric_code)
         path = budget_db_path(_plain_year(params.get("year")))
-        if not path.exists():
+        if not _uses_mysql_path(path) and not path.exists():
             return []
 
         if group_by == "month":
             label_sql = "month"
-            order_sql = "ORDER BY CAST(SUBSTR(month, 2) AS INTEGER)"
+            order_sql = "ORDER BY CAST(SUBSTR(month, 2) AS UNSIGNED)"
         elif group_by == "product":
             label_sql = "COALESCE(NULLIF(product_code_name, ''), '未分产品')"
             order_sql = "ORDER BY total DESC, label"
@@ -687,7 +803,7 @@ class SmartPptService:
             label_sql = "COALESCE(NULLIF(dept_level1, ''), NULLIF(dept_level2, ''), NULLIF(dept_level3, ''), '未分部门')"
             order_sql = "ORDER BY total DESC, label"
 
-        async with aiosqlite.connect(path) as db:
+        async with _connect_db(path) as db:
             cur = await db.execute(
                 f"""
                 SELECT {label_sql} AS label, COALESCE(SUM(value), 0) AS total
@@ -726,7 +842,7 @@ class SmartPptService:
             right = end_month or 12
             if left > right:
                 left, right = right, left
-            where.append("CAST(SUBSTR(month, 2) AS INTEGER) BETWEEN ? AND ?")
+            where.append("CAST(SUBSTR(month, 2) AS UNSIGNED) BETWEEN ? AND ?")
             values.extend([left, right])
         elif month:
             where.append("month = ?")
@@ -932,7 +1048,7 @@ class SmartPptService:
     # ── 配置管理 ──────────────────────────────────────────────
 
     async def list_chart_configs(self) -> list[SmartPptChartConfigRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """SELECT config_id, config_code, chart_type, metric_config_json,
                           visual_config_json, remark, created_at, updated_at
@@ -957,7 +1073,7 @@ class SmartPptService:
     # ── 实例管理 ──────────────────────────────────────────────
 
     async def list_instances(self) -> list[SmartPptInstanceRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """SELECT i.instance_id, i.scene_id, s.scene_name, i.instance_name,
                           i.parameter_values_json, i.generation_status, i.output_file_path,
@@ -985,7 +1101,7 @@ class SmartPptService:
         ]
 
     async def instance_output_path(self, instance_id: int) -> Path:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute("SELECT output_file_path FROM smart_ppt_instance WHERE instance_id = ?", (instance_id,))
             row = await cur.fetchone()
         if not row or not row[0]:

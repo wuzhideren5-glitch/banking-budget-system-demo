@@ -4,8 +4,11 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.core.config import settings
+from app.services import business_cost_income_commands as business_cost_income_commands_module
+from app.services import business_cost_income_ratio as business_cost_income_ratio_module
 from app.services.business_cost_income_commands import (
     create_business_cost_income_indicator,
     create_business_cost_income_item,
@@ -24,6 +27,172 @@ from app.services.business_cost_income_ratio import (
 
 
 class BusinessCostIncomeRatioServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_report_uses_mysql_for_runtime_budget_path(self) -> None:
+        class FakePool:
+            def __init__(self) -> None:
+                self.fetch_all_calls: list[tuple[str, tuple[object, ...]]] = []
+
+            async def fetch_all(self, sql: str, params=()):
+                normalized = " ".join(sql.lower().split())
+                self.fetch_all_calls.append((" ".join(sql.split()), tuple(params)))
+                if "from business_cost_income_item" in normalized:
+                    return [
+                        {
+                            "id": 1,
+                            "product_code": "A01",
+                            "section": "input",
+                            "name": "投入合计",
+                            "parent_id": None,
+                            "display_group": 1,
+                            "data_acct_code": "",
+                            "org_product_ref": "",
+                            "org_product_entity_code": "",
+                            "org_product_table_name": "",
+                            "org_product_metric_code": "",
+                            "org_product_metric_name": "",
+                            "manual_entry_mode": "disabled",
+                            "value_mode": "tree",
+                            "sort_order": 1,
+                            "enabled": 1,
+                        },
+                        {
+                            "id": 2,
+                            "product_code": "A01",
+                            "section": "input",
+                            "name": "营销费用",
+                            "parent_id": 1,
+                            "display_group": 0,
+                            "data_acct_code": "",
+                            "org_product_ref": "",
+                            "org_product_entity_code": "",
+                            "org_product_table_name": "",
+                            "org_product_metric_code": "",
+                            "org_product_metric_name": "",
+                            "manual_entry_mode": "manual",
+                            "value_mode": "tree",
+                            "sort_order": 1,
+                            "enabled": 1,
+                        },
+                        {
+                            "id": 3,
+                            "product_code": "A01",
+                            "section": "output",
+                            "name": "收入合计",
+                            "parent_id": None,
+                            "display_group": 0,
+                            "data_acct_code": "",
+                            "org_product_ref": "",
+                            "org_product_entity_code": "",
+                            "org_product_table_name": "",
+                            "org_product_metric_code": "",
+                            "org_product_metric_name": "",
+                            "manual_entry_mode": "manual",
+                            "value_mode": "tree",
+                            "sort_order": 1,
+                            "enabled": 1,
+                        },
+                    ]
+                if "from business_cost_income_indicator" in normalized:
+                    return [
+                        {
+                            "id": 1,
+                            "product_code": "A01",
+                            "name": "投入产出比",
+                            "parent_id": None,
+                            "display_group": 0,
+                            "topic_metric_node_code": "A01:业务状况表:A0101",
+                            "numerator_section": "input",
+                            "numerator_item_id": 2,
+                            "numerator_value_mode": "tree",
+                            "denominator_section": "output",
+                            "denominator_item_id": 3,
+                            "denominator_value_mode": "tree",
+                            "format": "percent",
+                            "annualize": 0,
+                            "sort_order": 1,
+                            "enabled": 1,
+                        }
+                    ]
+                if "sum(value) as total" in normalized and "group by item_section, item_id, field" in normalized:
+                    return [
+                        {"item_section": "input", "item_id": 2, "field": "actual", "total": 150.0},
+                        {"item_section": "input", "item_id": 2, "field": "budget", "total": 1200.0},
+                        {"item_section": "input", "item_id": 2, "field": "forecast", "total": 1100.0},
+                        {"item_section": "output", "item_id": 3, "field": "actual", "total": 1500.0},
+                        {"item_section": "output", "item_id": 3, "field": "budget", "total": 12000.0},
+                        {"item_section": "output", "item_id": 3, "field": "forecast", "total": 11000.0},
+                    ]
+                if "sum(value) as total" in normalized and "group by item_section, item_id" in normalized:
+                    return [
+                        {"item_section": "input", "item_id": 2, "total": 120.0},
+                        {"item_section": "output", "item_id": 3, "total": 1200.0},
+                    ]
+                if "from business_cost_income_value" in normalized:
+                    return [
+                        {"item_section": "input", "item_id": 2, "field": "actual", "value": 50.0},
+                        {"item_section": "output", "item_id": 3, "field": "actual", "value": 500.0},
+                    ]
+                raise AssertionError(f"Unexpected fetch_all SQL: {sql}")
+
+        fake_pool = FakePool()
+        with patch.object(business_cost_income_ratio_module, "get_pool", return_value=fake_pool):
+            report = await build_business_cost_income_ratio_report(
+                entity_name="微众银行",
+                report_month="2026-02",
+                group_name=None,
+                product_code="A01",
+                amount_unit="yuan",
+            )
+
+        rows = {(row["section"], row["id"]): row for row in report["rows"]}
+        self.assertEqual(rows[("input", 1)]["metrics"]["current_actual"], 150.0)
+        self.assertEqual(rows[("indicator", 1)]["metrics"]["current_actual"], 10.0)
+        value_calls = [
+            (sql, params)
+            for sql, params in fake_pool.fetch_all_calls
+            if "FROM business_cost_income_value" in sql
+        ]
+        self.assertGreaterEqual(len(value_calls), 3)
+        for sql, params in value_calls:
+            self.assertIn("budget_year = %s", sql)
+            self.assertEqual(params[0], 2026)
+
+    def test_ratio_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(business_cost_income_ratio_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+
+    async def test_command_mysql_adapter_handles_sqlite_compatibility_sql(self) -> None:
+        source = Path(business_cost_income_commands_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+
+        conn = business_cost_income_commands_module._MySQLCommandConnection()
+        conn._conn = object()
+        pragma_cur = await conn.execute("PRAGMA foreign_keys = ON")
+        self.assertEqual(await pragma_cur.fetchone(), (1,))
+
+        translated = business_cost_income_commands_module._mysql_sql(
+            """
+            INSERT INTO business_cost_income_value (
+              budget_year, year, month, entity_name, group_name, product_code,
+              item_section, item_id, field, value, update_time
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (
+              budget_year, year, month,
+              entity_name, group_name, product_code,
+              item_section, item_id, field
+            ) DO UPDATE SET value = excluded.value, update_time = excluded.update_time
+            """
+        )
+        self.assertIn("ON DUPLICATE KEY UPDATE", translated)
+        self.assertIn("value = VALUES(value)", translated)
+        self.assertIn("update_time = VALUES(update_time)", translated)
+        self.assertNotIn("ON CONFLICT", translated)
+        self.assertNotIn("?", translated)
+
     async def test_report_rolls_up_tree_items_and_indicator_ratios(self) -> None:
         original_data_dir = settings.data_dir
         with tempfile.TemporaryDirectory() as tmp:

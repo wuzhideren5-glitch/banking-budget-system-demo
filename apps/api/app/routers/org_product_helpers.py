@@ -477,7 +477,7 @@ def _ensure_data_entry_snapshot_table(conn: sqlite3.Connection) -> None:
             month_index INTEGER,
             table_id TEXT,
             table_name TEXT,
-            payload_json TEXT NOT NULL,
+            payload_json LONGTEXT NOT NULL,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (entity_code, year)
         )
@@ -503,7 +503,7 @@ def _ensure_data_entry_snapshot_table_v2(conn: sqlite3.Connection) -> None:
             table_name TEXT NOT NULL,
             month_index INTEGER,
             table_id TEXT,
-            payload_json TEXT NOT NULL,
+            payload_json LONGTEXT NOT NULL,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (entity_code, year, version_id, table_name)
         )
@@ -527,7 +527,7 @@ def _ensure_data_entry_draft_table(conn: sqlite3.Connection) -> None:
             entity_name TEXT NOT NULL,
             year INTEGER NOT NULL,
             table_name TEXT NOT NULL,
-            payload_json TEXT NOT NULL,
+            payload_json LONGTEXT NOT NULL,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (user_id, entity_code, year, table_name)
         )
@@ -552,7 +552,7 @@ def _ensure_org_product_output_snapshot_table(conn: sqlite3.Connection) -> None:
             output_version_id INTEGER NOT NULL,
             output_version_name TEXT NOT NULL,
             table_name TEXT NOT NULL,
-            payload_json TEXT NOT NULL,
+            payload_json LONGTEXT NOT NULL,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (entity_code, year, input_version_id, output_version_id, table_name)
         )
@@ -1044,7 +1044,7 @@ def _ensure_org_product_tree_table(conn: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS org_product_tree_snapshot (
             id INTEGER PRIMARY KEY CHECK (id = 1),
-            payload_json TEXT NOT NULL,
+            payload_json LONGTEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
         """
@@ -3139,4 +3139,3 @@ def _flatten_org_product_tree(root: dict[str, Any]) -> list[dict[str, str]]:
 # names from star imports unless `__all__` is provided, so expose the shared
 # private helpers explicitly to keep the split router modules wired together.
 __all__ = [name for name in globals() if not name.startswith("__")]
-

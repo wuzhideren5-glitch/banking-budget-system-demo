@@ -1,13 +1,18 @@
 """Multidimensional chart data builder."""
 from __future__ import annotations
 
+import asyncio
+import sqlite3
+import tempfile
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.core.db_paths import common_db_path, compare_db_path
 from app.metric_tree_paths import load_metric_tree_with_data_accounts
 from app.schemas import (
@@ -20,7 +25,6 @@ from app.schemas import (
     ChartVersionItemDto,
     ChartVersionSelectionDto,
 )
-from app.services.pivot_aggregate import ensure_compare_pivot_aggregate_table
 
 
 ChartVersionOptionsProvider = Callable[[], Awaitable[list[ChartVersionItemDto]]]
@@ -50,6 +54,36 @@ def _period_labels(granularity: str) -> list[str]:
     if granularity == "quarter":
         return ["Q1", "Q2", "Q3", "Q4"]
     return [f"M{i:02d}" for i in range(1, 13)]
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or candidate.name == "compare.db" or (
+        candidate.name.startswith("budget_") and candidate.suffix == ".db"
+    )
 
 
 def _chart_version_key(option: ChartVersionItemDto) -> tuple[int, int, int]:
@@ -84,9 +118,7 @@ def _resolve_effective_chart_versions(
 
 
 async def load_metric_chart_context() -> MetricChartContext:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        roots = await load_metric_tree_with_data_accounts(db)
+    roots = await load_metric_tree_with_data_accounts()
 
     metric_name_map: dict[str, str] = {}
     children_map: dict[str, list[str]] = {}
@@ -137,38 +169,79 @@ async def load_compare_chart_aggregate_rows(
         return []
     clauses: list[str] = []
     values: list[Any] = [grain]
+    param_marker = "%s" if _uses_mysql_path(compare_db_path()) else "?"
     for option in effective_options:
-        clauses.append("(show_level = ? AND data_file_id = ? AND source_version_id = ?)")
+        clauses.append(
+            f"(show_level = {param_marker} AND data_file_id = {param_marker} "
+            f"AND source_version_id = {param_marker})"
+        )
         values.extend([int(option.show_level), int(option.data_file_id), int(option.version_id)])
-    async with aiosqlite.connect(compare_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await ensure_compare_pivot_aggregate_table(db)
-        cur_count = await db.execute(
-            "SELECT COUNT(*) FROM compare_pivot_aggregate WHERE grain = ?",
+    if _uses_mysql_path(compare_db_path()):
+        count_row = await get_pool().fetch_one(
+            "SELECT COUNT(*) AS cnt FROM compare_pivot_aggregate WHERE grain = %s",
             (grain,),
         )
-        count_row = await cur_count.fetchone()
-        if int(count_row[0] or 0) == 0:
+        if int(_row_value(count_row, "cnt", 0) or 0) == 0:
             raise HTTPException(
                 status_code=409,
                 detail="数据透视图聚合表为空，请先在“预算事实刷新跑批”执行跑批生成聚合表。",
             )
-        cur = await db.execute(
+        rows = await get_pool().fetch_all(
             f"""
             SELECT show_level, data_file_id, source_version_id, data_code_name, month, quarter, value
             FROM compare_pivot_aggregate
-            WHERE grain = ?
+            WHERE grain = %s
               AND ({" OR ".join(clauses)})
             """,
             tuple(values),
         )
-        rows = await cur.fetchall()
+    else:
+        rows = await asyncio.to_thread(
+            _sqlite_load_compare_chart_aggregate_rows,
+            compare_db_path(),
+            grain,
+            clauses,
+            values,
+        )
     if not rows:
         raise HTTPException(
             status_code=409,
             detail="所选展示版本没有对应的数据透视图聚合结果，请先在“预算事实刷新跑批”执行跑批。",
         )
     return rows
+
+
+def _sqlite_load_compare_chart_aggregate_rows(
+    db_path: Path,
+    grain: str,
+    clauses: list[str],
+    values: list[Any],
+) -> list[tuple[Any, ...]]:
+    try:
+        with sqlite3.connect(db_path) as conn:
+            count_row = conn.execute(
+                "SELECT COUNT(*) FROM compare_pivot_aggregate WHERE grain = ?",
+                (grain,),
+            ).fetchone()
+            if int(count_row[0] or 0) == 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="数据透视图聚合表为空，请先在“预算事实刷新跑批”执行跑批生成聚合表。",
+                )
+            return conn.execute(
+                f"""
+                SELECT show_level, data_file_id, source_version_id, data_code_name, month, quarter, value
+                FROM compare_pivot_aggregate
+                WHERE grain = ?
+                  AND ({" OR ".join(clauses)})
+                """,
+                tuple(values),
+            ).fetchall()
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="数据透视图聚合表为空，请先在“预算事实刷新跑批”执行跑批生成聚合表。",
+        ) from exc
 
 
 def _collect_metric_descendants(root_code: str, children_map: dict[str, list[str]]) -> set[str]:
@@ -260,23 +333,33 @@ def _fill_series_from_compare_aggregate(
         for idx, option in enumerate(effective_options)
     }
     for row in rows:
-        data_code = extract_runtime_metric_ref_code_from_name(str(row[3] or ""))
+        data_code = extract_runtime_metric_ref_code_from_name(
+            str(_row_value(row, "data_code_name", 3) or "")
+        )
         if not data_code:
             continue
         segment = code_to_segment.get(data_code)
         if not segment:
             continue
         if single_version:
-            period_key = str(row[5] if single_version_granularity == "quarter" else row[4])
+            period_key = str(
+                _row_value(row, "quarter", 5)
+                if single_version_granularity == "quarter"
+                else _row_value(row, "month", 4)
+            )
             c_idx = category_index_map.get(period_key)
             if c_idx is None:
                 continue
         else:
-            key = (int(row[0] or 0), int(row[1] or 0), int(row[2] or 0))
+            key = (
+                int(_row_value(row, "show_level", 0) or 0),
+                int(_row_value(row, "data_file_id", 1) or 0),
+                int(_row_value(row, "source_version_id", 2) or 0),
+            )
             c_idx = option_index_by_key.get(key)
             if c_idx is None:
                 continue
-        series_abs_map[segment][c_idx] += float(row[6] or 0.0)
+        series_abs_map[segment][c_idx] += float(_row_value(row, "value", 6) or 0.0)
 
 
 class ChartDataBuilder:

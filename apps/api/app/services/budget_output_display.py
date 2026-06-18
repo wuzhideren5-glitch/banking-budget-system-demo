@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
+import tempfile
+from collections.abc import Iterator, Mapping
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.db_bootstrap.budget_version import ensure_budget_version_schema
 from app.db_bootstrap.report_display import ensure_budget_output_display_item_schema
 from app.core.db_paths import common_db_path
@@ -24,9 +29,10 @@ from app.schemas import (
     BudgetOutputVersionMetricDto,
 )
 from app.services.runtime_metric_refs import (
+    derive_runtime_ref_from_org_product_metric_code,
     load_confirmed_org_product_runtime_ref_codes,
 )
-from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
+from app.services.org_product_runtime_catalog import org_product_runtime_products_cte_for_db
 
 
 MONTH_COUNT = 12
@@ -35,6 +41,187 @@ BUDGET_BASELINE_HINTS = ("全年预算", "年初预算", "董事会预算", "内
 
 
 # ─── 数据结构与辅助函数 ───
+
+def _uses_mysql_path(path: Path | str | None) -> bool:
+    if path is None:
+        return False
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+
+
+def _path_available(path: Path | None) -> bool:
+    return bool(path and (_uses_mysql_path(path) or path.exists()))
+
+
+def _mysql_sql(sql: str) -> str:
+    stripped = sql.strip()
+    lowered = stripped.lower()
+    if lowered.startswith("pragma foreign_keys"):
+        return "SET FOREIGN_KEY_CHECKS = 0" if "off" in lowered else "SET FOREIGN_KEY_CHECKS = 1"
+    translated = re.sub(r"\bINSERT\s+OR\s+IGNORE\b", "INSERT IGNORE", sql, flags=re.IGNORECASE)
+    translated = translated.replace(
+        "'org_product_runtime_ref:' || d.data_acct_code",
+        "CONCAT('org_product_runtime_ref:', d.data_acct_code)",
+    )
+    placeholder = "\u0000MYSQL_PARAM\u0000"
+    return translated.replace("?", placeholder).replace("%", "%%").replace(placeholder, "%s")
+
+
+class _Row(Mapping[str, Any]):
+    def __init__(self, keys: list[str], values: tuple[Any, ...]):
+        self._keys = keys
+        self._values = values
+        self._by_key = {key: values[idx] for idx, key in enumerate(keys)}
+
+    def __getitem__(self, key: str | int) -> Any:
+        if isinstance(key, int):
+            return self._values[key]
+        return self._by_key[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._keys)
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._by_key.get(key, default)
+
+
+class _CursorAdapter:
+    def __init__(self, rows: list[Any] | None = None, *, rowcount: int = 0, lastrowid: int | None = None):
+        self._rows = rows or []
+        self.rowcount = rowcount
+        self.lastrowid = lastrowid
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteConnection:
+    row_factory: Any = None
+
+    def __init__(self, path: Path):
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            if exc_type is not None:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        cur = self._conn.execute(sql, tuple(params))
+        return _CursorAdapter(
+            cur.fetchall() if cur.description else [],
+            rowcount=max(0, int(cur.rowcount or 0)),
+            lastrowid=cur.lastrowid,
+        )
+
+    async def commit(self) -> None:
+        assert self._conn is not None
+        self._conn.commit()
+
+
+class _MySQLConnection:
+    row_factory: Any = None
+
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+
+    async def __aenter__(self) -> "_MySQLConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None and self._conn is not None:
+            rollback = getattr(self._conn, "rollback", None)
+            if rollback is not None:
+                await rollback()
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        stripped = sql.strip()
+        lowered = stripped.lower()
+        if lowered.startswith("create table if not exists") or lowered.startswith("create index if not exists"):
+            return _CursorAdapter()
+        if lowered.startswith("pragma table_info"):
+            table_match = re.search(
+                r"pragma\s+table_info\s*\(\s*[\"`']?([A-Za-z_][A-Za-z0-9_]*)[\"`']?\s*\)",
+                stripped,
+                re.IGNORECASE,
+            )
+            table_name = table_match.group(1) if table_match else ""
+            async with self._conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT COLUMN_NAME, DATA_TYPE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
+                    ORDER BY ORDINAL_POSITION
+                    """,
+                    (table_name,),
+                )
+                rows = await cur.fetchall()
+            return _CursorAdapter([
+                _Row(["cid", "name", "type", "notnull", "dflt_value", "pk"], (idx, row[0], row[1], 0, None, 0))
+                for idx, row in enumerate(rows)
+            ])
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), tuple(params))
+            keys = [item[0] for item in cur.description] if cur.description else []
+            rows = [_Row(keys, tuple(row)) for row in await cur.fetchall()] if cur.description else []
+            return _CursorAdapter(
+                rows,
+                rowcount=max(0, int(cur.rowcount or 0)),
+                lastrowid=getattr(cur, "lastrowid", None),
+            )
+
+    async def commit(self) -> None:
+        if self._conn is not None:
+            await self._conn.commit()
+
+
+@asynccontextmanager
+async def _connect_db(path: Path):
+    if _uses_mysql_path(path):
+        async with _MySQLConnection() as db:
+            yield db
+    else:
+        async with _SQLiteConnection(path) as db:
+            yield db
 
 @dataclass
 class DisplayVersionSpec:
@@ -178,12 +365,12 @@ def _build_metric_report_tree(rows: list[tuple[str, str, str | None, int, str, i
 
 # ─── 配置读取与候选 ───
 
-async def _fetch_display_config_items(db: aiosqlite.Connection, *, active_only: bool = True) -> list[dict[str, Any]]:
+async def _fetch_display_config_items(db: Any, *, active_only: bool = True) -> list[dict[str, Any]]:
     await ensure_budget_output_display_item_schema(db)
     where = "WHERE i.is_active = 1" if active_only else ""
     cur = await db.execute(
         f"""
-        {org_product_runtime_products_cte()}
+        {org_product_runtime_products_cte_for_db(db)}
         SELECT i.row_key, i.display_view, i.parent_row_key,
                i.data_acct_code, i.org_product_ref, i.org_product_entity_code,
                i.org_product_table_name, i.org_product_metric_code, i.org_product_metric_name,
@@ -213,7 +400,7 @@ async def _fetch_display_config_items(db: aiosqlite.Connection, *, active_only: 
     return [dict(row) for row in await cur.fetchall()]
 
 
-async def _fetch_display_config_candidates(db: aiosqlite.Connection) -> list[dict[str, Any]]:
+async def _fetch_display_config_candidates(db: Any) -> list[dict[str, Any]]:
     await ensure_budget_output_display_item_schema(db)
     confirmed_codes = sorted(await load_confirmed_org_product_runtime_ref_codes(db))
     placeholders = ",".join("?" for _ in confirmed_codes)
@@ -222,7 +409,7 @@ async def _fetch_display_config_candidates(db: aiosqlite.Connection) -> list[dic
     else:
         cur = await db.execute(
             f"""
-            {org_product_runtime_products_cte()}
+            {org_product_runtime_products_cte_for_db(db)}
             SELECT 'org_product_runtime_ref:' || d.data_acct_code AS candidate_key,
                    d.data_acct_code, d.data_acct_name, d.value_type,
                    b.metric_node_code, b.scope_type, b.scope_code,
@@ -281,18 +468,21 @@ def _is_org_product_fee05_metric_code(entity_code: str, raw_code: Any) -> bool:
     return len(remainder) >= 2 and remainder[:2] == "05"
 
 
-async def _load_org_product_metric_payloads(db: aiosqlite.Connection) -> list[dict[str, Any]]:
-    cur = await db.execute(
-        """
-        SELECT node_code, node_name, product_code, metric_table_name
-        FROM data_account_metric_node
-        WHERE is_active = 1
-          AND runtime_account_enabled = 1
-          AND COALESCE(product_code, '') <> ''
-          AND COALESCE(metric_table_name, '') <> ''
-        ORDER BY product_code, metric_table_name, node_code
-        """
-    )
+async def _load_org_product_metric_payloads(db: Any) -> list[dict[str, Any]]:
+    try:
+        cur = await db.execute(
+            """
+            SELECT node_code, node_name, product_code, metric_table_name
+            FROM data_account_metric_node
+            WHERE is_active = 1
+              AND runtime_account_enabled = 1
+              AND COALESCE(product_code, '') <> ''
+              AND COALESCE(metric_table_name, '') <> ''
+            ORDER BY product_code, metric_table_name, node_code
+            """
+        )
+    except Exception:
+        return await _load_org_product_metric_payloads_from_physical_table(db)
     records = await cur.fetchall()
     rows: list[dict[str, Any]] = []
     for record in records:
@@ -307,6 +497,60 @@ async def _load_org_product_metric_payloads(db: aiosqlite.Connection) -> list[di
                 "metric_name": str(record["node_name"] or "").strip(),
                 "metric_node_code": metric_code,
                 "data_acct_code": metric_code,
+            }
+        )
+    rows.sort(key=lambda row: (str(row.get("entity_code") or ""), str(row.get("data_acct_code") or "")))
+    return rows
+
+
+async def _load_org_product_metric_payloads_from_physical_table(
+    db: Any,
+) -> list[dict[str, Any]]:
+    try:
+        cur = await db.execute(
+            """
+            SELECT entity_code, table_name, payload_json
+            FROM org_product_metric_table
+            """
+        )
+    except Exception:
+        return []
+
+    rows: list[dict[str, Any]] = []
+    stack: list[tuple[str, str, dict[str, Any]]] = []
+    for record in await cur.fetchall():
+        entity_code = str(record["entity_code"] or "").strip().upper()
+        table_name = str(record["table_name"] or "").strip()
+        try:
+            payload = json.loads(str(record["payload_json"] or "{}"))
+        except Exception:
+            continue
+        metrics = payload.get("metrics")
+        if isinstance(metrics, list):
+            stack.extend((entity_code, table_name, metric) for metric in metrics if isinstance(metric, dict))
+
+    while stack:
+        entity_code, table_name, metric = stack.pop()
+        children = metric.get("children")
+        if isinstance(children, list):
+            stack.extend((entity_code, table_name, child) for child in children if isinstance(child, dict))
+        if str(metric.get("mapping_status") or "").strip().upper() == "ORG_PRODUCT_ONLY_OR_CREATE_LATER":
+            continue
+        metric_code = str(metric.get("code") or "").strip().upper()
+        data_acct_code = derive_runtime_ref_from_org_product_metric_code(
+            entity_code=entity_code,
+            metric_code=metric_code,
+        )
+        if not metric_code or not data_acct_code:
+            continue
+        rows.append(
+            {
+                "entity_code": entity_code,
+                "table_name": table_name,
+                "metric_code": metric_code,
+                "metric_name": str(metric.get("name") or "").strip(),
+                "metric_node_code": data_acct_code,
+                "data_acct_code": data_acct_code,
             }
         )
     return rows
@@ -349,6 +593,7 @@ def _org_product_display_candidates(
                 "selected": source_ref in selected_org_product_refs,
             }
         )
+    candidates.sort(key=lambda row: (str(row.get("entity_code") or ""), str(row.get("data_acct_code") or "")))
     return candidates
 
 
@@ -487,7 +732,7 @@ def _default_product_codes(product_nodes: dict[str, BudgetOutputProductNodeDto])
 # ─── 报表构建与版本管理 ───
 
 async def _fetch_version_info(budget_path: Path, version_id: int) -> tuple[str, int]:
-    async with aiosqlite.connect(budget_path) as db:
+    async with _connect_db(budget_path) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             "SELECT version_name, current_month FROM version WHERE version_id = ?",
@@ -500,12 +745,12 @@ async def _fetch_version_info(budget_path: Path, version_id: int) -> tuple[str, 
 
 
 async def _fetch_budget_database_rows() -> list[dict[str, Any]]:
-    async with aiosqlite.connect(common_db_path()) as db:
+    async with _connect_db(common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
             SELECT id, data_file_name, year
-            FROM databases
+            FROM `databases`
             ORDER BY year DESC, id ASC
             """
         )
@@ -530,16 +775,16 @@ def _choose_database_for_year(
         return None
     exact_name = f"budget_{year}.db"
     exact = next((row for row in candidates if str(row["data_file_name"]) == exact_name), None)
-    if exact and (data_dir / str(exact["data_file_name"])).exists():
+    if exact and _path_available(data_dir / str(exact["data_file_name"])):
         return exact
-    existing = next((row for row in candidates if (data_dir / str(row["data_file_name"])).exists()), None)
+    existing = next((row for row in candidates if _path_available(data_dir / str(row["data_file_name"]))), None)
     return existing or candidates[0]
 
 
 async def _fetch_versions_for_budget_file(budget_path: Path) -> list[dict[str, Any]]:
-    if not budget_path.exists():
+    if not _path_available(budget_path):
         return []
-    async with aiosqlite.connect(budget_path) as db:
+    async with _connect_db(budget_path) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_version_schema(db)
         cur = await db.execute(
@@ -728,7 +973,7 @@ async def _build_display_version_specs(
             current_month=13,
         )
         versions.append(dto)
-        specs[dto.key] = DisplayVersionSpec(dto=dto, db_path=db_path if db_path and db_path.exists() else None, version_id=version_id if chosen else None, mode="actual")
+        specs[dto.key] = DisplayVersionSpec(dto=dto, db_path=db_path if _path_available(db_path) else None, version_id=version_id if chosen else None, mode="actual")
 
     selected_database = _choose_database_for_year(database_rows, selected_year, data_dir)
     selected_db_path = data_dir / str(selected_database["data_file_name"]) if selected_database else None
@@ -758,7 +1003,7 @@ async def _build_display_version_specs(
             current_month=int(raw["current_month"]),
         )
         versions.append(dto)
-        specs[dto.key] = DisplayVersionSpec(dto=dto, db_path=selected_db_path if selected_db_path and selected_db_path.exists() else None, version_id=selected_budget_version_id, mode="budget")
+        specs[dto.key] = DisplayVersionSpec(dto=dto, db_path=selected_db_path if _path_available(selected_db_path) else None, version_id=selected_budget_version_id, mode="budget")
 
     for version_id in selected_forecast_version_ids:
         raw = versions_by_id.get(version_id)
@@ -773,19 +1018,19 @@ async def _build_display_version_specs(
             current_month=int(raw["current_month"]),
         )
         versions.append(dto)
-        specs[dto.key] = DisplayVersionSpec(dto=dto, db_path=selected_db_path if selected_db_path and selected_db_path.exists() else None, version_id=version_id, mode="forecast")
+        specs[dto.key] = DisplayVersionSpec(dto=dto, db_path=selected_db_path if _path_available(selected_db_path) else None, version_id=version_id, mode="forecast")
 
     return versions, specs, selected_budget_version_id, selected_forecast_version_ids
 
 
 async def _fetch_show_version_configs() -> list[dict[str, Any]]:
-    async with aiosqlite.connect(common_db_path()) as db:
+    async with _connect_db(common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """
             SELECT e.edit_show_sign, d.id, d.data_file_name, d.year, e.version_id
             FROM edit_show_version e
-            JOIN databases d ON d.id = e.data_file_id
+            JOIN `databases` d ON d.id = e.data_file_id
             WHERE e.edit_show_sign BETWEEN 1 AND 5
             ORDER BY e.edit_show_sign
             """
@@ -908,11 +1153,6 @@ async def _build_configured_display_report(
         return source_scope_code == target_scope_code and row_product_code == target_scope_code
 
     if query_data_codes:
-        import sys
-        print(f'[BUDGET_DISPLAY] query_codes={len(query_data_codes)} versions={list(version_specs.keys())} '
-              f'overview_scopes={len(overview_scope_codes)} detail_scopes={len(detail_scope_codes)} '
-              f'first_query={query_data_codes[0] if query_data_codes else "NONE"}',
-              file=sys.stderr, flush=True)
         placeholders = ",".join("?" for _ in query_data_codes)
         for version_key, spec in version_specs.items():
             if not spec.db_path or not spec.version_id:
@@ -923,8 +1163,7 @@ async def _build_configured_display_report(
                 where += " AND budget_actual = 1"
             elif spec.mode == "budget":
                 where += " AND budget_actual = 0"
-            async with aiosqlite.connect(spec.db_path) as bdb:
-                bdb.row_factory = aiosqlite.Row
+            async with _connect_db(spec.db_path) as bdb:
                 await bdb.execute("PRAGMA foreign_keys = ON")
                 cur = await bdb.execute(
                     f"""
@@ -987,12 +1226,6 @@ async def _build_configured_display_report(
                                     value=value,
                                     current_month=current_month,
                                 )
-                import sys
-                print(f'[DEBUG] {version_key}: ft={rows_fetched} mt={rows_matched} bh={rows_binding_hit}', file=sys.stderr, flush=True)
-
-    import sys
-    print(f'[DEBUG] total_v={len(total_values)} ov_v={len(overview_values)} det_v={len(detail_values)}', file=sys.stderr, flush=True)
-
     items_by_key = {str(item["row_key"]): item for item in config_items}
     children_by_parent: dict[str | None, list[dict[str, Any]]] = defaultdict(list)
     for item in config_items:
@@ -1096,12 +1329,11 @@ async def _build_configured_display_report(
         for code in missing:
             dependency_meta_by_code[code] = None
         placeholders = ",".join("?" for _ in missing)
-        async with aiosqlite.connect(common_db_path()) as db:
-            db.row_factory = aiosqlite.Row
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 f"""
-                {org_product_runtime_products_cte()}
+                {org_product_runtime_products_cte_for_db(db)}
                 SELECT d.data_acct_code, d.data_acct_name, d.value_type,
                        d.budget_formula, d.actual_formula, d.formula_calc_mode, d.allow_manual_entry,
                        b.metric_node_code, b.scope_type, b.scope_code,
@@ -1165,8 +1397,7 @@ async def _build_configured_display_report(
                 where += " AND budget_actual = 1"
             elif spec.mode == "budget":
                 where += " AND budget_actual = 0"
-            async with aiosqlite.connect(spec.db_path) as bdb:
-                bdb.row_factory = aiosqlite.Row
+            async with _connect_db(spec.db_path) as bdb:
                 await bdb.execute("PRAGMA foreign_keys = ON")
                 cur = await bdb.execute(
                     f"""
@@ -1334,12 +1565,11 @@ async def _build_metric_display_report(
         forecast_version_ids=forecast_version_ids,
     )
 
-    async with aiosqlite.connect(common_db_path()) as cdb:
-        cdb.row_factory = aiosqlite.Row
+    async with _connect_db(common_db_path()) as cdb:
         await cdb.execute("PRAGMA foreign_keys = ON")
         cur = await cdb.execute(
             f"""
-            {org_product_runtime_products_cte()}
+            {org_product_runtime_products_cte_for_db(cdb)}
             SELECT product_code, product_name, parent_code, level
             FROM org_product_runtime_products
             WHERE product_code <> '' AND product_name <> ''
@@ -1371,14 +1601,14 @@ async def _build_metric_display_report(
 
 
 async def fetch_budget_display_config_items(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     active_only: bool = True,
 ) -> list[dict[str, Any]]:
     return await _fetch_display_config_items(db, active_only=active_only)
 
 
-async def fetch_budget_display_config_candidates(db: aiosqlite.Connection) -> list[dict[str, Any]]:
+async def fetch_budget_display_config_candidates(db: Any) -> list[dict[str, Any]]:
     return await _fetch_display_config_candidates(db)
 
 

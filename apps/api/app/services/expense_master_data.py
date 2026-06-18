@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
-async def _table_exists(db: aiosqlite.Connection, table_name: str) -> bool:
+
+async def _table_exists(db: Any, table_name: str) -> bool:
     cur = await db.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
         (table_name,),
@@ -13,18 +13,16 @@ async def _table_exists(db: aiosqlite.Connection, table_name: str) -> bool:
 
 
 async def _execute_change_count(
-    db: aiosqlite.Connection,
+    db: Any,
     sql: str,
     params: tuple[Any, ...],
 ) -> int:
-    await db.execute(sql, params)
-    cur = await db.execute("SELECT changes()")
-    row = await cur.fetchone()
-    return int(row[0] or 0) if row else 0
+    cur = await db.execute(sql, params)
+    return max(0, int(getattr(cur, "rowcount", 0) or 0))
 
 
 async def sync_expense_dept_name_refs(
-    db: aiosqlite.Connection,
+    db: Any,
     *,
     dept_level: int,
     old_name: str,

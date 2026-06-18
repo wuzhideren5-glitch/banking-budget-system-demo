@@ -1,30 +1,30 @@
-"""Canonical metric tree under *.90 业务及管理费 (2026-06 restructure)."""
+"""Canonical metric tree under *.05.01 直接费用."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-# Roots that carry 业务及管理费 under each product prefix.
+# Roots that carry direct/indirect business admin expense under each product prefix.
 BUSINESS_ADMIN_EXPENSE_ROOTS: tuple[str, ...] = (
-    "A.90",
-    "A01.90",
-    "A02.90",
-    "A03.90",
-    "A04.90",
-    "A05.90",
-    "B.90",
-    "B01.90",
-    "B02.90",
-    "C.90",
-    "C01.90",
-    "C02.90",
-    "AA.90",
-    "D.90",
-    "D01.90",
-    "E.90",
-    "E01.90",
-    "F.90",
-    "F01.90",
+    "A.05.01",
+    "A01.05.01",
+    "A02.05.01",
+    "A03.05.01",
+    "A04.05.01",
+    "A05.05.01",
+    "B.05.01",
+    "B01.05.01",
+    "B02.05.01",
+    "C.05.01",
+    "C01.05.01",
+    "C02.05.01",
+    "AA.05.01",
+    "D.05.01",
+    "D01.05.01",
+    "E.05.01",
+    "E01.05.01",
+    "F.05.01",
+    "F01.05.01",
 )
 
 # Shared category subtree under 直接费用(01) / 间接费用(02).
@@ -42,7 +42,8 @@ _EXPENSE_CATEGORY_SUFFIX_ROWS: tuple[tuple[str, str, str, int, str], ...] = (
     ("03.01", "IT人力", "GROUP", 10, "03"),
     ("03.01.001", "IT常规人力", "METRIC", 10, "03.01"),
     ("03.01.002", "IT特别人力", "METRIC", 20, "03.01"),
-    ("03.02", "科技", "METRIC", 30, "03"),
+    ("03.02", "科技", "GROUP", 30, "03"),
+    ("03.02.001", "科技", "METRIC", 10, "03.02"),
     ("03.03", "IT职场", "METRIC", 40, "03"),
     ("03.04", "IT日常", "METRIC", 50, "03"),
     # ---- 职场 ----
@@ -115,19 +116,19 @@ def build_business_admin_expense_nodes(root: str) -> list[MetricTreeNodeSpec]:
     nodes: list[MetricTreeNodeSpec] = [
         MetricTreeNodeSpec(
             node_code=root,
-            node_name="业务及管理费",
+            node_name="直接费用",
             parent_code=product_code,
             product_code=product_code,
-            local_metric_code="90",
+            local_metric_code="05.01",
             level=root.count(".") + 1,
             node_type="GROUP",
-            sort_order=9000,
+            sort_order=5010,
         )
     ]
     for suffix, name, node_type, sort_order, parent_suffix in _BUSINESS_ADMIN_EXPENSE_SUFFIX_ROWS:
         node_code = _node_code_for_root(root, suffix)
         parent_code = _parent_code_for_root(root, parent_suffix)
-        local_metric_code = f"90.{suffix}" if suffix else "90"
+        local_metric_code = f"05.01.{suffix}" if suffix else "05.01"
         nodes.append(
             MetricTreeNodeSpec(
                 node_code=node_code,
@@ -167,17 +168,13 @@ def is_under_business_admin_expense_root(code: str) -> bool:
 
 
 def is_legacy_expense_hr_or_non_hr_branch(code: str) -> bool:
-    """True for *.90.02 / *.91 expense branches (not *.90.01.02 indirect subtree)."""
+    """True for legacy HR/non-HR expense branches under *.05.02."""
     normalized = str(code or "").strip().upper()
     if not normalized:
         return False
     parts = normalized.split(".")
     for idx, part in enumerate(parts):
-        if part not in ("90", "91") or idx + 1 >= len(parts):
-            continue
-        if part == "91":
-            return True
-        if part == "90" and parts[idx + 1] == "02":
+        if part == "05" and idx + 1 < len(parts) and parts[idx + 1] in {"02", "03"}:
             return True
     return False
 

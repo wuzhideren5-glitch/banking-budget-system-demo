@@ -3,15 +3,18 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, is_dataclass, replace
 import json
 from pathlib import Path
+import sqlite3
+import tempfile
 from typing import Any, Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
 from app.budget_data_writer import (
     BudgetDataWriteItem,
     FORMULA_RESULT_POLICY,
     write_budget_data_items,
 )
 from app.runtime_metric_identity import product_code_from_runtime_metric_ref
+from app.core.config import settings
+from app.core.database import get_pool
 from app.core.db_paths import common_db_path
 from app.formula_refs import extract_formula_codes
 from app.services.runtime_metric_rollup_formulas import sync_runtime_metric_rollup_formulas
@@ -113,6 +116,56 @@ class BudgetActualBatchProductNotFound(Exception):
         super().__init__(f"机构及产品不存在：{self.product_code}")
 
 
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    keys = getattr(row, "keys", None)
+    if callable(keys) and key in keys():
+        return row[key]
+    return row[index]
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or candidate.name == "compare.db" or (
+        candidate.name.startswith("budget_") and candidate.suffix == ".db"
+    )
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+async def _fetch_all_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_all(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchall()
+
+
+async def _fetch_one_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> Any:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_one(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchone()
+
+
 def metric_rollup_audit_items(raw_result: Any) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for item in getattr(raw_result, "audit_items", []) or []:
@@ -124,22 +177,18 @@ def metric_rollup_audit_items(raw_result: Any) -> list[dict[str, Any]]:
 
 
 async def ensure_budget_actual_batch_version_exists(budget_path: Path, version_id: int) -> None:
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute("SELECT 1 FROM version WHERE version_id = ?", (int(version_id),))
-        if not await cur.fetchone():
-            raise BudgetActualBatchVersionNotFound(version_id)
+    row = await _fetch_one_for_path(budget_path, "SELECT 1 FROM version WHERE version_id = ?", (int(version_id),))
+    if not row:
+        raise BudgetActualBatchVersionNotFound(version_id)
 
 
 async def period_count_for_budget_year(budget_year: int, *, common_path: Path | None = None) -> int:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            "SELECT COUNT(*) FROM period WHERE year = ?",
-            (f"Y{int(budget_year)}",),
-        )
-        row = await cur.fetchone()
-    return int(row[0] or 0) if row else 0
+    row = await _fetch_one_for_path(
+        common_path or common_db_path(),
+        "SELECT COUNT(*) AS period_count FROM period WHERE year = ?",
+        (f"Y{int(budget_year)}",),
+    )
+    return int(_row_value(row, "period_count", 0) or 0) if row else 0
 
 
 async def list_budget_actual_batch_history(
@@ -147,22 +196,25 @@ async def list_budget_actual_batch_history(
     common_path: Path | None = None,
     limit: int = 30,
 ) -> list[BudgetActualBatchHistoryEntry]:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            """
-            SELECT log_id, user_id, affected_rows, after_data, create_time
-            FROM operation_log
-            WHERE action_type = 'BATCH_RUN'
-              AND action_desc IN (?, ?)
-            ORDER BY log_id DESC
-            LIMIT ?
-            """,
-            (BUDGET_FACT_REFRESH_ACTION_DESC, LEGACY_BUDGET_ACTUAL_BATCH_ACTION_DESC, int(limit)),
-        )
-        rows = await cur.fetchall()
+    rows = await _fetch_all_for_path(
+        common_path or common_db_path(),
+        """
+        SELECT log_id, user_id, affected_rows, after_data, create_time
+        FROM operation_log
+        WHERE action_type = 'BATCH_RUN'
+          AND action_desc IN (?, ?)
+        ORDER BY log_id DESC
+        LIMIT ?
+        """,
+        (BUDGET_FACT_REFRESH_ACTION_DESC, LEGACY_BUDGET_ACTUAL_BATCH_ACTION_DESC, int(limit)),
+    )
     result: list[BudgetActualBatchHistoryEntry] = []
-    for log_id, user_id, affected_rows, after_data_raw, create_time in rows:
+    for row in rows:
+        log_id = _row_value(row, "log_id", 0)
+        user_id = _row_value(row, "user_id", 1)
+        affected_rows = _row_value(row, "affected_rows", 2)
+        after_data_raw = _row_value(row, "after_data", 3)
+        create_time = _row_value(row, "create_time", 4)
         payload: dict[str, Any] = {}
         if after_data_raw:
             try:
@@ -207,21 +259,23 @@ async def list_budget_actual_batch_history(
 async def load_budget_actual_batch_product_graph(
     *, common_path: Path | None = None
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            f"""
-            {org_product_runtime_products_cte()}
-            SELECT product_code, product_name, parent_code
-            FROM org_product_runtime_products
-            WHERE product_code <> '' AND product_name <> ''
-            ORDER BY product_code
-            """
-        )
-        rows = await cur.fetchall()
+    db_path = common_path or common_db_path()
+    rows = await _fetch_all_for_path(
+        db_path,
+        f"""
+        {org_product_runtime_products_cte(dialect='mysql' if _uses_mysql_path(db_path) else 'sqlite')}
+        SELECT product_code, product_name, parent_code
+        FROM org_product_runtime_products
+        WHERE product_code <> '' AND product_name <> ''
+        ORDER BY product_code
+        """,
+    )
     product_name_map: dict[str, str] = {}
     children_by_parent: dict[str, list[str]] = {}
-    for code_raw, name_raw, parent_raw in rows:
+    for row in rows:
+        code_raw = _row_value(row, "product_code", 0)
+        name_raw = _row_value(row, "product_name", 1)
+        parent_raw = _row_value(row, "parent_code", 2)
         code = str(code_raw or "").strip().upper()
         if not code:
             continue
@@ -273,29 +327,24 @@ async def manual_override_count_for_budget_actual_batch(
     product_placeholders = ",".join(["?"] * len(product_codes))
     data_placeholders = ",".join(["?"] * len(data_acct_codes))
     actual_placeholders = ",".join(["?"] * len(budget_actuals))
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            f"""
-            SELECT COUNT(*)
-            FROM budget_data
-            WHERE version_id = ?
-              AND product_code IN ({product_placeholders})
-              AND data_acct_code IN ({data_placeholders})
-              AND budget_actual IN ({actual_placeholders})
-              AND manual_value IS NOT NULL
-            """,
-            (int(version_id), *product_codes, *data_acct_codes, *budget_actuals),
-        )
-        row = await cur.fetchone()
-    return int(row[0] or 0) if row else 0
+    row = await _fetch_one_for_path(
+        budget_path,
+        f"""
+        SELECT COUNT(*) AS manual_override_count
+        FROM budget_data
+        WHERE version_id = ?
+          AND product_code IN ({product_placeholders})
+          AND data_acct_code IN ({data_placeholders})
+          AND budget_actual IN ({actual_placeholders})
+          AND manual_value IS NOT NULL
+        """,
+        (int(version_id), *product_codes, *data_acct_codes, *budget_actuals),
+    )
+    return int(_row_value(row, "manual_override_count", 0) or 0) if row else 0
 
 
 async def sync_budget_actual_batch_rollup_accounts(*, common_path: Path | None = None) -> None:
-    async with aiosqlite.connect(common_path or common_db_path()) as cdb:
-        await cdb.execute("PRAGMA foreign_keys = ON")
-        await sync_runtime_metric_rollup_formulas(cdb)
-        await cdb.commit()
+    await sync_runtime_metric_rollup_formulas(None)
 
 
 def order_budget_actual_batch_formula_rows_by_dependency(
@@ -341,26 +390,24 @@ async def formula_rows_for_budget_actual_batch_product(
     path = common_path if common_path is not None else common_db_path()
     pc = product_code.strip().upper()
     formula_col = "budget_formula" if int(budget_actual) == 0 else "actual_formula"
-    async with aiosqlite.connect(path) as cdb:
-        await cdb.execute("PRAGMA foreign_keys = ON")
-        cur = await cdb.execute(
-            f"""
-            SELECT d.data_acct_code, d.{formula_col}, MIN(b.sort_order) AS binding_sort_order
-            FROM data_account_metric_binding b
-            JOIN data_account d ON d.data_acct_code = b.data_acct_code
-            WHERE b.is_active = 1
-              AND UPPER(b.scope_code) = ?
-              AND COALESCE(TRIM(d.{formula_col}), '') <> ''
-            GROUP BY d.data_acct_code, d.{formula_col}
-            ORDER BY binding_sort_order, d.data_acct_code
-            """,
-            (pc,),
-        )
-        rows = await cur.fetchall()
+    rows = await _fetch_all_for_path(
+        path,
+        f"""
+        SELECT d.data_acct_code, d.{formula_col}, MIN(b.sort_order) AS binding_sort_order
+        FROM data_account_metric_binding b
+        JOIN data_account d ON d.data_acct_code = b.data_acct_code
+        WHERE b.is_active = 1
+          AND UPPER(b.scope_code) = ?
+          AND COALESCE(TRIM(d.{formula_col}), '') <> ''
+        GROUP BY d.data_acct_code, d.{formula_col}
+        ORDER BY binding_sort_order, d.data_acct_code
+        """,
+        (pc,),
+    )
     formula_rows = [
-        (str(r[0]).strip().upper(), formula)
-        for r in rows
-        if (formula := normalize_formula(r[1]))
+        (str(_row_value(row, "data_acct_code", 0)).strip().upper(), formula)
+        for row in rows
+        if (formula := normalize_formula(_row_value(row, formula_col, 1)))
     ]
     return order_budget_actual_batch_formula_rows_by_dependency(formula_rows)
 
@@ -371,18 +418,17 @@ async def period_ids_for_budget_actual_batch_year(
     common_path: Path | None = None,
 ) -> list[int]:
     year_label = f"Y{int(budget_year)}"
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        cur = await db.execute(
-            """
-            SELECT period_id
-            FROM period
-            WHERE year = ?
-            ORDER BY period_id
-            """,
-            (year_label,),
-        )
-        rows = await cur.fetchall()
-    return [int(r[0]) for r in rows]
+    rows = await _fetch_all_for_path(
+        common_path or common_db_path(),
+        """
+        SELECT period_id
+        FROM period
+        WHERE year = ?
+        ORDER BY period_id
+        """,
+        (year_label,),
+    )
+    return [int(_row_value(row, "period_id", 0)) for row in rows]
 
 
 async def recalculate_budget_actual_batch_formula_account(
@@ -413,48 +459,51 @@ async def recalculate_budget_actual_batch_formula_account(
         if (product := product_code_from_runtime_metric_ref(code))
     }
     write_items: list[BudgetDataWriteItem] = []
-    async with aiosqlite.connect(budget_path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-
-        if ref_codes and ref_product_by_code:
-            period_placeholders = ",".join(["?"] * len(period_ids))
-            code_placeholders = ",".join(["?"] * len(ref_codes))
-            product_placeholders = ",".join(["?"] * len(set(ref_product_by_code.values())))
-            cur = await db.execute(
-                f"""
-                SELECT data_acct_code, period_id, value
-                FROM budget_data
-                WHERE version_id = ?
-                  AND budget_actual = ?
-                  AND product_code IN ({product_placeholders})
-                  AND period_id IN ({period_placeholders})
-                  AND data_acct_code IN ({code_placeholders})
-                """,
+    if ref_codes and ref_product_by_code:
+        period_placeholders = ",".join(["?"] * len(period_ids))
+        code_placeholders = ",".join(["?"] * len(ref_codes))
+        product_placeholders = ",".join(["?"] * len(set(ref_product_by_code.values())))
+        rows = await _fetch_all_for_path(
+            budget_path,
+            f"""
+            SELECT data_acct_code, period_id, value
+            FROM budget_data
+            WHERE version_id = ?
+              AND budget_actual = ?
+              AND product_code IN ({product_placeholders})
+              AND period_id IN ({period_placeholders})
+              AND data_acct_code IN ({code_placeholders})
+            """,
+            (
+                int(version_id),
+                int(budget_actual),
+                *sorted(set(ref_product_by_code.values())),
+                *period_ids,
+                *ref_codes,
+            ),
+        )
+        for row in rows:
+            value_map[
                 (
-                    int(version_id),
-                    int(budget_actual),
-                    *sorted(set(ref_product_by_code.values())),
-                    *period_ids,
-                    *ref_codes,
-                ),
-            )
-            for row in await cur.fetchall():
-                value_map[(str(row[0]), int(row[1]))] = float(row[2] or 0.0)
-
-        for period_id in period_ids:
-            refs_for_period = {code: value_map.get((code, period_id), 0.0) for code in ref_codes}
-            value = calculate_formula_value(formula, refs_for_period)
-            write_items.append(
-                BudgetDataWriteItem(
-                    data_acct_code=data_acct_code,
-                    product_code=pc_norm,
-                    period_id=period_id,
-                    budget_actual=int(budget_actual),
-                    version_id=int(version_id),
-                    value=value,
-                    source_ref=f"公式重算 {data_acct_code}/{pc_norm}/period={period_id}",
+                    str(_row_value(row, "data_acct_code", 0)),
+                    int(_row_value(row, "period_id", 1)),
                 )
+            ] = float(_row_value(row, "value", 2) or 0.0)
+
+    for period_id in period_ids:
+        refs_for_period = {code: value_map.get((code, period_id), 0.0) for code in ref_codes}
+        value = calculate_formula_value(formula, refs_for_period)
+        write_items.append(
+            BudgetDataWriteItem(
+                data_acct_code=data_acct_code,
+                product_code=pc_norm,
+                period_id=period_id,
+                budget_actual=int(budget_actual),
+                version_id=int(version_id),
+                value=value,
+                source_ref=f"公式重算 {data_acct_code}/{pc_norm}/period={period_id}",
             )
+        )
     write_result = await write_budget_data_items(
         budget_path=budget_path,
         common_path=resolved_common_path,

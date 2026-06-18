@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter
 
-from app.core.db_paths import common_db_path
 from app.metric_tree_paths import load_metric_tree_with_data_accounts
 from app.schemas import ChartMetricTreeNodeDto, ChartVersionItemDto, ChartVersionOptionsResponseDto
 
@@ -21,9 +19,7 @@ def build_chart_readonly_router(
 
     @router.get("/api/chart/metric-tree", response_model=list[ChartMetricTreeNodeDto])
     async def chart_metric_tree():
-        async with aiosqlite.connect(common_db_path()) as db:
-            await db.execute("PRAGMA foreign_keys = ON")
-            roots = await load_metric_tree_with_data_accounts(db)
+        roots = await load_metric_tree_with_data_accounts()
 
         def _to_dto(raw_node: dict) -> ChartMetricTreeNodeDto:
             children = [child for child in raw_node.get("children", []) if child.get("type") == "metric"]

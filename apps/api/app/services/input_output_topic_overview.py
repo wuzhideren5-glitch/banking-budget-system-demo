@@ -1,23 +1,27 @@
 """Input-output topic overview built on the current business cost-income tables."""
 from __future__ import annotations
 
+import sqlite3
 from typing import Any, Iterable
 
-import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
+from app.core.database import get_pool
 from app.core.db_paths import budget_db_path, common_db_path, list_budget_database_files
 from app.services.business_cost_income_ratio import (
+    _load_business_cost_income_indicators_from_path,
+    _load_business_cost_income_items_from_path,
+    _mysql_sql,
+    _uses_mysql_budget_path,
+    _uses_mysql_common_path,
     amount_unit_meta,
     amount_unit_options,
     ensure_business_cost_income_tables,
-    load_business_cost_income_indicators,
-    load_business_cost_income_items,
     norm_dim,
     parse_year_month,
 )
-from app.services.runtime_metric_refs import load_org_product_metric_refs_by_runtime_ref_code
+from app.services.runtime_metric_refs import load_org_product_metric_refs_by_runtime_ref_code_from_path
 from app.services.org_product_runtime_catalog import org_product_runtime_products_cte
 
 
@@ -99,6 +103,15 @@ def _unique_preserve_order(values: Iterable[str]) -> list[str]:
     return result
 
 
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    keys = getattr(row, "keys", None)
+    if callable(keys) and key in keys():
+        return row[key]
+    return row[index]
+
+
 def _org_product_refs_for_data_acct_code(
     data_acct_code: str | None,
     refs_by_runtime_ref_code: dict[str, list[str]],
@@ -129,21 +142,51 @@ def _metric_identity_from_org_product_refs(
     return fallback_code, fallback_name
 
 
+def _fetch_sqlite_rows(path, sql: str, params: Iterable[Any] = ()) -> list[Any]:
+    with sqlite3.connect(path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, tuple(params)).fetchall()
+
+
+async def _fetch_common_rows(sql: str, params: Iterable[Any] = ()) -> list[Any]:
+    path = common_db_path()
+    if _uses_mysql_common_path(path):
+        return list(await get_pool().fetch_all(_mysql_sql(sql), tuple(params)))
+    return _fetch_sqlite_rows(path, sql, params)
+
+
+async def _fetch_budget_rows(year: int, sql: str, params: Iterable[Any] = ()) -> list[Any]:
+    path = budget_db_path(year)
+    if _uses_mysql_budget_path(path):
+        return list(await get_pool().fetch_all(_mysql_sql(sql), tuple(params)))
+    return _fetch_sqlite_rows(path, sql, params)
+
+
 async def _product_has_bcir_template(year: int, product_code: str) -> bool:
     normalized = norm_dim(product_code).upper()
     if not normalized:
         return False
     await ensure_business_cost_income_tables(year)
-    async with aiosqlite.connect(budget_db_path(year)) as db:
-        cur = await db.execute(
-            "SELECT COUNT(*) FROM business_cost_income_item WHERE product_code = ?",
-            (normalized,),
-        )
-        row = await cur.fetchone()
-    return int(row[0] or 0) > 0
+    rows = await _fetch_budget_rows(
+        year,
+        "SELECT COUNT(*) AS cnt FROM business_cost_income_item WHERE budget_year = ? AND product_code = ?",
+        (year, normalized),
+    )
+    row = rows[0] if rows else (0,)
+    return int(_row_value(row, "cnt", 0) or 0) > 0
 
 
 async def _years_with_bcir_templates() -> list[int]:
+    if _uses_mysql_budget_path(budget_db_path(2026)):
+        rows = await get_pool().fetch_all(
+            """
+            SELECT DISTINCT budget_year
+            FROM business_cost_income_item
+            WHERE TRIM(product_code) != '' AND product_code != 'CORP'
+            ORDER BY budget_year DESC
+            """
+        )
+        return [int(_row_value(row, "budget_year", 0)) for row in rows]
     years: list[int] = []
     for path in list_budget_database_files():
         stem = path.stem.removeprefix("budget_")
@@ -151,27 +194,24 @@ async def _years_with_bcir_templates() -> list[int]:
             continue
         year = int(stem)
         await ensure_business_cost_income_tables(year)
-        async with aiosqlite.connect(path) as db:
-            cur = await db.execute(
-                """
-                SELECT COUNT(*)
-                FROM business_cost_income_item
-                WHERE TRIM(product_code) != '' AND product_code != 'CORP'
-                """
-            )
-            if int((await cur.fetchone())[0] or 0) > 0:
-                years.append(year)
+        rows = _fetch_sqlite_rows(
+            path,
+            """
+            SELECT COUNT(*) AS cnt
+            FROM business_cost_income_item
+            WHERE budget_year = ? AND TRIM(product_code) != '' AND product_code != 'CORP'
+            """,
+            (year,),
+        )
+        if int(_row_value(rows[0], "cnt", 0) or 0) > 0:
+            years.append(year)
     return sorted(years, reverse=True)
 
 
 async def _resolve_template_year(product_code: str, preferred_year: int) -> int:
     if await _product_has_bcir_template(preferred_year, product_code):
         return preferred_year
-    for path in sorted(list_budget_database_files(), key=lambda item: item.stem, reverse=True):
-        stem = path.stem.removeprefix("budget_")
-        if not stem.isdigit():
-            continue
-        year = int(stem)
+    for year in await _years_with_bcir_templates():
         if await _product_has_bcir_template(year, product_code):
             return year
     return preferred_year
@@ -180,10 +220,17 @@ async def _resolve_template_year(product_code: str, preferred_year: int) -> int:
 async def _load_product_scope(*, product_code: str, template_year: int) -> dict[str, Any]:
     normalized = norm_dim(product_code).upper()
     await ensure_business_cost_income_tables(template_year)
-    async with aiosqlite.connect(budget_db_path(template_year)) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        items = await load_business_cost_income_items(db, product_code=normalized)
-        indicators = await load_business_cost_income_indicators(db, product_code=normalized)
+    budget_path = budget_db_path(template_year)
+    items = await _load_business_cost_income_items_from_path(
+        budget_path,
+        year=template_year,
+        product_code=normalized,
+    )
+    indicators = await _load_business_cost_income_indicators_from_path(
+        budget_path,
+        year=template_year,
+        product_code=normalized,
+    )
     return {
         "items": items,
         "indicators": indicators,
@@ -193,22 +240,28 @@ async def _load_product_scope(*, product_code: str, template_year: int) -> dict[
 
 
 async def _load_topic_products() -> list[dict[str, str]]:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            f"""
-            {org_product_runtime_products_cte()}
-            SELECT product_code, product_name, parent_code, COALESCE(level, 1) AS level
-            FROM org_product_runtime_products
-            WHERE product_code <> '' AND product_name <> ''
-            ORDER BY product_code
-            """
-        )
-        rows = await cur.fetchall()
-    name_by_code = {str(row[0]): str(row[1]) for row in rows}
-    parent_codes = {str(row[2]) for row in rows if row[2] is not None and str(row[2]).strip()}
+    rows = await _fetch_common_rows(
+        f"""
+        {org_product_runtime_products_cte(dialect="mysql" if _uses_mysql_common_path(common_db_path()) else "sqlite")}
+        SELECT product_code, product_name, parent_code, COALESCE(level, 1) AS level
+        FROM org_product_runtime_products
+        WHERE product_code <> '' AND product_name <> ''
+        ORDER BY product_code
+        """
+    )
+    name_by_code = {str(_row_value(row, "product_code", 0)): str(_row_value(row, "product_name", 1)) for row in rows}
+    parent_codes = {
+        str(_row_value(row, "parent_code", 2))
+        for row in rows
+        if _row_value(row, "parent_code", 2) is not None
+        and str(_row_value(row, "parent_code", 2)).strip()
+    }
     products: list[dict[str, str]] = []
-    for code_raw, name_raw, parent_raw, level_raw in rows:
+    for row in rows:
+        code_raw = _row_value(row, "product_code", 0)
+        name_raw = _row_value(row, "product_name", 1)
+        parent_raw = _row_value(row, "parent_code", 2)
+        level_raw = _row_value(row, "level", 3)
         code = str(code_raw)
         if code == "CORP" or code in parent_codes:
             continue
@@ -228,17 +281,15 @@ async def _load_topic_products() -> list[dict[str, str]]:
 
 
 async def build_input_output_topic_meta() -> dict[str, Any]:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            """
-            SELECT DISTINCT entity_name
-            FROM dept_account
-            WHERE entity_name IS NOT NULL AND TRIM(entity_name) != ''
-            ORDER BY entity_name
-            """
-        )
-        entities = [str(row[0]) for row in await cur.fetchall()]
+    entity_rows = await _fetch_common_rows(
+        """
+        SELECT DISTINCT entity_name
+        FROM dept_account
+        WHERE entity_name IS NOT NULL AND TRIM(entity_name) != ''
+        ORDER BY entity_name
+        """
+    )
+    entities = [str(_row_value(row, "entity_name", 0)) for row in entity_rows]
     products = await _load_topic_products()
     group_options = list(
         dict.fromkeys(str(item["group_name"]) for item in products if str(item.get("group_name") or "").strip())
@@ -273,39 +324,50 @@ async def _load_value_maps(
     placeholders = ",".join("?" for _ in product_codes)
     entity_filter = "AND entity_name = ?" if entity_name else ""
     entity_params = [entity_name] if entity_name else []
-    async with aiosqlite.connect(budget_db_path(year)) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            f"""
-            SELECT product_code, item_section, item_id, field, month, SUM(value) AS total
-            FROM business_cost_income_value
-            WHERE year = ?
-              {entity_filter}
-              AND product_code IN ({placeholders})
-            GROUP BY product_code, item_section, item_id, field, month
-            """,
-            [year, *entity_params, *product_codes],
-        )
-        current_rows = await cur.fetchall()
-        cur = await db.execute(
-            f"""
-            SELECT product_code, item_section, item_id, month, SUM(value) AS total
-            FROM business_cost_income_value
-            WHERE year = ?
-              {entity_filter}
-              AND product_code IN ({placeholders})
-              AND field = 'actual'
-            GROUP BY product_code, item_section, item_id, month
-            """,
-            [year - 1, *entity_params, *product_codes],
-        )
-        last_year_rows = await cur.fetchall()
+    current_rows = await _fetch_budget_rows(
+        year,
+        f"""
+        SELECT product_code, item_section, item_id, field, month, SUM(value) AS total
+        FROM business_cost_income_value
+        WHERE budget_year = ?
+          AND year = ?
+          {entity_filter}
+          AND product_code IN ({placeholders})
+        GROUP BY product_code, item_section, item_id, field, month
+        """,
+        [year, year, *entity_params, *product_codes],
+    )
+    last_year_rows = await _fetch_budget_rows(
+        year,
+        f"""
+        SELECT product_code, item_section, item_id, month, SUM(value) AS total
+        FROM business_cost_income_value
+        WHERE budget_year = ?
+          AND year = ?
+          {entity_filter}
+          AND product_code IN ({placeholders})
+          AND field = 'actual'
+        GROUP BY product_code, item_section, item_id, month
+        """,
+        [year, year - 1, *entity_params, *product_codes],
+    )
     current = {
-        (str(row[0]), str(row[1]), int(row[2]), str(row[3]), int(row[4])): float(row[5] or 0.0)
+        (
+            str(_row_value(row, "product_code", 0)),
+            str(_row_value(row, "item_section", 1)),
+            int(_row_value(row, "item_id", 2)),
+            str(_row_value(row, "field", 3)),
+            int(_row_value(row, "month", 4)),
+        ): float(_row_value(row, "total", 5) or 0.0)
         for row in current_rows
     }
     last_year = {
-        (str(row[0]), str(row[1]), int(row[2]), int(row[3])): float(row[4] or 0.0)
+        (
+            str(_row_value(row, "product_code", 0)),
+            str(_row_value(row, "item_section", 1)),
+            int(_row_value(row, "item_id", 2)),
+            int(_row_value(row, "month", 3)),
+        ): float(_row_value(row, "total", 4) or 0.0)
         for row in last_year_rows
     }
     return current, last_year
@@ -737,9 +799,7 @@ async def build_input_output_topic_report(
         entity_name=entity,
         product_codes=selected_codes,
     )
-    async with aiosqlite.connect(common_db_path()) as common_db:
-        await common_db.execute("PRAGMA foreign_keys = ON")
-        org_product_refs_by_runtime_ref_code = await load_org_product_metric_refs_by_runtime_ref_code(common_db)
+    org_product_refs_by_runtime_ref_code = await load_org_product_metric_refs_by_runtime_ref_code_from_path(common_db_path())
     product_name_map = {str(item["product_code"]): str(item["product_name"]) for item in products}
     total_rows = _build_rows_for_scope(
         items=template_scope["items"],

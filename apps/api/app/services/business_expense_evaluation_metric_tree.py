@@ -1,62 +1,59 @@
-"""Canonical metric tree under *.91 业务支出评估 (2026-06 restructure).
-
-Independent from *.90 业务及管理费.
-"""
+"""Canonical metric tree under *.05.02 业务支出评估."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 BUSINESS_EXPENSE_EVALUATION_ROOTS: tuple[str, ...] = (
-    "A.91",
-    "A01.91",
-    "A02.91",
-    "A03.91",
-    "A04.91",
-    "A05.91",
-    "B.91",
-    "B01.91",
-    "B02.91",
-    "C.91",
-    "C01.91",
-    "C02.91",
-    "AA.91",
-    "D.91",
-    "D01.91",
-    "E.91",
-    "E01.91",
-    "F.91",
-    "F01.91",
+    "A.05.02",
+    "A01.05.02",
+    "A02.05.02",
+    "A03.05.02",
+    "A04.05.02",
+    "A05.05.02",
+    "B.05.02",
+    "B01.05.02",
+    "B02.05.02",
+    "C.05.02",
+    "C01.05.02",
+    "C02.05.02",
+    "AA.05.02",
+    "D.05.02",
+    "D01.05.02",
+    "E.05.02",
+    "E01.05.02",
+    "F.05.02",
+    "F01.05.02",
 )
 
-# Shared subtree under each *.91 root.
+# Shared subtree under each *.05.02 root.
 # Tuple: suffix, name, node_type, sort_order, parent_suffix, value_type (METRIC only).
 _EVALUATION_SUFFIX_ROWS: tuple[tuple[str, str, str, int, str, str | None], ...] = (
-    ("01", "客户经营指标", "GROUP", 10, "", None),
-    ("01.01", "客户营销与投入", "GROUP", 10, "01", None),
-    ("01.01.001", "新客营销支出", "METRIC", 10, "01.01", "金额"),
-    ("01.01.002", "存客营销支出", "METRIC", 20, "01.01", "金额"),
-    ("01.01.003", "新开通客户投入", "METRIC", 30, "01.01", "金额"),
-    ("01.01.004", "新发放投入", "METRIC", 40, "01.01", "金额"),
-    ("01.02", "客户规模与数量", "GROUP", 20, "01", None),
-    ("01.02.101", "LUM规模", "GROUP", 10, "01.02", None),
-    ("01.02.102", "AuM规模", "GROUP", 20, "01.02", None),
-    ("01.02.103", "客户数量", "GROUP", 30, "01.02", None),
-    ("01.02.001", "新客日均LUM", "METRIC", 10, "01.02.101", "金额"),
-    ("01.02.002", "存客日均LUM", "METRIC", 20, "01.02.101", "金额"),
-    ("01.02.005", "新发放LUM", "METRIC", 30, "01.02.101", "金额"),
-    ("01.02.006", "新发放LUM（标服）", "METRIC", 40, "01.02.101", "金额"),
-    ("01.02.010", "日均LUM", "METRIC", 50, "01.02.101", "金额"),
-    ("01.02.007", "存客日均AuM", "METRIC", 10, "01.02.102", "金额"),
-    ("01.02.008", "新客AuM余额", "METRIC", 20, "01.02.102", "金额"),
-    ("01.02.011", "日均AuM", "METRIC", 30, "01.02.102", "金额"),
-    ("01.02.003", "新开通客户数", "METRIC", 10, "01.02.103", "数量"),
-    ("01.02.004", "平均有效客户数", "METRIC", 20, "01.02.103", "数量"),
-    ("01.02.009", "MFAU客户数", "METRIC", 30, "01.02.103", "数量"),
-    ("01.03", "客户回收与催收", "GROUP", 30, "01", None),
-    ("01.03.001", "内催回收额", "METRIC", 10, "01.03", "金额"),
-    ("01.03.002", "M6-压降金额", "METRIC", 20, "01.03", "金额"),
-    ("01.03.003", "M7+现金回收额", "METRIC", 30, "01.03", "金额"),
+    ("09", "客户经营指标", "GROUP", 10, "", None),
+    ("09.01", "客户营销与投入", "GROUP", 10, "09", None),
+    ("09.01.001", "新客营销支出", "METRIC", 10, "09.01", "金额"),
+    ("09.01.002", "存客营销支出", "METRIC", 20, "09.01", "金额"),
+    ("09.01.003", "新开通客户投入", "METRIC", 30, "09.01", "金额"),
+    ("09.01.004", "新发放投入", "METRIC", 40, "09.01", "金额"),
+    ("09.02", "客户规模与数量", "GROUP", 20, "09", None),
+    ("09.02.101", "LUM规模", "GROUP", 10, "09.02", None),
+    ("09.02.102", "AuM规模", "GROUP", 20, "09.02", None),
+    ("09.02.103", "客户数量", "GROUP", 30, "09.02", None),
+    ("09.02.001", "新客日均LUM", "METRIC", 10, "09.02.101", "金额"),
+    ("09.02.002", "存客日均LUM", "METRIC", 20, "09.02.101", "金额"),
+    ("09.02.005", "新发放LUM", "METRIC", 30, "09.02.101", "金额"),
+    ("09.02.006", "新发放LUM（标服）", "METRIC", 40, "09.02.101", "金额"),
+    ("09.02.010", "日均LUM", "METRIC", 50, "09.02.101", "金额"),
+    ("09.02.007", "存客日均AuM", "METRIC", 10, "09.02.102", "金额"),
+    ("09.02.008", "新客AuM余额", "METRIC", 20, "09.02.102", "金额"),
+    ("09.02.011", "日均AuM", "METRIC", 30, "09.02.102", "金额"),
+    ("09.02.003", "新开通客户数", "METRIC", 10, "09.02.103", "数量"),
+    ("09.02.004", "平均有效客户数", "METRIC", 20, "09.02.103", "数量"),
+    ("09.02.009", "MFAU客户数", "METRIC", 30, "09.02.103", "数量"),
+    ("09.03", "客户回收与催收", "GROUP", 30, "09", None),
+    ("09.03.001", "内催回收额", "METRIC", 10, "09.03", "金额"),
+    ("09.03.002", "M6-压降金额", "METRIC", 20, "09.03", "金额"),
+    ("09.03.003", "M7+现金回收额", "METRIC", 30, "09.03", "金额"),
 )
 
 
@@ -103,9 +100,9 @@ def build_business_expense_evaluation_nodes(root: str) -> list[MetricTreeNodeSpe
         MetricTreeNodeSpec(
             node_code=root,
             node_name="业务支出评估",
-            parent_code=product_code,
+            parent_code=f"{product_code}.05",
             product_code=product_code,
-            local_metric_code="91",
+            local_metric_code="05.02",
             level=root.count(".") + 1,
             node_type="GROUP",
             sort_order=5020,
@@ -114,7 +111,7 @@ def build_business_expense_evaluation_nodes(root: str) -> list[MetricTreeNodeSpe
     for suffix, name, node_type, sort_order, parent_suffix, value_type in _EVALUATION_SUFFIX_ROWS:
         node_code = _node_code_for_root(root, suffix)
         parent_code = _parent_code_for_root(root, parent_suffix)
-        local_metric_code = f"91.{suffix}" if suffix else "91"
+        local_metric_code = f"05.02.{suffix}" if suffix else "05.02"
         nodes.append(
             MetricTreeNodeSpec(
                 node_code=node_code,

@@ -145,6 +145,12 @@ def create_test_metric_tree(client: Any, product_code: str) -> str:
                     entity_code=entity_code,
                     metric_code=metric.get("code"),
                 )
+                if not runtime_ref:
+                    for legacy_key in ("metric_node_code", "data_acct_code"):
+                        candidate = str(metric.get(legacy_key) or "").strip().upper()
+                        if candidate.startswith(f"{entity_code}."):
+                            runtime_ref = candidate
+                            break
                 if runtime_ref:
                     nodes.append(runtime_ref)
     preferred_prefix = f"{str(product_code or '').upper()}."

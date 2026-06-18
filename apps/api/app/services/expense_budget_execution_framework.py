@@ -7,12 +7,15 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 import re
+import sqlite3
+import tempfile
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import load_workbook
 import xlrd
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.core.db_paths import common_db_path
 from app.services.department_expense_contracts import (
     BUDGET_SUBJECT_LEVEL_NUMBER_TO_NAME,
@@ -208,6 +211,56 @@ def _mtime_text(path: Path) -> str | None:
         return None
 
 
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    keys = getattr(row, "keys", None)
+    if callable(keys) and key in keys():
+        return row[key]
+    return row[index]
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+async def _fetch_all_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_all(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchall()
+
+
+async def _execute_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> int:
+    if _uses_mysql_path(db_path):
+        return await get_pool().execute(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        cur = db.execute(sql, params)
+        db.commit()
+        return cur.rowcount
+
+
 def parse_framework_source_bytes(source_file: str, raw: bytes) -> ParsedFramework:
     source_name = text(source_file).lower()
     is_xls = source_name.endswith(".xls")
@@ -314,61 +367,120 @@ def parse_framework_source_bytes(source_file: str, raw: bytes) -> ParsedFramewor
 
 
 async def read_sync_meta() -> dict[str, dict[str, Any]]:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            "SELECT sync_key, source_file, source_mtime, synced_at, row_count, note FROM expense_sync_meta"
-        )
-        rows = await cur.fetchall()
+    rows = await _fetch_all_for_path(
+        common_db_path(),
+        "SELECT sync_key, source_file, source_mtime, synced_at, row_count, note FROM expense_sync_meta",
+    )
     return {
-        str(row[0]): {
-            "source_file": str(row[1]),
-            "source_mtime": str(row[2]) if row[2] is not None else None,
-            "synced_at": str(row[3]),
-            "row_count": int(row[4] or 0),
-            "note": str(row[5]) if row[5] is not None else None,
+        str(_row_value(row, "sync_key", 0)): {
+            "source_file": str(_row_value(row, "source_file", 1)),
+            "source_mtime": (
+                str(_row_value(row, "source_mtime", 2))
+                if _row_value(row, "source_mtime", 2) is not None
+                else None
+            ),
+            "synced_at": str(_row_value(row, "synced_at", 3)),
+            "row_count": int(_row_value(row, "row_count", 4) or 0),
+            "note": str(_row_value(row, "note", 5)) if _row_value(row, "note", 5) is not None else None,
         }
         for row in rows
     }
 
 
 async def upsert_sync_meta(sync_key: str, source_file: str, row_count: int, note: str | None = None) -> None:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await db.execute(
+    db_path = common_db_path()
+    params = (
+        sync_key,
+        source_file,
+        _mtime_text(Path(source_file)) if source_file else None,
+        _iso_now(),
+        int(row_count),
+        note,
+    )
+    if _uses_mysql_path(db_path):
+        await get_pool().execute(
             """
             INSERT INTO expense_sync_meta(sync_key, source_file, source_mtime, synced_at, row_count, note)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(sync_key) DO UPDATE SET
-              source_file = excluded.source_file,
-              source_mtime = excluded.source_mtime,
-              synced_at = excluded.synced_at,
-              row_count = excluded.row_count,
-              note = excluded.note
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+              source_file = VALUES(source_file),
+              source_mtime = VALUES(source_mtime),
+              synced_at = VALUES(synced_at),
+              row_count = VALUES(row_count),
+              note = VALUES(note)
             """,
-            (
-                sync_key,
-                source_file,
-                _mtime_text(Path(source_file)) if source_file else None,
-                _iso_now(),
-                int(row_count),
-                note,
-            ),
+            params,
         )
-        await db.commit()
+        return
+    await _execute_for_path(
+        db_path,
+        """
+        INSERT INTO expense_sync_meta(sync_key, source_file, source_mtime, synced_at, row_count, note)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(sync_key) DO UPDATE SET
+          source_file = excluded.source_file,
+          source_mtime = excluded.source_mtime,
+          synced_at = excluded.synced_at,
+          row_count = excluded.row_count,
+          note = excluded.note
+        """,
+        params,
+    )
 
 
-async def persist_framework_snapshot(parsed: ParsedFramework) -> None:
-    filtered_budget_departments = [
-        row for row in parsed.budget_departments if not should_exclude_budget_department_row(row)
-    ]
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await db.execute("DELETE FROM expense_framework_budget_department")
-        await db.execute("DELETE FROM expense_framework_product_department")
-        await db.execute("DELETE FROM expense_framework_subject")
+async def _persist_framework_snapshot_mysql(
+    filtered_budget_departments: list[FrameworkBudgetDepartmentRow],
+    parsed: ParsedFramework,
+) -> None:
+    async with get_pool().acquire() as conn:
+        await conn.begin()
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute("DELETE FROM expense_framework_budget_department")
+                await cur.execute("DELETE FROM expense_framework_product_department")
+                await cur.execute("DELETE FROM expense_framework_subject")
+                if filtered_budget_departments:
+                    await cur.executemany(
+                        """
+                        INSERT INTO expense_framework_budget_department(entity_name, group_name, owner_name, budget_department)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        [(r.entity_name, r.group_name, r.owner_name, r.budget_department) for r in filtered_budget_departments],
+                    )
+                if parsed.product_departments:
+                    await cur.executemany(
+                        """
+                        INSERT INTO expense_framework_product_department(entity_name, group_name, owner_name, product_department)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        [(r.entity_name, r.group_name, r.owner_name, r.product_department) for r in parsed.product_departments],
+                    )
+                if parsed.subjects:
+                    await cur.executemany(
+                        """
+                        INSERT INTO expense_framework_subject(budget_subject, level_label, manage_department, formula_text, sort_order)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        [(r.budget_subject, r.level_label, r.manage_department, r.formula_text, r.sort_order) for r in parsed.subjects],
+                    )
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+
+
+async def _persist_framework_snapshot_sqlite(
+    db_path: Path,
+    filtered_budget_departments: list[FrameworkBudgetDepartmentRow],
+    parsed: ParsedFramework,
+) -> None:
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        db.execute("DELETE FROM expense_framework_budget_department")
+        db.execute("DELETE FROM expense_framework_product_department")
+        db.execute("DELETE FROM expense_framework_subject")
         if filtered_budget_departments:
-            await db.executemany(
+            db.executemany(
                 """
                 INSERT INTO expense_framework_budget_department(entity_name, group_name, owner_name, budget_department)
                 VALUES (?, ?, ?, ?)
@@ -376,7 +488,7 @@ async def persist_framework_snapshot(parsed: ParsedFramework) -> None:
                 [(r.entity_name, r.group_name, r.owner_name, r.budget_department) for r in filtered_budget_departments],
             )
         if parsed.product_departments:
-            await db.executemany(
+            db.executemany(
                 """
                 INSERT INTO expense_framework_product_department(entity_name, group_name, owner_name, product_department)
                 VALUES (?, ?, ?, ?)
@@ -384,14 +496,25 @@ async def persist_framework_snapshot(parsed: ParsedFramework) -> None:
                 [(r.entity_name, r.group_name, r.owner_name, r.product_department) for r in parsed.product_departments],
             )
         if parsed.subjects:
-            await db.executemany(
+            db.executemany(
                 """
                 INSERT INTO expense_framework_subject(budget_subject, level_label, manage_department, formula_text, sort_order)
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 [(r.budget_subject, r.level_label, r.manage_department, r.formula_text, r.sort_order) for r in parsed.subjects],
             )
-        await db.commit()
+        db.commit()
+
+
+async def persist_framework_snapshot(parsed: ParsedFramework) -> None:
+    filtered_budget_departments = [
+        row for row in parsed.budget_departments if not should_exclude_budget_department_row(row)
+    ]
+    db_path = common_db_path()
+    if _uses_mysql_path(db_path):
+        await _persist_framework_snapshot_mysql(filtered_budget_departments, parsed)
+    else:
+        await _persist_framework_snapshot_sqlite(db_path, filtered_budget_departments, parsed)
     total_rows = len(filtered_budget_departments) + len(parsed.product_departments) + len(parsed.subjects)
     await upsert_sync_meta(
         "framework_import",
@@ -406,46 +529,51 @@ async def persist_framework_snapshot(parsed: ParsedFramework) -> None:
 
 
 async def load_framework_from_db() -> ParsedFramework | None:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            "SELECT entity_name, group_name, owner_name, budget_department FROM expense_framework_budget_department ORDER BY id"
+    db_path = common_db_path()
+    budget_db_rows = await _fetch_all_for_path(
+        db_path,
+        "SELECT entity_name, group_name, owner_name, budget_department FROM expense_framework_budget_department ORDER BY id",
+    )
+    budget_rows = [
+        FrameworkBudgetDepartmentRow(
+            entity_name=text(_row_value(row, "entity_name", 0)),
+            group_name=text(_row_value(row, "group_name", 1)),
+            owner_name=text(_row_value(row, "owner_name", 2)),
+            budget_department=text(_row_value(row, "budget_department", 3)),
         )
-        budget_rows = [
-            FrameworkBudgetDepartmentRow(
-                entity_name=text(row[0]),
-                group_name=text(row[1]),
-                owner_name=text(row[2]),
-                budget_department=text(row[3]),
-            )
-            for row in await cur.fetchall()
-        ]
-        cur = await db.execute(
-            "SELECT entity_name, group_name, owner_name, product_department FROM expense_framework_product_department ORDER BY id"
+        for row in budget_db_rows
+    ]
+    product_db_rows = await _fetch_all_for_path(
+        db_path,
+        "SELECT entity_name, group_name, owner_name, product_department FROM expense_framework_product_department ORDER BY id",
+    )
+    product_rows = [
+        FrameworkProductDepartmentRow(
+            entity_name=text(_row_value(row, "entity_name", 0)),
+            group_name=text(_row_value(row, "group_name", 1)),
+            owner_name=text(_row_value(row, "owner_name", 2)),
+            product_department=text(_row_value(row, "product_department", 3)),
         )
-        product_rows = [
-            FrameworkProductDepartmentRow(
-                entity_name=text(row[0]),
-                group_name=text(row[1]),
-                owner_name=text(row[2]),
-                product_department=text(row[3]),
-            )
-            for row in await cur.fetchall()
-        ]
-        cur = await db.execute(
-            "SELECT budget_subject, level_label, manage_department, formula_text, sort_order "
-            "FROM expense_framework_subject ORDER BY sort_order, budget_subject"
+        for row in product_db_rows
+    ]
+    subject_db_rows = await _fetch_all_for_path(
+        db_path,
+        """
+        SELECT budget_subject, level_label, manage_department, formula_text, sort_order
+        FROM expense_framework_subject
+        ORDER BY sort_order, budget_subject
+        """,
+    )
+    subject_rows = [
+        FrameworkSubjectRow(
+            level_label=text(_row_value(row, "level_label", 1)),
+            budget_subject=text(_row_value(row, "budget_subject", 0)),
+            manage_department=text(_row_value(row, "manage_department", 2)),
+            formula_text=text(_row_value(row, "formula_text", 3)),
+            sort_order=int(_row_value(row, "sort_order", 4) or 0),
         )
-        subject_rows = [
-            FrameworkSubjectRow(
-                level_label=text(row[1]),
-                budget_subject=text(row[0]),
-                manage_department=text(row[2]),
-                formula_text=text(row[3]),
-                sort_order=int(row[4] or 0),
-            )
-            for row in await cur.fetchall()
-        ]
+        for row in subject_db_rows
+    ]
     if not budget_rows and not product_rows and not subject_rows:
         return None
     meta = await read_sync_meta()
@@ -530,37 +658,36 @@ def build_framework_context(parsed: ParsedFramework) -> FrameworkContext:
 
 
 async def load_runtime_context_from_master_data() -> ParsedFramework | None:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            """
-            SELECT
-                COALESCE(NULLIF(TRIM(child.entity_name), ''), '微众银行') AS entity_name,
-                COALESCE(NULLIF(TRIM(parent.dept_name), ''), '') AS group_name,
-                COALESCE(NULLIF(TRIM(child.dept_name), ''), '') AS owner_name
-            FROM dept_account child
-            LEFT JOIN dept_account parent
-              ON parent.dept_code = child.parent_code
-            WHERE child.level = ?
-            ORDER BY entity_name, group_name, owner_name
-            """,
-            (DEPT_OWNER_LEVEL,),
-        )
-        dept_rows = await cur.fetchall()
-        cur = await db.execute(
-            """
-            SELECT level_number, subject_name, manage_department, formula_text, sort_order
-            FROM budget_subject_catalog
-            ORDER BY sort_order, id
-            """
-        )
-        subject_rows = await cur.fetchall()
+    db_path = common_db_path()
+    dept_rows = await _fetch_all_for_path(
+        db_path,
+        """
+        SELECT
+            COALESCE(NULLIF(TRIM(child.entity_name), ''), '微众银行') AS entity_name,
+            COALESCE(NULLIF(TRIM(parent.dept_name), ''), '') AS group_name,
+            COALESCE(NULLIF(TRIM(child.dept_name), ''), '') AS owner_name
+        FROM dept_account child
+        LEFT JOIN dept_account parent
+          ON parent.dept_code = child.parent_code
+        WHERE child.level = ?
+        ORDER BY entity_name, group_name, owner_name
+        """,
+        (DEPT_OWNER_LEVEL,),
+    )
+    subject_rows = await _fetch_all_for_path(
+        db_path,
+        """
+        SELECT level_number, subject_name, manage_department, formula_text, sort_order
+        FROM budget_subject_catalog
+        ORDER BY sort_order, id
+        """,
+    )
 
     budget_rows = []
     for row in dept_rows:
-        entity_name = text(row[0])
-        group_name = text(row[1])
-        owner_name = text(row[2])
+        entity_name = text(_row_value(row, "entity_name", 0))
+        group_name = text(_row_value(row, "group_name", 1))
+        owner_name = text(_row_value(row, "owner_name", 2))
         if not entity_name or not group_name or not owner_name:
             continue
         budget_row = FrameworkBudgetDepartmentRow(
@@ -574,14 +701,17 @@ async def load_runtime_context_from_master_data() -> ParsedFramework | None:
         budget_rows.append(budget_row)
     subjects = [
         FrameworkSubjectRow(
-            level_label=BUDGET_SUBJECT_LEVEL_NUMBER_TO_NAME.get(int(row[0] or 0), f"{int(row[0] or 0)}级"),
-            budget_subject=text(row[1]),
-            manage_department=text(row[2]),
-            formula_text=text(row[3]),
-            sort_order=int(row[4] or 0),
+            level_label=BUDGET_SUBJECT_LEVEL_NUMBER_TO_NAME.get(
+                int(_row_value(row, "level_number", 0) or 0),
+                f"{int(_row_value(row, 'level_number', 0) or 0)}级",
+            ),
+            budget_subject=text(_row_value(row, "subject_name", 1)),
+            manage_department=text(_row_value(row, "manage_department", 2)),
+            formula_text=text(_row_value(row, "formula_text", 3)),
+            sort_order=int(_row_value(row, "sort_order", 4) or 0),
         )
         for row in subject_rows
-        if text(row[1])
+        if text(_row_value(row, "subject_name", 1))
     ]
     if not budget_rows and not subjects:
         return None

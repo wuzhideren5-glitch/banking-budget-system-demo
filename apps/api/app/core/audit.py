@@ -4,9 +4,8 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from app.core.config import settings
-from app.core.db_paths import common_db_path
+from app.core.database import get_pool
 
 
 def _iso_now() -> str:
@@ -22,26 +21,22 @@ async def write_operation_log(
     before_data: Any = None,
     after_data: Any = None,
 ) -> None:
-    path = common_db_path()
-    async with aiosqlite.connect(path) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        await db.execute(
-            """
-            INSERT INTO operation_log (
-              user_id, action_type, action_desc, target_table,
-              affected_rows, before_data, after_data, ip_address, create_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                settings.local_user_id,
-                action_type,
-                action_desc,
-                target_table,
-                affected_rows,
-                json.dumps(before_data, ensure_ascii=False) if before_data is not None else None,
-                json.dumps(after_data, ensure_ascii=False) if after_data is not None else None,
-                None,
-                _iso_now(),
-            ),
-        )
-        await db.commit()
+    await get_pool().execute(
+        """
+        INSERT INTO operation_log (
+          user_id, action_type, action_desc, target_table,
+          affected_rows, before_data, after_data, ip_address, create_time
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            settings.local_user_id,
+            action_type,
+            action_desc,
+            target_table,
+            affected_rows,
+            json.dumps(before_data, ensure_ascii=False) if before_data is not None else None,
+            json.dumps(after_data, ensure_ascii=False) if after_data is not None else None,
+            None,
+            _iso_now(),
+        ),
+    )

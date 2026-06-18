@@ -1,0 +1,1 @@
+../../../../app/db_bootstrap/current_contracts.py

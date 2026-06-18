@@ -5,11 +5,63 @@ import sqlite3
 import tempfile
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
+from app.core.config import settings
+from app.services import expense_actual_import_schema as schema_module
 from app.services.expense_actual_import_schema import ensure_expense_actual_import_schema_ready
 
 
 class ExpenseActualImportSchemaTests(unittest.TestCase):
+    def test_runtime_common_actual_import_schema_ready_validates_mysql_contract(self) -> None:
+        required_tables = schema_module.REQUIRED_TABLES
+
+        class FakePool:
+            def __init__(self) -> None:
+                self.fetch_all_calls: list[tuple[str, tuple]] = []
+
+            async def fetch_all(self, sql, params=()):
+                self.fetch_all_calls.append((sql, tuple(params)))
+                table_name = str(params[0])
+                return [{"COLUMN_NAME": column_name} for column_name in sorted(required_tables[table_name])]
+
+        async def run() -> FakePool:
+            fake_pool = FakePool()
+            with patch.object(schema_module, "get_pool", return_value=fake_pool):
+                await ensure_expense_actual_import_schema_ready(Path(settings.data_dir) / "common.db")
+            return fake_pool
+
+        fake_pool = asyncio.run(run())
+
+        queried_tables = {params[0] for _sql, params in fake_pool.fetch_all_calls}
+        self.assertEqual(queried_tables, set(required_tables))
+        self.assertTrue(any("INFORMATION_SCHEMA.COLUMNS" in sql for sql, _ in fake_pool.fetch_all_calls))
+        all_sql = "\n".join(sql for sql, _ in fake_pool.fetch_all_calls)
+        self.assertNotIn("PRAGMA foreign_keys", all_sql)
+        self.assertNotIn("sqlite_master", all_sql)
+
+    def test_runtime_common_actual_import_schema_ready_rejects_missing_mysql_columns(self) -> None:
+        required_tables = {
+            table_name: set(columns)
+            for table_name, columns in schema_module.REQUIRED_TABLES.items()
+        }
+        required_tables["expense_actual_detail_raw"].discard("import_kind")
+
+        class FakePool:
+            async def fetch_all(self, sql, params=()):
+                table_name = str(params[0])
+                return [{"COLUMN_NAME": column_name} for column_name in sorted(required_tables[table_name])]
+
+        with patch.object(schema_module, "get_pool", return_value=FakePool()):
+            with self.assertRaisesRegex(RuntimeError, "缺少当前字段"):
+                asyncio.run(ensure_expense_actual_import_schema_ready(Path(settings.data_dir) / "common.db"))
+
+    def test_actual_import_schema_adapter_does_not_import_aiosqlite(self) -> None:
+        source = Path(schema_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+
     def test_ensures_current_actual_import_tables_and_mapping_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "common.db"

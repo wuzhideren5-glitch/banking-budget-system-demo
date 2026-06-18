@@ -218,7 +218,7 @@ class SystemVersionsServiceTests(unittest.TestCase):
         asyncio.run(run())
 
     def test_main_no_longer_keeps_chart_version_options_sql(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("WHERE e.edit_show_sign BETWEEN 1 AND 5", main_source)
         self.assertNotIn("SELECT 1 AS edit_show_sign", main_source)

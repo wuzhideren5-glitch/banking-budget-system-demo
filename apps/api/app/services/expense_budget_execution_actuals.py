@@ -4,9 +4,13 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 import re
+import sqlite3
+import tempfile
+from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
+from app.core.config import settings
+from app.core.database import get_pool
 from app.core.db_paths import common_db_path
 from app.services.expense_budget_execution_actual_routing import route_actual_subject_by_caliber
 from app.services.expense_budget_execution_framework import (
@@ -78,10 +82,60 @@ def _add_actual(
     actual_by_group[(group_name, budget_subject)][month_idx - 1] += amount
 
 
-def _actual_source_description(batch_row: tuple[Any, ...] | None) -> str:
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    keys = getattr(row, "keys", None)
+    if callable(keys) and key in keys():
+        return row[key]
+    return row[index]
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+async def _fetch_all_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_all(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchall()
+
+
+async def _fetch_one_for_path(db_path: Path, sql: str, params: tuple[Any, ...] = ()) -> Any:
+    if _uses_mysql_path(db_path):
+        return await get_pool().fetch_one(_mysql_sql(sql), params)
+    with sqlite3.connect(db_path) as db:
+        db.execute("PRAGMA foreign_keys = ON")
+        return db.execute(sql, params).fetchone()
+
+
+def _actual_source_description(batch_row: Any | None) -> str:
     if not batch_row:
         return "费用执行明细导入（当前本年实际明细）"
-    file_name, created_at, row_count = batch_row
+    file_name = _row_value(batch_row, "file_name", 0)
+    created_at = _row_value(batch_row, "created_at", 1)
+    row_count = _row_value(batch_row, "total_rows", 2)
     return (
         f"费用执行明细导入（最近导入时间 {text(created_at) or '-'}"
         f"，来源 {text(file_name) or '费用执行明细导入'}，行数 {int(row_count or 0)}）"
@@ -89,33 +143,37 @@ def _actual_source_description(batch_row: tuple[Any, ...] | None) -> str:
 
 
 async def load_actual_rows(ctx: FrameworkContext) -> LoadedActualRows:
-    async with aiosqlite.connect(common_db_path()) as db:
-        await db.execute("PRAGMA foreign_keys = ON")
-        cur = await db.execute(
-            """
-            SELECT owner_name_mapped, budget_subject_mapped, budget_release_caliber_mapped, period_ym, amount
-            FROM expense_actual_detail_raw
-            WHERE owner_matched = 1
-              AND subject_matched = 1
-              AND import_kind = 'current_year_actual'
-            ORDER BY owner_name_mapped, budget_subject_mapped, period_ym
-            """
-        )
-        raw_detail_rows = await cur.fetchall()
-        batch_cur = await db.execute(
-            """
-            SELECT file_name, created_at, total_rows
-            FROM expense_actual_import_batch
-            WHERE import_kind = 'current_year_actual'
-            ORDER BY id DESC
-            LIMIT 1
-            """
-        )
-        latest_batch = await batch_cur.fetchone()
+    db_path = common_db_path()
+    raw_detail_rows = await _fetch_all_for_path(
+        db_path,
+        """
+        SELECT owner_name_mapped, budget_subject_mapped, budget_release_caliber_mapped, period_ym, amount
+        FROM expense_actual_detail_raw
+        WHERE owner_matched = 1
+          AND subject_matched = 1
+          AND import_kind = 'current_year_actual'
+        ORDER BY owner_name_mapped, budget_subject_mapped, period_ym
+        """,
+    )
+    latest_batch = await _fetch_one_for_path(
+        db_path,
+        """
+        SELECT file_name, created_at, total_rows
+        FROM expense_actual_import_batch
+        WHERE import_kind = 'current_year_actual'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+    )
     if raw_detail_rows:
         actual_by_entity, actual_by_group, actual_by_owner = _empty_actual_maps()
         actual_by_subject: dict[str, list[float]] = defaultdict(_new_month_values)
-        for owner_name, budget_subject, budget_release_caliber, period_ym, amount in raw_detail_rows:
+        for row in raw_detail_rows:
+            owner_name = _row_value(row, "owner_name_mapped", 0)
+            budget_subject = _row_value(row, "budget_subject_mapped", 1)
+            budget_release_caliber = _row_value(row, "budget_release_caliber_mapped", 2)
+            period_ym = _row_value(row, "period_ym", 3)
+            amount = _row_value(row, "amount", 4)
             owner = canonical_owner_name(text(owner_name), ctx)
             subject = canonical_subject(text(budget_subject), ctx)
             subject = route_actual_subject_by_caliber(subject, budget_release_caliber)

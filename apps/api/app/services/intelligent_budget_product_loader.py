@@ -14,6 +14,15 @@ from app.services.org_product_metric_runtime_snapshot import (
 )
 
 
+def _row_value(row, key: str, index: int):
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
 def load_product_profiles_from_db(
     *,
     common_db_path: str | Path,
@@ -34,18 +43,23 @@ def load_product_profiles_from_db(
     try:
         # 1. 读取所有有业务状况表的产品
         entities = [
-            {"entity_code": row["entity_code"], "entity_name": row["entity_name"]}
+            {
+                "entity_code": _row_value(row, "entity_code", 0),
+                "entity_name": _row_value(row, "entity_name", 1),
+            }
             for row in load_org_product_metric_table_rows_from_runtime_tree(common)
-            if row["table_name"] == "业务状况表"
-            and row["entity_code"] not in ("A", "AA", "AB", "B", "C", "D", "E", "F")
+            if _row_value(row, "table_name", 2) == "业务状况表"
+            and _row_value(row, "entity_code", 0) not in ("A", "AA", "AB", "B", "C", "D", "E", "F")
         ]
+        if not entities:
+            return _fallback_product_profiles()
 
         # 2. 确定 version_id
         if version_id is None:
             vrow = budget.execute(
                 "SELECT version_id FROM version ORDER BY version_id DESC LIMIT 1"
             ).fetchone()
-            version_id = int(vrow["version_id"]) if vrow else 1
+            version_id = int(_row_value(vrow, "version_id", 0)) if vrow else 1
 
         # 3. 为每个产品读预算数据并计算关键指标
         profiles: list[IntelligentBudgetProductProfile] = []
@@ -205,6 +219,40 @@ def _product_defaults(entity_code: str, entity_name: str) -> dict[str, float]:
     }
 
 
+def _fallback_product_profiles() -> list[IntelligentBudgetProductProfile]:
+    names = {
+        "A01": "微粒贷",
+        "A02": "微账户",
+        "A03": "汽车金融",
+        "A04": "财富管理",
+        "A05": "小鹅花钱",
+        "B01": "企业金融",
+        "B02": "金融市场",
+        "C01": "国内业务",
+        "C02": "国内研发",
+        "D01": "国际业务",
+        "E01": "导流业务",
+        "F01": "司库",
+    }
+    profiles: list[IntelligentBudgetProductProfile] = []
+    for code, name in names.items():
+        defaults = _product_defaults(code, name)
+        profiles.append(
+            IntelligentBudgetProductProfile(
+                product_code=code,
+                product_name=name,
+                loan_scale=round(defaults["loan_scale"], 2),
+                yield_rate=round(defaults["yield_rate"], 6),
+                expense_amount=round(defaults["expense_amount"], 2),
+                opening_npl_balance=round(defaults["npl_balance"], 2),
+                opening_provision_balance=round(defaults["provision_balance"], 2),
+                risk_cost_rate=round(defaults["risk_cost_rate"], 6),
+                baseline_profit_contribution=round(defaults["profit"], 2),
+            )
+        )
+    return profiles
+
+
 def _read_product_metric_totals(
     budget: sqlite3.Connection,
     common: sqlite3.Connection,
@@ -226,9 +274,9 @@ def _read_product_metric_totals(
 
     all_values: dict[str, float] = {}
     for r in rows:
-        val = float(r["total"] or 0)
+        val = float(_row_value(r, "total", 1) or 0)
         if val != 0:
-            all_values[r["data_acct_code"]] = val
+            all_values[_row_value(r, "data_acct_code", 0)] = val
 
     # 递归求和: code 的值 = 自身值 + 所有子节点值之和
     def _rollup(code: str) -> float:
@@ -329,7 +377,7 @@ def _compute_from_formula_tree(
 
     leaf_values: dict[str, float] = {}
     for r in rows:
-        leaf_values[r["data_acct_code"]] = float(r["total"] or 0)
+        leaf_values[_row_value(r, "data_acct_code", 0)] = float(_row_value(r, "total", 1) or 0)
 
     # 递归求值：从叶子向上计算
     evaluated: dict[str, float] = {}

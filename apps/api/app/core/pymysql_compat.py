@@ -25,8 +25,13 @@ from __future__ import annotations
 
 import re
 import sqlite3 as _real_sqlite3
+import tempfile
+from pathlib import Path
 
 import pymysql
+
+_ORIGINAL_SQLITE3_CONNECT = _real_sqlite3.connect
+_ORIGINAL_SQLITE3_ROW = _real_sqlite3.Row
 
 # ---------------------------------------------------------------------------
 # Patch sqlite3 module — alias exception classes and Connection
@@ -36,7 +41,7 @@ _real_sqlite3.OperationalError = pymysql.err.OperationalError  # type: ignore
 _real_sqlite3.ProgrammingError = pymysql.err.ProgrammingError  # type: ignore
 _real_sqlite3.IntegrityError = pymysql.err.IntegrityError  # type: ignore
 _real_sqlite3.Error = pymysql.err.Error  # type: ignore
-_real_sqlite3.Row = dict  # type: ignore
+_real_sqlite3.Row = _ORIGINAL_SQLITE3_ROW  # type: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -75,8 +80,108 @@ _SQLITE_MASTER_RE = re.compile(r"sqlite_master", re.IGNORECASE)
 
 _AUTOINCREMENT_RE = re.compile(r"\bAUTOINCREMENT\b", re.IGNORECASE)
 
-_DATETIME_NOW_RE = re.compile(r"datetime\s*\(\s*'now'\s*\)", re.IGNORECASE)
+_DATETIME_NOW_RE = re.compile(r"datetime\s*\(\s*'now'\s*(?:,\s*'localtime'\s*)?\)", re.IGNORECASE)
 _DATE_NOW_RE = re.compile(r"date\s*\(\s*'now'\s*\)", re.IGNORECASE)
+
+
+def _translate_mysql_ddl_for_sqlite(sql: str) -> str:
+    """Let isolated SQLite fixtures execute the MySQL bootstrap DDL constants."""
+    sql = re.sub(
+        r"\)\s*ENGINE\s*=\s*InnoDB\s+DEFAULT\s+CHARSET\s*=\s*utf8mb4\s+COLLATE\s*=\s*utf8mb4_unicode_ci",
+        ")",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"\bINT\s+AUTO_INCREMENT\s+PRIMARY\s+KEY\b",
+        "INTEGER PRIMARY KEY AUTOINCREMENT",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"\bCREATE\s+OR\s+REPLACE\s+VIEW\b",
+        "CREATE VIEW IF NOT EXISTS",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"\bCREATE\s+INDEX\s+(?!IF\s+NOT\s+EXISTS\b)",
+        "CREATE INDEX IF NOT EXISTS ",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
+        r"LOCATE\s*\(\s*'([^']*)'\s*,\s*([^)]+?)\s*\)",
+        r"INSTR(\2, '\1')",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = sql.replace("%s", "?")
+    return sql
+
+
+_SQLITE_CONNECTION_PROBE = _ORIGINAL_SQLITE3_CONNECT(":memory:")
+_ORIGINAL_SQLITE3_CONNECTION = _SQLITE_CONNECTION_PROBE.__class__
+_SQLITE_CONNECTION_PROBE.close()
+
+
+class _CompatSQLiteCursor:
+    def __init__(self, cur):
+        self._cur = cur
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
+
+    def __iter__(self):
+        return iter(self._cur)
+
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
+    def execute(self, sql, parameters=()):
+        translated = _translate_mysql_ddl_for_sqlite(sql)
+        try:
+            self._cur.execute(translated, parameters)
+        except Exception as exc:
+            if translated.lstrip().upper().startswith("DROP TABLE") and "use DROP VIEW" in str(exc):
+                self._cur.execute(re.sub(r"^\s*DROP\s+TABLE", "DROP VIEW", translated, flags=re.IGNORECASE), parameters)
+            else:
+                raise
+        return self
+
+    def executemany(self, sql, seq_of_parameters):
+        self._cur.executemany(_translate_mysql_ddl_for_sqlite(sql), seq_of_parameters)
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    def close(self):
+        return self._cur.close()
+
+
+class _CompatSQLiteConnection(_ORIGINAL_SQLITE3_CONNECTION):  # type: ignore[misc]
+    def cursor(self, *args, **kwargs):
+        return _CompatSQLiteCursor(super().cursor(*args, **kwargs))
+
+    def execute(self, sql, parameters=(), /):
+        translated = _translate_mysql_ddl_for_sqlite(sql)
+        try:
+            return super().execute(translated, parameters)
+        except Exception as exc:
+            if translated.lstrip().upper().startswith("DROP TABLE") and "use DROP VIEW" in str(exc):
+                return super().execute(re.sub(r"^\s*DROP\s+TABLE", "DROP VIEW", translated, flags=re.IGNORECASE), parameters)
+            raise
+
+    def executescript(self, sql_script: str, /):
+        return super().executescript(_translate_mysql_ddl_for_sqlite(sql_script))
 
 
 def _translate_sql(sql: str) -> str:
@@ -123,7 +228,7 @@ def _translate_sql(sql: str) -> str:
         tn = m.group(1)
         return (
             "SELECT 0 AS cid, COLUMN_NAME AS name, DATA_TYPE AS type, "
-            "IF(IS_NULLABLE='YES',1,0) AS notnull, "
+            "IF(IS_NULLABLE='NO',1,0) AS notnull, "
             "COLUMN_DEFAULT AS dflt_value, "
             "IF(COLUMN_KEY='PRI',1,0) AS pk "
             "FROM INFORMATION_SCHEMA.COLUMNS "
@@ -172,15 +277,21 @@ def _translate_sql(sql: str) -> str:
     # (sqlite_master.type column → INFORMATION_SCHEMA.TABLES.TABLE_TYPE column)
     sql = re.sub(
         r"SELECT\s+type\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
-        r"SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES",
+        r"SELECT CASE WHEN TABLE_TYPE = 'BASE TABLE' THEN 'table' WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE LOWER(TABLE_TYPE) END AS type FROM INFORMATION_SCHEMA.TABLES",
         sql,
         flags=re.IGNORECASE,
     )
 
     # Translate "SELECT name FROM sqlite_master" → "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES"
     sql = re.sub(
+        r"SELECT\s+name\s*,\s*type\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
+        r"SELECT TABLE_NAME AS name, CASE WHEN TABLE_TYPE = 'BASE TABLE' THEN 'table' WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE LOWER(TABLE_TYPE) END AS type FROM INFORMATION_SCHEMA.TABLES",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    sql = re.sub(
         r"SELECT\s+name\s+FROM\s+INFORMATION_SCHEMA\.TABLES",
-        r"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
+        r"SELECT TABLE_NAME AS name FROM INFORMATION_SCHEMA.TABLES",
         sql,
         flags=re.IGNORECASE,
     )
@@ -244,6 +355,30 @@ def _translate_sql(sql: str) -> str:
         r"\1TABLE_NAME =",
         sql,
         flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s+NOT\s+LIKE\b",
+        r"\1TABLE_NAME NOT LIKE",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s+LIKE\b",
+        r"\1TABLE_NAME LIKE",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"(INFORMATION_SCHEMA\.TABLES.*?)\bname\s+IN\s*\(",
+        r"\1TABLE_NAME IN (",
+        sql,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sql = re.sub(
+        r"\bORDER\s+BY\s+name\b",
+        "ORDER BY TABLE_NAME",
+        sql,
+        flags=re.IGNORECASE,
     )
     sql = re.sub(
         r"(INFORMATION_SCHEMA\.TABLES.*?)\btbl_name\s*=",
@@ -356,12 +491,49 @@ pymysql.connections.Connection.executescript = _executescript  # type: ignore
 # Patch sqlite3.connect — route to MySQL
 # ---------------------------------------------------------------------------
 
+def _should_route_sqlite_path_to_mysql(path) -> bool:
+    """Return True only for the runtime SQLite-file paths being retired.
+
+    Unit tests still build temporary SQLite fixtures. Routing those temp files to
+    the shared MySQL database makes tests mutate production-like state and turns
+    independent cases into order-dependent failures.
+    """
+    if path is None or path == ":memory:":
+        return False
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+
+    import app.core.config as _cfg
+
+    data_dir = Path(_cfg.settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or candidate.name == "compare.db" or (
+        candidate.name.startswith("budget_") and candidate.suffix == ".db"
+    )
+
+
 def _sqlite3_connect(path=None, **kwargs):
     """Drop-in replacement for sqlite3.connect — routes to MySQL.
 
-    The *path* argument is ignored.  All connection parameters come from
-    ``app.core.config.settings``.
+    Runtime database paths under ``settings.data_dir`` are routed to MySQL.
+    Other paths are left as real SQLite connections so migration source reads
+    and unit-test fixtures keep their normal isolation.
     """
+    if not _should_route_sqlite_path_to_mysql(path):
+        kwargs.setdefault("factory", _CompatSQLiteConnection)
+        return _ORIGINAL_SQLITE3_CONNECT(path, **kwargs)
+
     import app.core.config as _cfg
     return pymysql.connect(
         host=_cfg.settings.MYSQL_HOST,
@@ -371,6 +543,7 @@ def _sqlite3_connect(path=None, **kwargs):
         database=_cfg.settings.MYSQL_DATABASE,
         charset="utf8mb4",
         autocommit=True,
+        init_command="SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
     )
 
 

@@ -5,7 +5,9 @@ import sqlite3
 import tempfile
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
+from app.core.config import settings
 from app.db_bootstrap.expense import EXPENSE_FORECAST_SCHEMA
 from app.services import expense_forecast_override_commands as override_module
 from app.services.expense_forecast_override_commands import (
@@ -71,6 +73,103 @@ class FakeOverrideWorkflowSource:
 
 
 class ExpenseForecastOverrideCommandTests(unittest.TestCase):
+    def test_runtime_common_override_writes_use_mysql_pool(self) -> None:
+        class FakeCursor:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, tuple]] = []
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def execute(self, sql, params=()):
+                self.calls.append((sql, tuple(params)))
+
+        class FakeConnection:
+            def __init__(self) -> None:
+                self.cursor_obj = FakeCursor()
+                self.begun = 0
+                self.committed = 0
+                self.rolled_back = 0
+
+            async def begin(self):
+                self.begun += 1
+
+            async def commit(self):
+                self.committed += 1
+
+            async def rollback(self):
+                self.rolled_back += 1
+
+            def cursor(self):
+                return self.cursor_obj
+
+        class FakeAcquire:
+            def __init__(self, conn: FakeConnection) -> None:
+                self.conn = conn
+
+            async def __aenter__(self):
+                return self.conn
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+        class FakePool:
+            def __init__(self) -> None:
+                self.conn = FakeConnection()
+
+            def acquire(self):
+                return FakeAcquire(self.conn)
+
+        async def run() -> FakePool:
+            fake_pool = FakePool()
+            with patch.object(override_module, "get_pool", return_value=fake_pool):
+                await save_expense_forecast_override(
+                    db_path=Path(settings.data_dir) / "common.db",
+                    year=2026,
+                    forecast_version="V1",
+                    owner_name="部门A",
+                    subject_id=11,
+                    month=4,
+                    rule_id=7,
+                    system_value=120.0,
+                    override_value=150.0,
+                    override_reason="管理调整",
+                    now=NOW,
+                )
+                await delete_expense_forecast_override(
+                    db_path=Path(settings.data_dir) / "common.db",
+                    year=2026,
+                    forecast_version="V1",
+                    owner_name="部门A",
+                    subject_id=11,
+                    month=4,
+                    restored_value=120.0,
+                    now=NOW,
+                )
+            return fake_pool
+
+        fake_pool = asyncio.run(run())
+
+        self.assertEqual(fake_pool.conn.begun, 2)
+        self.assertEqual(fake_pool.conn.committed, 2)
+        self.assertEqual(fake_pool.conn.rolled_back, 0)
+        executed_sql = "\n".join(sql for sql, _ in fake_pool.conn.cursor_obj.calls)
+        self.assertIn("INSERT INTO expense_forecast_override", executed_sql)
+        self.assertIn("DELETE FROM expense_forecast_override", executed_sql)
+        self.assertIn("ON DUPLICATE KEY UPDATE", executed_sql)
+        self.assertIn("%s", executed_sql)
+        self.assertNotIn("ON CONFLICT", executed_sql)
+        self.assertNotIn("PRAGMA foreign_keys", executed_sql)
+
+    def test_override_commands_do_not_import_aiosqlite(self) -> None:
+        source = Path(override_module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
+
     def test_save_override_writes_override_and_final_forecast_value(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "common.db"

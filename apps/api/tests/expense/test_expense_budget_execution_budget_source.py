@@ -10,6 +10,7 @@ from app.services.expense_budget_entry_store import (
     load_expense_budget_entry_by_owner_subject,
     load_expense_budget_entry_subject_totals,
 )
+from app.services import expense_budget_execution_budget_source as budget_source_module
 from app.services.expense_budget_execution_budget_source import (
     BudgetSourceError,
     extract_runtime_metric_ref_name,
@@ -135,6 +136,49 @@ def _framework_context():
         ],
     )
     return build_framework_context(parsed)
+
+
+class _FakeMysqlPool:
+    async def fetch_one(self, sql: str, params: tuple[object, ...] = ()) -> dict[str, object] | None:
+        normalized_sql = " ".join(sql.lower().split())
+        if "information_schema.tables" in normalized_sql:
+            return {"exists_flag": 1}
+        if "from expense_actual_import_batch" in normalized_sql:
+            return {"id": 9, "file_name": "mysql-actual.xlsx", "created_at": "2026-06-18T00:00:00Z"}
+        raise AssertionError(f"Unexpected SQL: {sql}")
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized_sql = " ".join(sql.lower().split())
+        if "information_schema.columns" in normalized_sql:
+            return [
+                {"COLUMN_NAME": "import_kind"},
+                {"COLUMN_NAME": "owner_name_mapped"},
+                {"COLUMN_NAME": "budget_release_caliber_mapped"},
+                {"COLUMN_NAME": "period_ym"},
+                {"COLUMN_NAME": "amount"},
+                {"COLUMN_NAME": "owner_matched"},
+            ]
+        if "select budget_release_caliber_mapped, period_ym, amount" in normalized_sql:
+            return [
+                {"budget_release_caliber_mapped": "IT费用", "period_ym": "2026-01", "amount": 100.0},
+                {"budget_release_caliber_mapped": "业务费用", "period_ym": "2026-02", "amount": 200.0},
+            ]
+        if "select owner_name_mapped, budget_release_caliber_mapped, period_ym, amount" in normalized_sql:
+            return [
+                {
+                    "owner_name_mapped": "A01 产品部",
+                    "budget_release_caliber_mapped": "IT费用",
+                    "period_ym": "2026-01",
+                    "amount": 100.0,
+                },
+                {
+                    "owner_name_mapped": "T01 平台部",
+                    "budget_release_caliber_mapped": "业务费用",
+                    "period_ym": "2026-02",
+                    "amount": 200.0,
+                },
+            ]
+        raise AssertionError(f"Unexpected SQL: {sql}")
 
 
 class ExpenseBudgetExecutionBudgetSourceTests(unittest.IsolatedAsyncioTestCase):
@@ -369,6 +413,38 @@ class ExpenseBudgetExecutionBudgetSourceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(owner_totals[("A01 产品部", "业务费用")][:2], [888.0, 0.0])
         self.assertNotIn(("未知部门", "业务费用"), owner_totals)
 
+    async def test_imported_actual_totals_use_mysql_pool_for_runtime_common_db(self) -> None:
+        ctx = _framework_context()
+
+        async def fake_catalog_names(_db=None):
+            return {"IT费用", "业务费用"}
+
+        async def fake_catalog_map(_db=None, *, catalog_names=None):
+            return {}
+
+        with (
+            patch.object(budget_source_module, "get_pool", return_value=_FakeMysqlPool()),
+            patch.object(
+                budget_source_module,
+                "common_db_path",
+                return_value=Path(budget_source_module.settings.data_dir) / "common.db",
+            ),
+            patch.object(budget_source_module, "load_catalog_subject_names", side_effect=fake_catalog_names),
+            patch.object(budget_source_module, "load_budget_caliber_catalog_map", side_effect=fake_catalog_map),
+        ):
+            subject_totals, subject_source = await load_imported_caliber_monthly_totals("current_year_actual")
+            owner_totals, owner_source = await load_imported_owner_caliber_monthly_totals(
+                ctx,
+                "current_year_actual",
+            )
+
+        self.assertEqual(subject_totals["IT费用"][0], 100.0)
+        self.assertEqual(subject_totals["业务费用"][1], 200.0)
+        self.assertEqual(owner_totals[("A01 产品部", "IT费用")][0], 100.0)
+        self.assertEqual(owner_totals[("T01 平台部", "业务费用")][1], 200.0)
+        self.assertIn("mysql-actual.xlsx", subject_source)
+        self.assertIn("mysql-actual.xlsx", owner_source)
+
     async def test_load_budget_rows_raises_for_missing_version(self) -> None:
         ctx = _framework_context()
         with tempfile.TemporaryDirectory() as tmp:
@@ -409,6 +485,10 @@ class ExpenseBudgetExecutionBudgetSourceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(by_owner[("A01 产品部", "IT费用")][:3], [10.0, 20.0, 0.0])
         self.assertEqual(by_owner[("T01 平台部", "IT费用")][0], 99.0)
         self.assertIn("V1", owner_source)
+
+    async def test_budget_source_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(budget_source_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

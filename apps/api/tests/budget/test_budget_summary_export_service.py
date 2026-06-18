@@ -192,7 +192,7 @@ class BudgetSummaryExportServiceTests(unittest.TestCase):
             )
 
     def test_main_no_longer_supplies_budget_summary_export_formatting_helpers(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("def _extract_data_acct_code_from_name", main_source)
         self.assertNotIn("def _extract_product_code_from_summary_name", main_source)

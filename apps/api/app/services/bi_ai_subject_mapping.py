@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+import re
+import sqlite3
+import tempfile
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import load_workbook
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.db_bootstrap.expense import ensure_bi_ai_subject_mapping_schema
 from app.services.bi_ai_manage_department import (
     build_caliber_to_catalog_subject_map,
@@ -61,6 +66,142 @@ SKIPPED_LEVEL3_CODES = {"YS0104", "YS0105"}
 class BiAiSubjectMappingReloadResult:
     row_count: int
     source_file: str
+
+
+def _uses_mysql_common_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db"
+
+
+def _mysql_sql(sql: str) -> str:
+    return sql.replace("?", "%s")
+
+
+class _CursorAdapter:
+    def __init__(self, rows: list[Any] | None = None, *, rowcount: int = 0, lastrowid: int | None = None):
+        self._rows = rows or []
+        self.rowcount = rowcount
+        self.lastrowid = lastrowid
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteConnection:
+    def __init__(self, path: Path):
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            if exc_type is not None:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        cur = self._conn.execute(sql, tuple(params))
+        return _CursorAdapter(
+            cur.fetchall() if cur.description else [],
+            rowcount=max(0, int(cur.rowcount or 0)),
+            lastrowid=cur.lastrowid,
+        )
+
+    async def commit(self) -> None:
+        assert self._conn is not None
+        self._conn.commit()
+
+
+class _MySQLConnection:
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+
+    async def __aenter__(self) -> "_MySQLConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None and self._conn is not None:
+            rollback = getattr(self._conn, "rollback", None)
+            if rollback is not None:
+                await rollback()
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        stripped = " ".join(sql.strip().split())
+        if stripped.lower().startswith("pragma foreign_keys"):
+            return _CursorAdapter([(1,)])
+        pragma_match = re.fullmatch(r'PRAGMA table_info\("([^"]+)"\)', stripped, flags=re.IGNORECASE)
+        if pragma_match:
+            table_name = pragma_match.group(1)
+            async with self._conn.cursor() as cur:
+                await cur.execute(f"SHOW COLUMNS FROM `{table_name}`")
+                rows = await cur.fetchall()
+            return _CursorAdapter([(idx, row[0]) for idx, row in enumerate(rows)])
+
+        sqlite_master_match = re.search(
+            r"FROM\s+sqlite_master\s+WHERE\s+type\s*=\s*'table'\s+AND\s+name\s*=\s*'([^']+)'",
+            stripped,
+            flags=re.IGNORECASE,
+        )
+        if sqlite_master_match:
+            table_name = sqlite_master_match.group(1)
+            async with self._conn.cursor() as cur:
+                await cur.execute("SHOW TABLES LIKE %s", (table_name,))
+                rows = await cur.fetchall()
+            return _CursorAdapter([(1,)] if rows else [])
+
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), tuple(params))
+            rows = await cur.fetchall() if cur.description else []
+            return _CursorAdapter(
+                list(rows),
+                rowcount=max(0, int(cur.rowcount or 0)),
+                lastrowid=getattr(cur, "lastrowid", None),
+            )
+
+    async def commit(self) -> None:
+        if self._conn is not None:
+            await self._conn.commit()
+
+
+@asynccontextmanager
+async def _connect_db(db_path: Path):
+    if _uses_mysql_common_path(db_path):
+        async with _MySQLConnection() as db:
+            yield db
+    else:
+        async with _SQLiteConnection(db_path) as db:
+            yield db
 
 
 def _text(value: Any) -> str:
@@ -150,7 +291,9 @@ def _attach_manage_departments(
 
 
 async def ensure_bi_ai_subject_mapping_table(db_path: Path) -> None:
-    async with aiosqlite.connect(db_path) as db:
+    if _uses_mysql_common_path(db_path):
+        return
+    async with _connect_db(db_path) as db:
         await ensure_bi_ai_subject_mapping_schema(db)
         await db.commit()
 
@@ -162,7 +305,7 @@ async def ensure_bi_ai_subject_mapping_seeded(
     force_reload: bool = False,
 ) -> BiAiSubjectMappingReloadResult:
     await ensure_bi_ai_subject_mapping_table(db_path)
-    async with aiosqlite.connect(db_path) as db:
+    async with _connect_db(db_path) as db:
         cur = await db.execute("SELECT COUNT(*) FROM bi_ai_subject_mapping")
         existing_count = int((await cur.fetchone())[0] or 0)
     if existing_count > 0 and not force_reload:
@@ -170,12 +313,13 @@ async def ensure_bi_ai_subject_mapping_seeded(
 
     source_path = source_workbook_path(repo_root)
     if source_path is None:
-        # Excel 种子文件缺失 — 保留现有 DB 数据，不抛异常
-        return BiAiSubjectMappingReloadResult(row_count=existing_count, source_file="(db only, no seed file)")
+        if force_reload:
+            raise BiAiSubjectMappingSourceMissingError("BI科目mapping源文件不存在")
+        return BiAiSubjectMappingReloadResult(row_count=existing_count, source_file="")
 
     rows = read_workbook_rows(source_path)
     now = _iso_now()
-    async with aiosqlite.connect(db_path) as db:
+    async with _connect_db(db_path) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await db.execute("DELETE FROM bi_ai_subject_mapping")
         for index, row in enumerate(rows, start=1):
@@ -210,7 +354,7 @@ async def query_bi_ai_subject_mapping_rows(
     db_path: Path,
     repo_root: Path,
 ) -> list[dict[str, Any]]:
-    async with aiosqlite.connect(db_path) as db:
+    async with _connect_db(db_path) as db:
         cur = await db.execute(
             """
             SELECT id, level5_code, level5_name, level6_code, level6_name,
@@ -261,7 +405,7 @@ async def query_bi_ai_subject_mapping_rows(
 
 async def get_bi_ai_subject_mapping_reference_data(db_path: Path) -> dict[str, Any]:
     await ensure_bi_ai_subject_mapping_table(db_path)
-    async with aiosqlite.connect(db_path) as db:
+    async with _connect_db(db_path) as db:
         expense_departments = await load_all_expense_departments(db)
     return {"expense_departments": expense_departments}
 
@@ -274,7 +418,7 @@ async def update_bi_ai_subject_mapping_manage_departments(
     repo_root: Path,
 ) -> dict[str, Any]:
     await ensure_bi_ai_subject_mapping_table(db_path)
-    async with aiosqlite.connect(db_path) as db:
+    async with _connect_db(db_path) as db:
         expense_departments = await load_all_expense_departments(db)
         allowed = set(expense_departments)
         if manage_departments is not None:
@@ -326,7 +470,7 @@ async def create_bi_ai_subject_mapping_row(
         raise BiAiSubjectMappingUpdateError("归口部门必须是字符串数组或空值")
 
     now = _iso_now()
-    async with aiosqlite.connect(db_path) as db:
+    async with _connect_db(db_path) as db:
         expense_departments = await load_all_expense_departments(db)
         allowed = set(expense_departments)
         if manage_departments is not None:

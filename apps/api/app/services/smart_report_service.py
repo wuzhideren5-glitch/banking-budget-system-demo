@@ -6,16 +6,20 @@ import re
 import shutil
 import ast
 import operator
+import sqlite3
+import tempfile
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches
 from fastapi import HTTPException, UploadFile
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.db_bootstrap.derived_read_models import ensure_budget_summary_read_model_schema_async
 from app.core.db_paths import budget_db_path, common_db_path
 from app.services.runtime_metric_refs import load_confirmed_org_product_runtime_ref_codes
@@ -45,6 +49,140 @@ from app.schemas import (
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 CHART_PLACEHOLDER_RE = re.compile(r"\{\{\s*chart\s*:\s*([^{}]+?)\s*\}\}", re.IGNORECASE)
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+
+
+def _mysql_sql(sql: str) -> str:
+    translated = re.sub(
+        r"ON\s+CONFLICT\s*\([^)]+\)\s+DO\s+UPDATE\s+SET",
+        "ON DUPLICATE KEY UPDATE",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    translated = re.sub(r"excluded\.([A-Za-z_][A-Za-z0-9_]*)", r"VALUES(\1)", translated)
+    translated = translated.replace(
+        "GROUP_CONCAT(n.node_name, ' / ') AS metric_nodes",
+        "GROUP_CONCAT(n.node_name SEPARATOR ' / ') AS metric_nodes",
+    )
+    translated = translated.replace(
+        "(IFNULL(dept_level1, '') || IFNULL(dept_level2, '') || IFNULL(dept_level3, ''))",
+        "CONCAT(IFNULL(dept_level1, ''), IFNULL(dept_level2, ''), IFNULL(dept_level3, ''))",
+    )
+    translated = translated.replace(
+        "(IFNULL(metric_level1, '') || IFNULL(metric_level2, '') || IFNULL(metric_level3, '') || IFNULL(metric_level4, '') || IFNULL(metric_level5, ''))",
+        "CONCAT(IFNULL(metric_level1, ''), IFNULL(metric_level2, ''), IFNULL(metric_level3, ''), IFNULL(metric_level4, ''), IFNULL(metric_level5, ''))",
+    )
+    return translated.replace("?", "%s")
+
+
+class _CursorAdapter:
+    def __init__(self, rows: list[Any] | None = None, *, rowcount: int = 0, lastrowid: int | None = None):
+        self._rows = rows or []
+        self.rowcount = rowcount
+        self.lastrowid = lastrowid
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteConnection:
+    def __init__(self, path: Path):
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            if exc_type is not None:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        cur = self._conn.execute(sql, tuple(params))
+        return _CursorAdapter(
+            cur.fetchall() if cur.description else [],
+            rowcount=max(0, int(cur.rowcount or 0)),
+            lastrowid=cur.lastrowid,
+        )
+
+    async def commit(self) -> None:
+        assert self._conn is not None
+        self._conn.commit()
+
+
+class _MySQLConnection:
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+
+    async def __aenter__(self) -> "_MySQLConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None and self._conn is not None:
+            rollback = getattr(self._conn, "rollback", None)
+            if rollback is not None:
+                await rollback()
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        if sql.strip().lower().startswith("pragma foreign_keys"):
+            return _CursorAdapter([(1,)])
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), tuple(params))
+            rows = await cur.fetchall() if cur.description else []
+            return _CursorAdapter(
+                list(rows),
+                rowcount=max(0, int(cur.rowcount or 0)),
+                lastrowid=getattr(cur, "lastrowid", None),
+            )
+
+    async def commit(self) -> None:
+        if self._conn is not None:
+            await self._conn.commit()
+
+
+@asynccontextmanager
+async def _connect_db(path: Path):
+    if _uses_mysql_path(path):
+        async with _MySQLConnection() as db:
+            yield db
+    else:
+        async with _SQLiteConnection(path) as db:
+            yield db
 
 
 def _iso_now() -> str:
@@ -131,7 +269,7 @@ class SmartReportService:
         self.deepseek_client = deepseek_client
 
     async def list_templates(self) -> list[SmartReportTemplateRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 """
@@ -216,7 +354,7 @@ class SmartReportService:
         )
 
     async def list_blueprints(self) -> list[SmartReportBlueprintRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """
                 SELECT blueprint_id, blueprint_name, source_filename, inspection_json, status,
@@ -232,7 +370,7 @@ class SmartReportService:
     async def save_blueprint(self, body: SmartReportBlueprintSaveRequest) -> SmartReportBlueprintDetail:
         now = _iso_now()
         inspection_json = json.dumps(body.inspection.model_dump(), ensure_ascii=False)
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """
                 INSERT INTO smart_report_blueprint (
@@ -247,7 +385,7 @@ class SmartReportService:
         return await self.get_blueprint(blueprint_id)
 
     async def get_blueprint(self, blueprint_id: int) -> SmartReportBlueprintDetail:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """
                 SELECT blueprint_id, blueprint_name, source_filename, inspection_json, status,
@@ -282,7 +420,7 @@ class SmartReportService:
         output_path = self.output_dir / output_filename
         self._write_blueprint_docx(output_path, detail)
         finished = _iso_now()
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute(
                 """
                 UPDATE smart_report_blueprint
@@ -327,7 +465,7 @@ class SmartReportService:
         now = _iso_now()
         self.template_dir.mkdir(parents=True, exist_ok=True)
 
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 "SELECT template_id, version_no FROM smart_report_template WHERE template_code = ?",
@@ -393,7 +531,7 @@ class SmartReportService:
         now = _iso_now()
         self.template_dir.mkdir(parents=True, exist_ok=True)
 
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 "SELECT template_id, version_no FROM smart_report_template WHERE template_code = ?",
@@ -451,7 +589,7 @@ class SmartReportService:
         return rows[0]
 
     async def list_variables(self, template_id: int) -> list[SmartReportTemplateVariableRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 """
@@ -484,7 +622,7 @@ class SmartReportService:
     ) -> list[SmartReportTemplateVariableRow]:
         await self.get_template(template_id)
         now = _iso_now()
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             confirmed_codes = await load_confirmed_org_product_runtime_ref_codes(db)
             for item in variables:
@@ -525,7 +663,7 @@ class SmartReportService:
         return await self.list_variables(template_id)
 
     async def list_calc_metrics(self) -> list[SmartReportCalcMetricRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """
                 SELECT metric_code, metric_name, expression, components_json, value_type,
@@ -547,7 +685,7 @@ class SmartReportService:
         self._safe_eval_expression(body.expression, {alias: 1.0 for alias in aliases})
         now = _iso_now()
         components = [item.model_dump() for item in body.components]
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             confirmed_codes = await load_confirmed_org_product_runtime_ref_codes(db)
             component_codes = {
                 str(item.get("data_acct_code") or "").strip().upper()
@@ -597,7 +735,7 @@ class SmartReportService:
         return metric
 
     async def get_calc_metric(self, metric_code: str) -> SmartReportCalcMetricRow | None:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 """
                 SELECT metric_code, metric_name, expression, components_json, value_type,
@@ -618,7 +756,7 @@ class SmartReportService:
         instance_name = body.instance_name or f"{template_row['template_name']} {now}"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 """
@@ -670,7 +808,7 @@ class SmartReportService:
 
     async def refresh_instance(self, instance_id: int) -> SmartReportGenerateResponse:
         now = _iso_now()
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 """
@@ -738,7 +876,7 @@ class SmartReportService:
             else:
                 await self._render_docx(template_path, output_path, resolved, parameters)
             finished = _iso_now()
-            async with aiosqlite.connect(common_db_path()) as db:
+            async with _connect_db(common_db_path()) as db:
                 await db.execute("PRAGMA foreign_keys = ON")
                 if job_type == "refresh":
                     await db.execute(
@@ -792,7 +930,7 @@ class SmartReportService:
             )
         except Exception as exc:
             finished = _iso_now()
-            async with aiosqlite.connect(common_db_path()) as db:
+            async with _connect_db(common_db_path()) as db:
                 await db.execute("PRAGMA foreign_keys = ON")
                 await db.execute(
                     """
@@ -816,7 +954,7 @@ class SmartReportService:
             raise HTTPException(status_code=500, detail=f"生成报告失败：{exc}") from exc
 
     async def list_instances(self) -> list[SmartReportInstanceRow]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 """
@@ -849,7 +987,7 @@ class SmartReportService:
         ]
 
     async def instance_output_path(self, instance_id: int) -> Path:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             cur = await db.execute(
                 "SELECT output_file_path FROM smart_report_instance WHERE instance_id = ?",
                 (instance_id,),
@@ -895,7 +1033,7 @@ class SmartReportService:
         return found
 
     async def _sync_detected_variables(
-        self, db: aiosqlite.Connection, template_id: int, placeholders: list[str], now: str
+        self, db: Any, template_id: int, placeholders: list[str], now: str
     ) -> None:
         confirmed_codes = await load_confirmed_org_product_runtime_ref_codes(db)
         for idx, token in enumerate(placeholders):
@@ -988,7 +1126,7 @@ class SmartReportService:
         return token.strip()
 
     async def _fetch_template_record(self, template_id: int) -> dict[str, Any]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             await db.execute("PRAGMA foreign_keys = ON")
             cur = await db.execute(
                 "SELECT template_id, template_name, file_path FROM smart_report_template WHERE template_id = ?",
@@ -1044,7 +1182,7 @@ class SmartReportService:
             formula_type = "actual" if self._budget_actual_param(params) == 1 else "budget"
         if not data_acct_code:
             return ""
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             confirmed_codes = await load_confirmed_org_product_runtime_ref_codes(db)
             self._validate_formula_binding_config(
                 "formula",
@@ -1115,7 +1253,7 @@ class SmartReportService:
         return await self._sum_budget_summary(scoped_params, budget_actual=budget_actual)
 
     async def _load_ai_binding_catalog(self, limit: int = 180) -> list[dict[str, Any]]:
-        async with aiosqlite.connect(common_db_path()) as db:
+        async with _connect_db(common_db_path()) as db:
             confirmed_codes = sorted(await load_confirmed_org_product_runtime_ref_codes(db))
             if not confirmed_codes:
                 return []
@@ -1377,7 +1515,7 @@ class SmartReportService:
     async def _sum_budget_summary(self, params: dict[str, Any], *, budget_actual: int) -> float:
         year_int = _plain_year(params.get("year"))
         path = budget_db_path(year_int)
-        if not path.exists():
+        if not _uses_mysql_path(path) and not path.exists():
             return 0.0
         where = ["year = ?", "budget_actual = ?"]
         values: list[Any] = [_year_label(year_int), budget_actual]
@@ -1389,7 +1527,7 @@ class SmartReportService:
             end_num = int((end_month or "M12")[1:])
             if start_num > end_num:
                 start_num, end_num = end_num, start_num
-            where.append("CAST(SUBSTR(month, 2) AS INTEGER) BETWEEN ? AND ?")
+            where.append("CAST(SUBSTR(month, 2) AS UNSIGNED) BETWEEN ? AND ?")
             values.extend([start_num, end_num])
         elif month:
             where.append("month = ?")
@@ -1421,8 +1559,9 @@ class SmartReportService:
             )
             values.append(f"%{str(metric_code).strip()}%")
 
-        async with aiosqlite.connect(path) as db:
-            await ensure_budget_summary_read_model_schema_async(db)
+        async with _connect_db(path) as db:
+            if not _uses_mysql_path(path):
+                await ensure_budget_summary_read_model_schema_async(db)
             where.append("value_source <> 'rollup'")
             cur = await db.execute(
                 f"SELECT COALESCE(SUM(value), 0) FROM budget_summary WHERE {' AND '.join(where)}",

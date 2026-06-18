@@ -5,7 +5,10 @@ from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from app.core.config import settings
+import app.services.expense_forecast_rule_read_model as module
 from app.services.expense_forecast_rule_read_model import (
     build_enabled_expense_forecast_rule_map,
     load_expense_forecast_calc_result_map,
@@ -167,6 +170,143 @@ class ExpenseForecastRuleReadModelTests(unittest.IsolatedAsyncioTestCase):
         )
         conn.commit()
         conn.close()
+
+    async def test_runtime_common_reads_use_mysql_pool(self) -> None:
+        class FakePool:
+            def __init__(self) -> None:
+                self.fetch_all_calls: list[tuple[str, tuple]] = []
+                self.fetch_one_calls: list[tuple[str, tuple]] = []
+
+            async def fetch_one(self, sql, params=()):
+                self.fetch_one_calls.append((sql, params))
+                if "FROM expense_forecast_rule" in sql:
+                    return {
+                        "forecast_year": 2026,
+                        "forecast_version": "V1",
+                        "owner_name": "部门A",
+                        "subject_id": 11,
+                    }
+                raise AssertionError(sql)
+
+            async def fetch_all(self, sql, params=()):
+                self.fetch_all_calls.append((sql, params))
+                if "FROM expense_forecast_rule r" in sql:
+                    return [
+                        {
+                            "id": 5,
+                            "forecast_year": 2026,
+                            "forecast_version": "V1",
+                            "owner_name": "部门A",
+                            "subject_id": 11,
+                            "subject_name": "差旅费",
+                            "scheme_code": "RESIDUAL_ALLOC",
+                            "enabled": 1,
+                            "allow_manual_override": 1,
+                            "auto_refresh_enabled": 1,
+                            "manual_recalc_enabled": 1,
+                            "metric_source_priority": "inline_first",
+                            "effective_from_month": 2,
+                            "effective_to_month": 10,
+                            "priority": 20,
+                            "remark": "备注",
+                            "created_at": "c5",
+                            "updated_at": "u5",
+                        }
+                    ]
+                if "FROM expense_forecast_rule_param" in sql:
+                    return [
+                        {
+                            "rule_id": 5,
+                            "param_group": "",
+                            "param_key": "target_total",
+                            "param_value": "1200",
+                            "value_type": "",
+                        }
+                    ]
+                if "FROM expense_forecast_rule_variable" in sql:
+                    return [
+                        {
+                            "rule_id": 5,
+                            "variable_code": "A",
+                            "variable_name": "指标A",
+                            "source_type": "metric_tree",
+                            "source_key": "A01.01",
+                            "source_subkey": "balance",
+                            "default_value": 1.5,
+                            "sort_order": 1,
+                        }
+                    ]
+                if "FROM data_account_metric_node" in sql:
+                    return [
+                        {
+                            "node_code": "A01.01",
+                            "node_name": "管理贷款余额",
+                            "product_code": "A01",
+                            "metric_table_name": "业务状况表",
+                        }
+                    ]
+                if "FROM expense_forecast_calc_result" in sql:
+                    return [
+                        {
+                            "owner_name": "部门A",
+                            "subject_id": 11,
+                            "month": 3,
+                            "rule_id": 5,
+                            "calc_value": 88.5,
+                            "calc_basis_json": '{"ok":true}',
+                            "calc_status": None,
+                        }
+                    ]
+                if "FROM expense_forecast_override" in sql:
+                    return [
+                        {
+                            "owner_name": "部门A",
+                            "subject_id": 11,
+                            "month": 3,
+                            "rule_id": 5,
+                            "system_value": 88.5,
+                            "override_value": 99.0,
+                            "override_reason": "业务调整",
+                        }
+                    ]
+                raise AssertionError(sql)
+
+        fake_pool = FakePool()
+        runtime_common = Path(settings.data_dir) / "common.db"
+        with patch.object(module, "get_pool", return_value=fake_pool):
+            identity = await load_expense_forecast_rule_identity(runtime_common, rule_id=5)
+            rows = await load_expense_forecast_rule_rows(
+                runtime_common,
+                year=2026,
+                forecast_version="V1",
+                owner_names=["部门A"],
+            )
+            calc_map = await load_expense_forecast_calc_result_map(
+                runtime_common,
+                year=2026,
+                forecast_version="V1",
+                owner_names=["部门A"],
+            )
+            override_map = await load_expense_forecast_override_map(
+                runtime_common,
+                year=2026,
+                forecast_version="V1",
+                owner_names=["部门A"],
+            )
+
+        self.assertEqual(identity["subject_id"], 11)
+        self.assertEqual(rows[0]["params"][0]["param_group"], "common")
+        self.assertEqual(rows[0]["variables"][0]["org_product_refs"], ["A01:业务状况表:A01.01 管理贷款余额"])
+        self.assertEqual(calc_map[("部门A", 11, 3)]["calc_status"], "ok")
+        self.assertEqual(override_map[("部门A", 11, 3)]["override_reason"], "业务调整")
+        self.assertTrue(all("%s" in sql or "?" not in sql for sql, _params in fake_pool.fetch_all_calls))
+        self.assertEqual(fake_pool.fetch_one_calls[0][1], (5,))
+
+    def test_rule_read_model_does_not_import_aiosqlite(self) -> None:
+        source = Path(module.__file__).read_text(encoding="utf-8")
+
+        self.assertNotIn("aiosqlite_compat", source)
+        self.assertNotIn("import aiosqlite", source)
 
     async def test_rule_rows_expand_params_variables_and_defaults(self) -> None:
         rows = await load_expense_forecast_rule_rows(

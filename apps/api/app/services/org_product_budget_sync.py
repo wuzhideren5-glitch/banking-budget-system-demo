@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 import re
+import sqlite3
+import tempfile
 
 from app.budget_data_writer import (
     IMPORT_INPUT_POLICY,
@@ -14,6 +16,8 @@ from app.budget_data_writer import (
     write_budget_data_items,
 )
 from app.budget_window import budget_actual_allowed_for_month
+from app.core.config import settings
+from app.core.database import get_pool
 from app.runtime_metric_identity import product_code_from_runtime_metric_ref
 from app.services.budget_summary_rebuild import rebuild_budget_summary_for_version
 from app.services.global_refresh_status import set_budget_refresh_time
@@ -52,21 +56,66 @@ class OrgProductBudgetSyncApplyResult:
     budget_aggregate_rows: int = 0
 
 
-async def _infer_budget_year(common_path: Path, period_ids: set[int]) -> int | None:
-    if not period_ids or not common_path.exists():
-        return None
-    import app.core.aiosqlite_compat as aiosqlite
+def _uses_mysql_path(path: Path | str, *, names: set[str] | None = None, budget: bool = False) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+    except TypeError:
+        return False
+    temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    data_dir = Path(settings.data_dir).expanduser().resolve()
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    if budget:
+        return re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+    return names is not None and candidate.name in names
 
-    placeholders = ",".join("?" for _ in period_ids)
-    async with aiosqlite.connect(common_path) as db:
-        cur = await db.execute(
+
+def _uses_mysql_common_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, names={"common.db"})
+
+
+def _uses_mysql_budget_path(path: Path | str) -> bool:
+    return _uses_mysql_path(path, budget=True)
+
+
+def _row_value(row: Any, key: str, index: int) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (TypeError, KeyError, IndexError):
+        return row[index]
+
+
+async def _infer_budget_year(common_path: Path, period_ids: set[int]) -> int | None:
+    if not period_ids:
+        return None
+
+    if _uses_mysql_common_path(common_path):
+        placeholders = ",".join("%s" for _ in period_ids)
+        row = await get_pool().fetch_one(
             f"SELECT year FROM period WHERE period_id IN ({placeholders}) LIMIT 1",
             tuple(sorted(period_ids)),
         )
-        row = await cur.fetchone()
+    else:
+        if not common_path.exists():
+            return None
+        placeholders = ",".join("?" for _ in period_ids)
+        with sqlite3.connect(common_path) as db:
+            row = db.execute(
+                f"SELECT year FROM period WHERE period_id IN ({placeholders}) LIMIT 1",
+                tuple(sorted(period_ids)),
+            ).fetchone()
     if not row:
         return None
-    text = str(row[0] or "").strip().upper()
+    text = str(_row_value(row, "year", 0) or "").strip().upper()
     if text.startswith("Y"):
         text = text[1:]
     try:
@@ -227,7 +276,11 @@ async def apply_org_product_budget_sync_plan(
     metric_rollup_cells_written = 0
     period_ids = {int(item.period_id) for item in plan.write_items}
     budget_year = await _infer_budget_year(common_path, period_ids)
-    if budget_year is not None and common_path.exists() and budget_path.exists():
+    paths_ready = (
+        _uses_mysql_common_path(common_path)
+        and _uses_mysql_budget_path(budget_path)
+    ) or (common_path.exists() and budget_path.exists())
+    if budget_year is not None and paths_ready:
         rollup_result = await rebuild_configured_rollups(
             common_path=common_path,
             budget_path=budget_path,

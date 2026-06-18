@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import sqlite3
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -8,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.routers import budget_summary_export as budget_summary_export_module
 from app.routers import compare_summary_export as compare_summary_export_module
+from app.services.compare_export_service import load_compare_export_org_product_refs
 
 
 class SummaryExportRouterTests(unittest.TestCase):
@@ -57,6 +61,37 @@ class SummaryExportRouterTests(unittest.TestCase):
         self.assertEqual(response.content, b"compare export")
         self.assertEqual(calls[0].row_field_ids, ["dept_level1"])
 
+    def test_compare_export_org_product_refs_load_from_explicit_sqlite_common_db(self) -> None:
+        async def run() -> None:
+            with tempfile.TemporaryDirectory() as tmp:
+                db_path = Path(tmp) / "common.db"
+                with sqlite3.connect(db_path) as conn:
+                    conn.executescript(
+                        """
+                        CREATE TABLE data_account_metric_node(
+                          node_code TEXT NOT NULL,
+                          node_name TEXT NOT NULL,
+                          product_code TEXT NOT NULL,
+                          metric_table_name TEXT NOT NULL,
+                          is_active INTEGER NOT NULL,
+                          runtime_account_enabled INTEGER NOT NULL
+                        );
+                        INSERT INTO data_account_metric_node(
+                          node_code, node_name, product_code, metric_table_name,
+                          is_active, runtime_account_enabled
+                        ) VALUES
+                          ('A.01', '营业收入', 'A', '业务状况表', 1, 1),
+                          ('A.01', '营业收入', 'A', '业务状况表', 1, 1),
+                          ('B.01', '未启用', 'B', '业务状况表', 1, 0);
+                        """
+                    )
+
+                refs = await load_compare_export_org_product_refs(db_path)
+
+            self.assertEqual(refs, {"A.01": ["A:业务状况表:A.01 营业收入"]})
+
+        asyncio.run(run())
+
     def test_summary_export_routers_do_not_import_streaming_response(self) -> None:
         budget_router_source = Path(budget_summary_export_module.__file__).read_text(encoding="utf-8")
         compare_router_source = Path(compare_summary_export_module.__file__).read_text(encoding="utf-8")
@@ -67,7 +102,7 @@ class SummaryExportRouterTests(unittest.TestCase):
         self.assertIn("Response", compare_router_source)
 
     def test_main_export_adapter_keeps_only_live_export_adapters(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("StreamingResponse", main_source)
         self.assertNotIn("JSONResponse", main_source)

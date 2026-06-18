@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -21,7 +20,7 @@ from app.schemas import (
     BudgetOutputVersionMetricDto,
 )
 from app.services.budget_output_display import build_budget_output_display_report
-from app.services.runtime_metric_refs import load_org_product_metric_refs_by_runtime_ref_code
+from app.services.runtime_metric_refs import load_org_product_metric_refs_by_runtime_ref_code_from_path
 
 REPORT_GROUP_ROW = 4
 REPORT_VERSION_ROW = 5
@@ -883,9 +882,7 @@ async def build_budget_output_display_report_export(
     org_product_refs: dict[str, list[str]] = {}
     common_path = data_dir / "common.db"
     if common_path.exists():
-        async with aiosqlite.connect(common_path) as common_db:
-            await common_db.execute("PRAGMA foreign_keys = ON")
-            org_product_refs = await load_org_product_metric_refs_by_runtime_ref_code(common_db)
+        org_product_refs = await load_org_product_metric_refs_by_runtime_ref_code_from_path(common_path)
     report = await build_budget_output_display_report(
         year=year,
         budget_version_id=budget_version_id,

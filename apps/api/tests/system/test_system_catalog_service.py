@@ -181,7 +181,7 @@ class SystemCatalogServiceTests(unittest.TestCase):
         asyncio.run(run())
 
     def test_main_no_longer_keeps_system_catalog_sync_helpers(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("def _parse_year_from_budget_filename", main_source)
         self.assertNotIn("def _fmt_file_ctime", main_source)

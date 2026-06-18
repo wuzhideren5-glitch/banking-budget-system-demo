@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import settings
+from app.services.runtime_metric_refs import derive_runtime_ref_from_org_product_metric_code
 # 仅读查询白名单：年度库事实表/维度表
 BUDGET_SQL_TABLES: frozenset[str] = frozenset(
     {
@@ -99,6 +100,7 @@ class ReadOnlySqlExecutor:
         conn = sqlite3.connect(self.common_db_path)
         conn.row_factory = sqlite3.Row
         try:
+            confirmed_refs = self._load_confirmed_org_product_data_refs(conn)
             rows = conn.execute(
                 """
                 SELECT data_acct_code, data_acct_name, value_type
@@ -110,6 +112,8 @@ class ReadOnlySqlExecutor:
                 code = str(r["data_acct_code"] or "").strip()
                 name = str(r["data_acct_name"] or "").strip()
                 vtype = str(r["value_type"] or "").strip()
+                if confirmed_refs is not None and code.upper() not in confirmed_refs:
+                    continue
                 if name:
                     mapping[name] = vtype
                 if code and name:
@@ -119,6 +123,46 @@ class ReadOnlySqlExecutor:
         finally:
             conn.close()
         return mapping
+
+    @staticmethod
+    def _load_confirmed_org_product_data_refs(conn: sqlite3.Connection) -> set[str] | None:
+        try:
+            exists = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name='org_product_metric_table'"
+            ).fetchone()
+            if not exists:
+                return None
+            rows = conn.execute("SELECT entity_code, payload_json FROM org_product_metric_table").fetchall()
+        except Exception:
+            return None
+
+        refs: set[str] = set()
+        stack: list[tuple[str, dict[str, Any]]] = []
+        for row in rows:
+            entity_code = str(row["entity_code"] or "").strip().upper()
+            try:
+                payload = json.loads(str(row["payload_json"] or "{}"))
+            except Exception:
+                continue
+            metrics = payload.get("metrics")
+            if isinstance(metrics, list):
+                stack.extend((entity_code, metric) for metric in metrics if isinstance(metric, dict))
+
+        while stack:
+            entity_code, metric = stack.pop()
+            children = metric.get("children")
+            if isinstance(children, list):
+                stack.extend((entity_code, child) for child in children if isinstance(child, dict))
+            if str(metric.get("mapping_status") or "").strip().upper() == "ORG_PRODUCT_ONLY_OR_CREATE_LATER":
+                continue
+            metric_code = str(metric.get("code") or "").strip()
+            runtime_ref = derive_runtime_ref_from_org_product_metric_code(
+                entity_code=entity_code,
+                metric_code=metric_code,
+            )
+            if runtime_ref:
+                refs.add(runtime_ref.upper())
+        return refs
 
     @staticmethod
     def _map_budget_actual(value: Any) -> Any:

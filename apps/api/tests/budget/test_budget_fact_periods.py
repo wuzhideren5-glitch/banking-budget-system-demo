@@ -144,7 +144,7 @@ class BudgetFactPeriodTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(month_map, {1: 1, 2: 2, 3: 3})
 
     def test_main_no_longer_keeps_period_months_sql_helper(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("async def _get_year_period_months", main_source)
         self.assertNotIn("SELECT period_id, month", main_source)

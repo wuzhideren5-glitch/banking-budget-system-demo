@@ -5,22 +5,112 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
+from app.services import budget_actual_batch as budget_actual_batch_module
 from app.services.budget_actual_batch import (
     BUDGET_FACT_REFRESH_ACTION_DESC,
     LEGACY_BUDGET_ACTUAL_BATCH_ACTION_DESC,
+    BudgetActualBatchVersionNotFound,
     BudgetActualBatchCommandResult,
     BudgetActualBatchPlanRequest,
     BudgetActualBatchPreviewContext,
+    ensure_budget_actual_batch_version_exists,
     formula_rows_for_budget_actual_batch_product,
     list_budget_actual_batch_history,
+    manual_override_count_for_budget_actual_batch,
+    period_count_for_budget_year,
     recalculate_budget_actual_batch_formula_account,
     run_budget_actual_batch_command,
     preview_budget_actual_batch_command,
 )
 
 
+class _FakeBudgetActualBatchMysqlPool:
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        normalized_sql = " ".join(sql.lower().split())
+        if "from operation_log" in normalized_sql:
+            return [
+                {
+                    "log_id": 7,
+                    "user_id": "mysql-user",
+                    "affected_rows": 4,
+                    "after_data": '{"version_id": 9, "budget_year": 2026, "product_code": "AA", "budget_actuals": [0]}',
+                    "create_time": "2026-06-18T00:00:00Z",
+                }
+            ]
+        if "from data_account_metric_binding" in normalized_sql:
+            return [
+                {
+                    "data_acct_code": "AA.01.002",
+                    "budget_formula": "AA.01.003 * 2",
+                    "actual_formula": "",
+                    "binding_sort_order": 2,
+                },
+                {
+                    "data_acct_code": "AA.01.001",
+                    "budget_formula": "AA.01.002 + AA.01.003",
+                    "actual_formula": "",
+                    "binding_sort_order": 1,
+                },
+            ]
+        if "from org_product_runtime_products" in normalized_sql:
+            return [
+                {"product_code": "AA", "product_name": "微众银行", "parent_code": None},
+                {"product_code": "AA01", "product_name": "产品一", "parent_code": "AA"},
+            ]
+        raise AssertionError(f"Unexpected fetch_all SQL: {sql}")
+
+    async def fetch_one(self, sql: str, params: tuple[object, ...] = ()) -> dict[str, object] | None:
+        normalized_sql = " ".join(sql.lower().split())
+        if "from version" in normalized_sql:
+            return {"1": 1} if params == (9,) else None
+        if "from period" in normalized_sql:
+            return {"period_count": 12}
+        if "from budget_data" in normalized_sql and "manual_value is not null" in normalized_sql:
+            return {"manual_override_count": 3}
+        raise AssertionError(f"Unexpected fetch_one SQL: {sql}")
+
+
 class BudgetActualBatchFormulaRowsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_runtime_common_and_budget_reads_use_mysql_pool(self) -> None:
+        fake_pool = _FakeBudgetActualBatchMysqlPool()
+        runtime_common = Path(budget_actual_batch_module.settings.data_dir) / "common.db"
+        runtime_budget = Path(budget_actual_batch_module.settings.data_dir) / "budget_2026.db"
+        with patch.object(budget_actual_batch_module, "get_pool", return_value=fake_pool):
+            await ensure_budget_actual_batch_version_exists(runtime_budget, 9)
+            with self.assertRaises(BudgetActualBatchVersionNotFound):
+                await ensure_budget_actual_batch_version_exists(runtime_budget, 404)
+            period_count = await period_count_for_budget_year(2026, common_path=runtime_common)
+            history = await list_budget_actual_batch_history(common_path=runtime_common)
+            formula_rows = await formula_rows_for_budget_actual_batch_product(
+                "AA",
+                0,
+                common_path=runtime_common,
+            )
+            product_codes = await budget_actual_batch_module.resolve_budget_actual_batch_product_selection(
+                "AA",
+                common_path=runtime_common,
+            )
+            manual_count = await manual_override_count_for_budget_actual_batch(
+                budget_path=runtime_budget,
+                version_id=9,
+                product_codes=["AA"],
+                data_acct_codes=["AA.01.001"],
+                budget_actuals=[0],
+            )
+
+        self.assertEqual(period_count, 12)
+        self.assertEqual(history[0].log_id, 7)
+        self.assertEqual(history[0].version_id, 9)
+        self.assertEqual(formula_rows, [("AA.01.002", "AA.01.003 * 2"), ("AA.01.001", "AA.01.002 + AA.01.003")])
+        self.assertEqual(product_codes, ["AA", "AA01"])
+        self.assertEqual(manual_count, 3)
+
+    async def test_budget_actual_batch_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(budget_actual_batch_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
+
     async def test_formula_rows_filter_scope_normalize_formula_and_order_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             common_path = Path(tmp) / "common.db"
@@ -87,7 +177,7 @@ class BudgetActualBatchFormulaRowsTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_main_does_not_keep_formula_row_sql_or_dependency_sorting(self) -> None:
-        main_source = (Path(__file__).parent / "app" / "main.py").read_text(encoding="utf-8")
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text(encoding="utf-8")
 
         self.assertNotIn("def _formula_rows_for_product", main_source)
         self.assertNotIn("def _order_formula_rows_by_dependency", main_source)
@@ -100,7 +190,7 @@ class BudgetActualBatchFormulaRowsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_router_does_not_keep_history_operation_log_sql(self) -> None:
         router_source = (
-            Path(__file__).parent / "app" / "routers" / "budget_actual_batch.py"
+            Path(__file__).resolve().parents[2] / "app" / "routers" / "budget_actual_batch.py"
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("FROM operation_log", router_source)
@@ -113,7 +203,7 @@ class BudgetActualBatchFormulaRowsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_router_does_not_import_aggregate_rebuild_services(self) -> None:
         router_source = (
-            Path(__file__).parent / "app" / "routers" / "budget_actual_batch.py"
+            Path(__file__).resolve().parents[2] / "app" / "routers" / "budget_actual_batch.py"
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("from app.services.pivot_aggregate", router_source)

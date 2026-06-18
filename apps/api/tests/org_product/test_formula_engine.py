@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 import unittest
+from unittest.mock import patch
 
+from app.core.config import settings
+from app.services import formula_engine as formula_engine_module
 from app.services.formula_engine import (
+    load_runtime_metric_scope_map,
     try_calculate_formula_value,
     validate_formula_reference_scope,
 )
@@ -49,6 +54,36 @@ class FormulaEngineTests(unittest.TestCase):
             scope_by_code={"A.01.01.001": False, "B.01.01.001": False},
             formula_label="预算公式",
         )
+
+
+class _FakeFormulaEngineMysqlPool:
+    def __init__(self) -> None:
+        self.fetch_all_calls: list[tuple[str, tuple[object, ...]]] = []
+
+    async def fetch_all(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, object]]:
+        self.fetch_all_calls.append((" ".join(sql.split()), tuple(params)))
+        return [
+            {"data_acct_code": "A01.01.001", "scope_code": "A01"},
+            {"data_acct_code": "AA.90", "scope_code": "CORP"},
+        ]
+
+
+class FormulaEngineMysqlPathTests(unittest.IsolatedAsyncioTestCase):
+    async def test_load_runtime_metric_scope_map_uses_mysql_for_runtime_common_path(self) -> None:
+        fake_pool = _FakeFormulaEngineMysqlPool()
+
+        with patch.object(formula_engine_module, "get_pool", return_value=fake_pool):
+            scope_map = await load_runtime_metric_scope_map(settings.data_dir / "common.db")
+
+        self.assertEqual(scope_map, {"A01.01.001": False, "AA.90": True})
+        self.assertEqual(len(fake_pool.fetch_all_calls), 1)
+        sql, params = fake_pool.fetch_all_calls[0]
+        self.assertIn("FROM data_account_metric_binding", sql)
+        self.assertEqual(params, ())
+
+    def test_formula_engine_service_does_not_import_aiosqlite(self) -> None:
+        source = Path(formula_engine_module.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("aiosqlite", source)
 
 
 if __name__ == "__main__":

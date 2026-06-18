@@ -334,7 +334,7 @@ def seed_periods(conn: sqlite3.Connection, calendar_year: int) -> None:
         quarter = _quarter_for_month(month)
         conn.execute(
             """
-            INSERT OR IGNORE INTO period (year, month, quarter, year_month, days)
+            INSERT OR IGNORE INTO period (`year`, `month`, `quarter`, `year_month`, `days`)
             VALUES (?, ?, ?, ?, ?)
             """,
             (year_label, month_label, quarter, year_month, days),
@@ -355,11 +355,11 @@ def seed_smart_ppt_defaults(
               remark, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(config_code) DO UPDATE SET
-              chart_type = excluded.chart_type,
-              metric_config_json = excluded.metric_config_json,
-              visual_config_json = excluded.visual_config_json,
-              remark = excluded.remark,
-              updated_at = excluded.updated_at
+              chart_type=excluded.chart_type,
+              metric_config_json=excluded.metric_config_json,
+              visual_config_json=excluded.visual_config_json,
+              remark=excluded.remark,
+              updated_at=excluded.updated_at
             """,
             (
                 item["config_code"],
@@ -380,14 +380,14 @@ def seed_smart_ppt_defaults(
               default_params_json, sort_order, status, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
             ON CONFLICT(scene_code) DO UPDATE SET
-              scene_name = excluded.scene_name,
-              scene_type = excluded.scene_type,
-              description = excluded.description,
-              slide_template_json = excluded.slide_template_json,
-              default_params_json = excluded.default_params_json,
-              sort_order = excluded.sort_order,
-              status = excluded.status,
-              updated_at = excluded.updated_at
+              scene_name=excluded.scene_name,
+              scene_type=excluded.scene_type,
+              description=excluded.description,
+              slide_template_json=excluded.slide_template_json,
+              default_params_json=excluded.default_params_json,
+              sort_order=excluded.sort_order,
+              status=excluded.status,
+              updated_at=excluded.updated_at
             """,
             (
                 item["scene_code"],

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import re
+import sqlite3
+import tempfile
+from collections.abc import Iterator, Mapping
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import HTTPException
 
+from app.core.config import settings
+from app.core.database import get_pool
 from app.db_bootstrap.report_display import ensure_budget_output_display_item_schema
 from app.core.db_paths import common_db_path
 from app.schemas import (
@@ -30,6 +36,185 @@ from app.services.runtime_metric_refs import (
     load_confirmed_org_product_runtime_ref_codes,
     load_org_product_metric_refs_by_runtime_ref_code,
 )
+
+
+def _uses_mysql_path(path: Path | str) -> bool:
+    try:
+        candidate = Path(path).expanduser().resolve()
+        data_dir = Path(settings.data_dir).expanduser().resolve()
+        temp_root = Path(tempfile.gettempdir()).expanduser().resolve()
+    except (TypeError, OSError):
+        return False
+    try:
+        candidate.relative_to(temp_root)
+        return False
+    except ValueError:
+        pass
+    try:
+        candidate.relative_to(data_dir)
+    except ValueError:
+        return False
+    return candidate.name == "common.db" or re.fullmatch(r"budget_\d{4}\.db", candidate.name) is not None
+
+
+def _mysql_sql(sql: str) -> str:
+    stripped = sql.strip()
+    lowered = stripped.lower()
+    if lowered.startswith("pragma foreign_keys"):
+        return "SET FOREIGN_KEY_CHECKS = 0" if "off" in lowered else "SET FOREIGN_KEY_CHECKS = 1"
+    translated = re.sub(
+        r"ON\s+CONFLICT\s*\([^)]+\)\s+DO\s+UPDATE\s+SET",
+        "ON DUPLICATE KEY UPDATE",
+        sql,
+        flags=re.IGNORECASE,
+    )
+    translated = re.sub(r"excluded\.([A-Za-z_][A-Za-z0-9_]*)", r"VALUES(\1)", translated)
+    translated = re.sub(r"\bINSERT\s+OR\s+IGNORE\b", "INSERT IGNORE", translated, flags=re.IGNORECASE)
+    translated = translated.replace(
+        "'org_product_runtime_ref:' || d.data_acct_code",
+        "CONCAT('org_product_runtime_ref:', d.data_acct_code)",
+    )
+    placeholder = "\u0000MYSQL_PARAM\u0000"
+    return translated.replace("?", placeholder).replace("%", "%%").replace(placeholder, "%s")
+
+
+class _Row(Mapping[str, Any]):
+    def __init__(self, keys: list[str], values: tuple[Any, ...]):
+        self._keys = keys
+        self._values = values
+        self._by_key = {key: values[idx] for idx, key in enumerate(keys)}
+
+    def __getitem__(self, key: str | int) -> Any:
+        if isinstance(key, int):
+            return self._values[key]
+        return self._by_key[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._keys)
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._by_key.get(key, default)
+
+
+class _CursorAdapter:
+    def __init__(self, rows: list[Any] | None = None, *, rowcount: int = 0, lastrowid: int | None = None):
+        self._rows = rows or []
+        self.rowcount = rowcount
+        self.lastrowid = lastrowid
+
+    async def fetchone(self) -> Any | None:
+        return self._rows[0] if self._rows else None
+
+    async def fetchall(self) -> list[Any]:
+        return list(self._rows)
+
+
+class _SQLiteConnection:
+    row_factory: Any = None
+
+    def __init__(self, path: Path):
+        self._path = path
+        self._conn: sqlite3.Connection | None = None
+
+    async def __aenter__(self) -> "_SQLiteConnection":
+        self._conn = sqlite3.connect(self._path)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if self._conn is not None:
+            if exc_type is not None:
+                self._conn.rollback()
+            self._conn.close()
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        cur = self._conn.execute(sql, tuple(params))
+        return _CursorAdapter(
+            cur.fetchall() if cur.description else [],
+            rowcount=max(0, int(cur.rowcount or 0)),
+            lastrowid=cur.lastrowid,
+        )
+
+    async def commit(self) -> None:
+        assert self._conn is not None
+        self._conn.commit()
+
+
+class _MySQLConnection:
+    row_factory: Any = None
+
+    def __init__(self):
+        self._ctx: Any = None
+        self._conn: Any = None
+
+    async def __aenter__(self) -> "_MySQLConnection":
+        self._ctx = get_pool().acquire()
+        self._conn = await self._ctx.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None and self._conn is not None:
+            rollback = getattr(self._conn, "rollback", None)
+            if rollback is not None:
+                await rollback()
+        if self._ctx is not None:
+            await self._ctx.__aexit__(exc_type, exc, tb)
+            self._ctx = None
+            self._conn = None
+
+    async def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> _CursorAdapter:
+        assert self._conn is not None
+        stripped = sql.strip()
+        lowered = stripped.lower()
+        if lowered.startswith("create table if not exists budget_output_display_item") or lowered.startswith("create index if not exists"):
+            return _CursorAdapter()
+        if lowered.startswith("pragma table_info"):
+            table_match = re.search(r"pragma\s+table_info\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)", stripped, re.IGNORECASE)
+            table_name = table_match.group(1) if table_match else ""
+            async with self._conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    SELECT COLUMN_NAME, DATA_TYPE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s
+                    ORDER BY ORDINAL_POSITION
+                    """,
+                    (table_name,),
+                )
+                rows = await cur.fetchall()
+            return _CursorAdapter([
+                _Row(["cid", "name", "type", "notnull", "dflt_value", "pk"], (idx, row[0], row[1], 0, None, 0))
+                for idx, row in enumerate(rows)
+            ])
+        async with self._conn.cursor() as cur:
+            await cur.execute(_mysql_sql(sql), tuple(params))
+            keys = [item[0] for item in cur.description] if cur.description else []
+            rows = [_Row(keys, tuple(row)) for row in await cur.fetchall()] if cur.description else []
+            return _CursorAdapter(
+                rows,
+                rowcount=max(0, int(cur.rowcount or 0)),
+                lastrowid=getattr(cur, "lastrowid", None),
+            )
+
+    async def commit(self) -> None:
+        if self._conn is not None:
+            await self._conn.commit()
+
+
+@asynccontextmanager
+async def _connect_db(path: Path):
+    if _uses_mysql_path(path):
+        async with _MySQLConnection() as db:
+            yield db
+    else:
+        async with _SQLiteConnection(path) as db:
+            yield db
 
 
 @dataclass(frozen=True)
@@ -76,8 +261,7 @@ async def load_budget_output_display_config_response(
     *,
     common_path: Path | None = None,
 ) -> BudgetOutputDisplayConfigResponse:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_output_display_item_schema(db)
         item_rows = await fetch_budget_display_config_items(db, active_only=False)
@@ -92,8 +276,7 @@ async def build_budget_output_display_config_export_workbook(
     *,
     common_path: Path | None = None,
 ):
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_output_display_item_schema(db)
         item_rows = await fetch_budget_display_config_items(db, active_only=False)
@@ -111,8 +294,7 @@ async def apply_budget_output_display_config_import_upload(
     if not raw:
         raise HTTPException(status_code=400, detail="导入文件为空")
     rows = parse_budget_display_config_workbook(file_name, raw)
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_output_display_item_schema(db)
         result = await apply_budget_display_config_import(db, rows=rows, mode=mode)
@@ -144,8 +326,7 @@ async def rebuild_budget_output_display_config_from_org_product_metrics(
     common_path: Path | None = None,
     budget_path: Path | None = None,
 ) -> BudgetOutputDisplayConfigRebuildResult:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_output_display_item_schema(db)
         account_rows = await db.execute("SELECT data_acct_code FROM data_account")
@@ -157,8 +338,7 @@ async def rebuild_budget_output_display_config_from_org_product_metrics(
         valid_overview_suffixes: set[str] = set()  # 产品级数据中出现的 suffix（用于 OVERVIEW）
 
         if budget_path and budget_path.exists():
-            async with aiosqlite.connect(budget_path) as bdb:
-                bdb.row_factory = aiosqlite.Row
+            async with _connect_db(budget_path) as bdb:
                 bcur = await bdb.execute(
                     "SELECT DISTINCT data_acct_code, product_code FROM budget_data"
                 )
@@ -318,8 +498,7 @@ async def rebuild_budget_output_display_config_from_excel(
 
     all_aa_codes = set(c for c, _ in profit_codes) | set(c for c, _ in balance_codes)
 
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_output_display_item_schema(db)
 
@@ -330,8 +509,7 @@ async def rebuild_budget_output_display_config_from_excel(
         # 获取 budget_data 中存在的编码（用于 TOTAL view 过滤）
         valid_total_codes: set[str] = set()
         if budget_path and budget_path.exists():
-            async with aiosqlite.connect(budget_path) as bdb:
-                bdb.row_factory = aiosqlite.Row
+            async with _connect_db(budget_path) as bdb:
                 bcur = await bdb.execute(
                     "SELECT DISTINCT data_acct_code FROM budget_data WHERE product_code = 'AA'"
                 )
@@ -506,8 +684,7 @@ async def apply_budget_output_display_config_item_create(
     *,
     common_path: Path | None = None,
 ) -> BudgetOutputDisplayConfigItemDto:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         row = await create_budget_output_display_item(db, command)
     return budget_display_config_item_to_dto(row)
@@ -519,8 +696,7 @@ async def apply_budget_output_display_config_item_update(
     *,
     common_path: Path | None = None,
 ) -> BudgetOutputDisplayConfigItemDto:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
-        db.row_factory = aiosqlite.Row
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         row = await update_budget_output_display_item(db, row_key, command)
     return budget_display_config_item_to_dto(row)
@@ -531,15 +707,15 @@ async def apply_budget_output_display_config_item_delete(
     *,
     common_path: Path | None = None,
 ) -> dict[str, bool]:
-    async with aiosqlite.connect(common_path or common_db_path()) as db:
+    async with _connect_db(common_path or common_db_path()) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         return await delete_budget_output_display_item(db, row_key)
 
 
 async def _load_bound_runtime_metric_source(
-    db: aiosqlite.Connection,
+    db: Any,
     data_acct_code: str,
-) -> aiosqlite.Row:
+) -> Any:
     confirmed_codes = await load_confirmed_org_product_runtime_ref_codes(db)
     normalized_code = str(data_acct_code or "").strip().upper()
     if normalized_code not in confirmed_codes:
@@ -563,7 +739,7 @@ async def _load_bound_runtime_metric_source(
     return source
 
 
-async def _load_display_config_item(db: aiosqlite.Connection, row_key: str) -> dict[str, Any]:
+async def _load_display_config_item(db: Any, row_key: str) -> dict[str, Any]:
     rows = await fetch_budget_display_config_items(db, active_only=False)
     for row in rows:
         if str(row["row_key"]) == row_key:
@@ -595,7 +771,7 @@ def _normalize_org_product_identity(command: BudgetOutputDisplayConfigCreateComm
 
 
 async def create_budget_output_display_item(
-    db: aiosqlite.Connection,
+    db: Any,
     command: BudgetOutputDisplayConfigCreateCommand,
 ) -> dict[str, Any]:
     await ensure_budget_output_display_item_schema(db)
@@ -725,7 +901,7 @@ async def create_budget_output_display_item(
 
 
 async def update_budget_output_display_item(
-    db: aiosqlite.Connection,
+    db: Any,
     row_key: str,
     command: BudgetOutputDisplayConfigUpdateCommand,
 ) -> dict[str, Any]:
@@ -786,7 +962,7 @@ async def update_budget_output_display_item(
     return await _load_display_config_item(db, row_key)
 
 
-async def delete_budget_output_display_item(db: aiosqlite.Connection, row_key: str) -> dict[str, bool]:
+async def delete_budget_output_display_item(db: Any, row_key: str) -> dict[str, bool]:
     await ensure_budget_output_display_item_schema(db)
     cur = await db.execute("SELECT row_key FROM budget_output_display_item WHERE row_key = ?", (row_key,))
     if await cur.fetchone() is None:

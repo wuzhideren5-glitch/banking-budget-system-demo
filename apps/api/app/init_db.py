@@ -46,7 +46,6 @@ from app.routers.org_product_helpers import ensure_org_product_schema
 from app.services.org_product_metric_runtime_sync import (
     OrgProductMetricRuntimeSyncError,
     assert_all_runtime_metric_refs_are_confirmed_org_product_metrics,
-    merge_canonical_expense_metric_trees_into_org_product_metrics,
     normalize_legacy_corp_data_account_refs,
     normalize_org_product_metric_mapping_statuses,
     normalize_read_model_data_code_names,
@@ -61,6 +60,54 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _purge_legacy_aa05_nodes(conn: pymysql.Connection) -> int:
+    """Delete legacy .05 expense tree nodes that were replaced by .90/.91 trees.
+
+    Only targets the old expense tree (AA.05 / A.05 / A01.05 / ... / F01.05),
+    NOT legitimate .05 leaf nodes inside non-expense metric codes (e.g. A01.14.01.01.05).
+    """
+    with conn.cursor() as cur:
+        cur.execute("SET FOREIGN_KEY_CHECKS = 0")
+        cur.execute(
+            "DELETE FROM data_account_metric_node "
+            "WHERE node_code LIKE '%.05%' "
+            "  AND node_code NOT LIKE '%.90%' "
+            "  AND node_code NOT LIKE '%.91%' "
+            "  AND node_code NOT LIKE 'A01.14%' "
+            "ORDER BY LENGTH(node_code) DESC"
+        )
+        removed = int(cur.rowcount or 0)
+        cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+    return removed
+
+
+def _purge_legacy_second_segment_99_nodes(conn: pymysql.Connection) -> int:
+    """Delete retired *.99.* metric branches (e.g. A02.99) from the runtime master."""
+    with conn.cursor() as cur:
+        cur.execute("SET FOREIGN_KEY_CHECKS = 0")
+        cur.execute(
+            "DELETE FROM data_account_metric_node "
+            "WHERE node_code REGEXP '^[^.]+\\\\.99(\\\\.|$)' "
+            "ORDER BY LENGTH(node_code) DESC"
+        )
+        removed = int(cur.rowcount or 0)
+        cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+    return removed
+
+
+def _purge_legacy_org_product_metric_branches(conn: pymysql.Connection) -> tuple[int, int]:
+    """Remove retired org/product metric branches that must not return after MySQL migration."""
+    removed_aa05 = _purge_legacy_aa05_nodes(conn)
+    removed_seg99 = _purge_legacy_second_segment_99_nodes(conn)
+    if removed_aa05 or removed_seg99:
+        logger.info(
+            "purged_legacy_org_product_metric_branches aa05=%s seg99=%s",
+            removed_aa05,
+            removed_seg99,
+        )
+    return removed_aa05, removed_seg99
+
+
 def _connect() -> pymysql.Connection:
     """Create a new MySQL connection from settings."""
     return pymysql.connect(
@@ -71,6 +118,7 @@ def _connect() -> pymysql.Connection:
         database=settings.MYSQL_DATABASE,
         charset="utf8mb4",
         autocommit=False,
+        init_command="SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
     )
 
 
@@ -94,6 +142,9 @@ def _executescript(conn: pymysql.Connection, sql_script: str) -> None:
                 try:
                     cur.execute(stmt)
                 except (pymysql.err.ProgrammingError, pymysql.err.OperationalError) as e:
+                    errno = e.args[0] if e.args else None
+                    if errno == 1061 and stmt.lstrip().upper().startswith("CREATE INDEX"):
+                        continue
                     print(f"[init_db] WARNING: DDL skipped: {str(e)[:100]}")
 
 
@@ -107,6 +158,7 @@ def _connection_params() -> dict:
         "database": settings.MYSQL_DATABASE,
         "charset": "utf8mb4",
         "autocommit": False,
+        "init_command": "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
     }
 
 
@@ -123,7 +175,7 @@ def _init_common_tables(conn: pymysql.Connection, calendar_year: int) -> None:
     ensure_runtime_metric_identity_schema(conn)
     drop_retired_tables(conn)
     ensure_smart_report_schema_sync(conn)
-    validate_generated_file_paths(conn, _connect, settings.data_dir)
+    validate_generated_file_paths(conn, settings.data_dir)
     seed_periods(conn, calendar_year)
     ensure_runtime_metric_identity_tables(conn)
     normalize_org_product_metric_mapping_statuses(conn)
@@ -230,7 +282,7 @@ def ensure_databases() -> None:
             ensure_runtime_metric_identity_schema(conn)
             drop_retired_tables(conn)
             ensure_smart_report_schema_sync(conn)
-            validate_generated_file_paths(conn, _connect, settings.data_dir)
+            validate_generated_file_paths(conn, settings.data_dir)
             ensure_runtime_metric_identity_tables(conn)
             normalize_org_product_metric_mapping_statuses(conn)
             sync_existing_org_product_metric_tables(conn)
@@ -311,7 +363,7 @@ def ensure_databases() -> None:
                     "INSERT IGNORE INTO settings(budget_year, setting_key, setting_value) VALUES (%s, 'create_time', %s)",
                     (settings.budget_year, now),
                 )
-            ensure_business_cost_income_schema_with_common(conn, None)
+            ensure_business_cost_income_schema_with_common(conn, None, settings.budget_year)
             conn.commit()
     finally:
         conn.close()
@@ -342,12 +394,19 @@ def ensure_databases() -> None:
     try:
         normalize_legacy_corp_data_account_refs(conn)
         normalize_read_model_data_code_names(conn)
-        merge_canonical_expense_metric_trees_into_org_product_metrics(conn)
+        # MySQL 运行态以迁移后的 data_account_metric_node 为准；不要在启动时 merge
+        # 规范 .05 费用树（会重新写入 AA.05/A01.05 等已退休分支）。
+        _purge_legacy_org_product_metric_branches(conn)
+        from app.db_bootstrap.runtime_metric_tree import _sync_derived_metric_node_identity
+
+        _sync_derived_metric_node_identity(conn)
         normalize_org_product_metric_mapping_statuses(conn)
         purge_legacy_corp_metric_master(conn)
         try:
             assert_all_runtime_metric_refs_are_confirmed_org_product_metrics(
                 conn,
+                budget_paths=conn,
+                read_model_paths=conn,
             )
         except OrgProductMetricRuntimeSyncError as exc:
             logger.warning("org_product_runtime_ref_check_skipped_on_startup: %s", exc)

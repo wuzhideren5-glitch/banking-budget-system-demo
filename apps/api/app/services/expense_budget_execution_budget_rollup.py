@@ -1,7 +1,8 @@
 """Budget subject normalization helpers for expense budget execution reports."""
 from __future__ import annotations
 
-from app.services.expense_budget_execution_framework import text
+import re
+from typing import Any
 
 BUDGET_DISPLAY_ALIASES: dict[str, str] = {
     "部门内部会议费": "部门会议费",
@@ -13,8 +14,14 @@ BUDGET_DISPLAY_ALIASES: dict[str, str] = {
 }
 
 
+def text_value(value: Any) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value).strip())
+
+
 def normalize_budget_subject_name(subject_name: str) -> str:
-    raw = text(subject_name)
+    raw = text_value(subject_name)
     if not raw:
         return ""
     return BUDGET_DISPLAY_ALIASES.get(raw, raw)

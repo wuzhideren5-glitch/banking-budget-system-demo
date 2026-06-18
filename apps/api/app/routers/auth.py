@@ -4,11 +4,11 @@ import secrets
 from pathlib import Path
 from typing import Awaitable, Callable
 
-import app.core.aiosqlite_compat as aiosqlite
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.core.config import Settings
+from app.core.database import get_pool
 from app.core.db_paths import common_db_path
 from app.schemas import (
     FirstLoginPasswordChangeRequest,
@@ -112,21 +112,18 @@ def build_auth_router(
         try:
             budget_path, budget_year, selected_vid = await editable_context_provider()
             vid = int(selected_vid)
-            async with aiosqlite.connect(budget_path) as db:
-                await db.execute("PRAGMA foreign_keys = ON")
-                cur = await db.execute(
-                    """
-                    SELECT version_name, version_date_time
-                    FROM version
-                    WHERE version_id = ?
-                    LIMIT 1
-                    """,
-                    (vid,),
-                )
-                row = await cur.fetchone()
+            row = await get_pool().fetch_one(
+                """
+                SELECT version_name, version_date_time
+                FROM version
+                WHERE budget_year = %s AND version_id = %s
+                LIMIT 1
+                """,
+                (int(budget_year), vid),
+            )
             if row:
-                vname = str(row[0] or "")
-                vdt = str(row[1] or "")
+                vname = str(row["version_name"] or "")
+                vdt = str(row["version_date_time"] or "")
             else:
                 # Fallback if configured version is missing in selected DB.
                 vid, vname, vdt = await latest_version_in_path_provider(budget_path)

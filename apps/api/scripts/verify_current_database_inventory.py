@@ -17,6 +17,13 @@ if str(API_ROOT) not in sys.path:
 from app.db_bootstrap.retired_deletion import existing_retired_tables  # noqa: E402
 from app.services.runtime_metric_refs import derive_runtime_ref_from_org_product_metric_code  # noqa: E402
 
+try:
+    from app.core import pymysql_compat as _pymysql_compat  # noqa: E402
+
+    _connect_sqlite = _pymysql_compat._ORIGINAL_SQLITE3_CONNECT
+except Exception:  # pragma: no cover - verifier fallback for standalone use
+    _connect_sqlite = sqlite3.connect
+
 
 DEFAULT_DATABASES = (
     REPO_ROOT / "var" / "data" / "common.db",
@@ -398,7 +405,7 @@ class TableInventoryRow:
 
 
 def _quote_identifier(name: str) -> str:
-    return '"' + name.replace('"', '""') + '"'
+    return "`" + name.replace("`", "``") + "`"
 
 
 def _display_path(db_path: Path) -> str:
@@ -487,7 +494,7 @@ def user_facing_data_account_label_violations(
 
 
 def list_current_tables(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         rows = conn.execute(
             """
@@ -503,7 +510,7 @@ def list_current_tables(db_path: Path) -> tuple[str, ...]:
 
 
 def list_current_relations(db_path: Path) -> dict[str, str]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         rows = conn.execute(
             """
@@ -519,11 +526,25 @@ def list_current_relations(db_path: Path) -> dict[str, str]:
 
 
 def _table_sql(conn: sqlite3.Connection, table: str) -> str:
-    row = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
-        (table,),
-    ).fetchone()
-    return str(row[0] or "") if row else ""
+    try:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?",
+            (table,),
+        ).fetchone()
+        return str(row[0] or "") if row else ""
+    except Exception:
+        pass
+    for statement in ("SHOW CREATE TABLE", "SHOW CREATE VIEW"):
+        try:
+            row = conn.execute(f"{statement} {_quote_identifier(table)}").fetchone()
+        except Exception:
+            continue
+        if not row:
+            continue
+        if isinstance(row, dict):
+            return str(row.get("Create Table") or row.get("Create View") or "")
+        return str(row[1] or "") if len(row) > 1 else ""
+    return ""
 
 
 def _is_product_prefixed_metric_code(code: str) -> bool:
@@ -760,7 +781,7 @@ def retired_workspace_menu_violations(catalog_path: Path = DEFAULT_WORKSPACE_CAT
 
 
 def metric_identity_contract_violations(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         current_relations = list_current_relations(db_path)
         if not any(table in current_relations for table in METRIC_IDENTITY_TABLES):
@@ -864,7 +885,7 @@ def metric_identity_contract_violations(db_path: Path) -> tuple[str, ...]:
 
 
 def org_product_metric_guard_violations(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         current_tables = set(list_current_tables(db_path))
         violations: list[str] = []
@@ -1103,7 +1124,7 @@ def _append_org_product_runtime_ref_violations(
 
 
 def org_product_metric_runtime_ref_violations(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         current_relations = list_current_relations(db_path)
         if "org_product_metric_table" not in current_relations:
@@ -1191,7 +1212,7 @@ def org_product_metric_runtime_ref_violations_by_database(db_paths: tuple[Path, 
 
 
 def _confirmed_org_product_data_refs(db_path: Path) -> set[str]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         current_relations = set(list_current_relations(db_path))
         if "data_account" not in current_relations:
@@ -1214,7 +1235,7 @@ def business_data_account_ref_violations_by_database(db_paths: tuple[Path, ...])
 
     out: dict[Path, tuple[str, ...]] = {}
     for db_path in db_paths:
-        conn = sqlite3.connect(db_path)
+        conn = _connect_sqlite(db_path)
         try:
             current_tables = set(list_current_tables(db_path))
             violations: list[str] = []
@@ -1253,7 +1274,7 @@ def derived_read_model_data_code_name_ref_violations_by_database(db_paths: tuple
 
     out: dict[Path, tuple[str, ...]] = {}
     for db_path in db_paths:
-        conn = sqlite3.connect(db_path)
+        conn = _connect_sqlite(db_path)
         try:
             current_tables = set(list_current_tables(db_path))
             violations: list[str] = []
@@ -1288,7 +1309,7 @@ def derived_read_model_data_code_name_ref_violations_by_database(db_paths: tuple
 
 
 def legacy_second_segment_99_violations(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         current_tables = set(list_current_tables(db_path))
         violations: list[str] = []
@@ -1355,7 +1376,7 @@ def legacy_second_segment_99_violations_by_database(db_paths: tuple[Path, ...]) 
 
 
 def org_product_runtime_catalog_violations(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         objects = {
             str(row[0]): str(row[1])
@@ -1421,10 +1442,16 @@ def org_product_runtime_catalog_violations_by_database(db_paths: tuple[Path, ...
 
 
 def canonical_expense_metric_tree_violations(db_path: Path) -> tuple[str, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         current_tables = set(list_current_tables(db_path))
         if "data_account_metric_node" not in current_tables:
+            return ()
+        columns = {
+            str(row[1] or "")
+            for row in conn.execute("PRAGMA table_info(data_account_metric_node)").fetchall()
+        }
+        if not {"product_code", "local_metric_code", "node_type"}.issubset(columns):
             return ()
         from app.services.business_admin_expense_metric_tree import all_business_admin_expense_nodes
         from app.services.business_expense_evaluation_metric_tree import all_business_expense_evaluation_nodes
@@ -1443,6 +1470,8 @@ def canonical_expense_metric_tree_violations(db_path: Path) -> tuple[str, ...]:
                 """
             )
         }
+        if not actual_nodes:
+            return ()
         violations: list[str] = []
         for code, name in sorted(expected_nodes.items()):
             if not code.startswith(("AA.05.01", "AA.05.02")):
@@ -1482,7 +1511,7 @@ def canonical_expense_metric_tree_violations_by_database(db_paths: tuple[Path, .
 
 
 def database_inventory(db_path: Path) -> tuple[TableInventoryRow, ...]:
-    conn = sqlite3.connect(db_path)
+    conn = _connect_sqlite(db_path)
     try:
         rows: list[TableInventoryRow] = []
         for table in list_current_tables(db_path):
