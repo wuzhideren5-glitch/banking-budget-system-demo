@@ -63,4 +63,5 @@ backend/.env
 .scratch/**/qoder-temp-scripts/
 
 # Accidental self-referential workspace symlink
+/kevinchen_20260507_*
 kevinchen_20260507_*/
