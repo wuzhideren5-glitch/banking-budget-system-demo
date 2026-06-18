@@ -58,3 +58,9 @@ var/output/*
 .env
 apps/api/.env
 backend/.env
+
+# Scratch migration temp scripts (keep handoff/review docs tracked)
+.scratch/**/qoder-temp-scripts/
+
+# Accidental self-referential workspace symlink
+kevinchen_20260507_*/
