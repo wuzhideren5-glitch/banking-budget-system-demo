@@ -27,6 +27,7 @@ _RUNTIME_TREE_COLUMNS = (
     "vertical_rollup",
     "allow_manual_entry",
     "value_type",
+    "nature",
     "budget_formula",
     "actual_formula",
     "product_code",
@@ -156,7 +157,7 @@ def _node_payload(row: dict[str, Any]) -> dict[str, Any]:
     node = {
         "id": f"canonical-{compact or code}",
         "levelLabel": _level_label(level),
-        "nature": "其他",
+        "nature": _clean(row.get("nature")) or "其他",
         "code": code,
         "name": _clean(row["node_name"]) or code,
         "value_type": _clean(row["value_type"]) or "金额",
@@ -204,7 +205,7 @@ def load_org_product_metric_table_rows_from_runtime_tree(
                 """
                 SELECT node_code, node_name, parent_code, local_metric_code, logic_code,
                        level, node_type, horizontal_rollup, vertical_rollup,
-                       allow_manual_entry, value_type, budget_formula, actual_formula,
+                       allow_manual_entry, value_type, nature, budget_formula, actual_formula,
                        product_code, metric_table_name, sort_order, annual_agg_rule
                 FROM data_account_metric_node
                 WHERE is_active = 1

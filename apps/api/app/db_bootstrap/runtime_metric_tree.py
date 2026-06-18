@@ -38,6 +38,7 @@ METRIC_NODE_REQUIRED_COLUMNS = [
     "formula_calc_mode",
     "allow_manual_entry",
     "value_type",
+    "nature",
     "annual_agg_rule",
     "sort_order",
     "is_active",
@@ -55,6 +56,7 @@ RUNTIME_ACCOUNT_NODE_COLUMNS = {
     "formula_calc_mode": "TINYINT(1) NOT NULL DEFAULT 0",
     "allow_manual_entry": "TINYINT(1) NOT NULL DEFAULT 1",
     "value_type": "VARCHAR(32) NOT NULL DEFAULT '金额'",
+    "nature": "VARCHAR(32) NOT NULL DEFAULT '其他'",
     "annual_agg_rule": "VARCHAR(255) NOT NULL DEFAULT ''",
 }
 DATA_ACCOUNT_VIEW_REQUIRED_COLUMNS = [

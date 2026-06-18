@@ -52,6 +52,7 @@ class _RuntimeMetricRef:
     code: str
     name: str
     value_type: str
+    nature: str
     allow_manual_entry: int
     allow_manual_entry_explicit: bool
     sort_order: int
@@ -159,6 +160,15 @@ def _canonical_metric_table_name(value: Any) -> str:
 
 def _default_table_name_for_metric_code(code: str) -> str:
     return "业务状况表"
+
+
+def _normalize_nature(value: Any) -> str:
+    text = _normalize_text(value)
+    if text in {"其它", "其他"}:
+        return "其他"
+    if text == "住处":
+        return "支出"
+    return text or "其他"
 
 
 def _normalize_value_type(value: Any, nature: Any = "") -> str:
@@ -369,6 +379,7 @@ def normalize_org_product_metric_runtime_refs(
             code=ref,
             name=name,
             value_type=_normalize_value_type(node.get("value_type"), node.get("nature")),
+            nature=_normalize_nature(node.get("nature")),
             allow_manual_entry=_normalize_allow_manual_entry(node.get("allow_manual_entry")),
             allow_manual_entry_explicit=_has_explicit_allow_manual_entry(node),
             sort_order=sort_order,
@@ -593,6 +604,7 @@ def sync_org_product_metric_runtime_refs(
                     runtime_account_enabled=1,
                     allow_manual_entry=?,
                     value_type=?,
+                    nature=?,
                     remark=COALESCE(remark, ?),
                     updated_at=CURRENT_TIMESTAMP
                 WHERE node_code=?
@@ -601,6 +613,7 @@ def sync_org_product_metric_runtime_refs(
                     ref.name,
                     ref.allow_manual_entry,
                     ref.value_type,
+                    ref.nature,
                     f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
                     ref.code,
                 ),
@@ -617,6 +630,10 @@ def sync_org_product_metric_runtime_refs(
                       ELSE ?
                     END,
                     value_type=COALESCE(NULLIF(value_type, ''), ?),
+                    nature=CASE
+                      WHEN COALESCE(nature, '') NOT IN ('', '其他') THEN nature
+                      ELSE COALESCE(NULLIF(?, ''), '其他')
+                    END,
                     remark=COALESCE(remark, ?)
                 WHERE node_code=?
                 """,
@@ -626,6 +643,7 @@ def sync_org_product_metric_runtime_refs(
                     ref.allow_manual_entry,
                     ref.allow_manual_entry,
                     ref.value_type,
+                    ref.nature,
                     f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
                     ref.code,
                 ),
@@ -1554,7 +1572,7 @@ def merge_canonical_expense_metric_trees_into_org_product_metrics(
             payload_node = {
                 "id": f"canonical-{node_id_key}",
                 "levelLabel": _level_label_for_node_level(int(node.level or 0)),
-                "nature": "其他",
+                "nature": _normalize_nature(getattr(node, "nature", None)),
                 "code": node_key,
                 "name": node.node_name,
                 "value_type": getattr(node, "value_type", None) or "金额",
