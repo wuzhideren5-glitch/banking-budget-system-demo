@@ -72,17 +72,7 @@ def _normalize_annual_agg_rule(value: Any) -> str:
     text = str(value or "").strip().upper()
     if text in _VALID_ANNUAL_AGG_RULES:
         return text
-    aliases = {
-        "求和": "SUM",
-        "合计": "SUM",
-        "平均": "AVG",
-        "均值": "AVG",
-        "期末": "LAST",
-        "加权": "WGT",
-        "公式": "CALC",
-        "计算": "CALC",
-    }
-    return aliases.get(text, "")
+    return ""
 
 
 def _metric_budget_formula(node: dict[str, Any]) -> str:
