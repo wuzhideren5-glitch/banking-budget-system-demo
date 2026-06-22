@@ -6,6 +6,7 @@
   AVG     - 12个月均值 (日均余额)
   LAST    - 取最后一个月 (时点余额)
   WGT     - 加权平均 (需权重指标，暂按简单均值)
+  CALC    - 按年预算/实际公式重算全年 (引用项须为全年口径)
   ''/None - 无规则，年度值手工录入
 
 用法:
@@ -29,7 +30,9 @@ RULE_SUM = "SUM"
 RULE_AVG = "AVG"
 RULE_LAST = "LAST"
 RULE_WGT = "WGT"
-VALID_RULES = {RULE_SUM, RULE_AVG, RULE_LAST, RULE_WGT}
+RULE_CALC = "CALC"
+MONTHLY_AGG_RULES = {RULE_SUM, RULE_AVG, RULE_LAST, RULE_WGT}
+VALID_RULES = MONTHLY_AGG_RULES | {RULE_CALC}
 
 
 def _uses_mysql_path(path: Path | str, *, names: set[str] | None = None, budget: bool = False) -> bool:
@@ -84,9 +87,9 @@ def _month_values_from_rows(rows: list[Any]) -> list[float]:
 
 
 def compute_annual(monthly_values: list[float], rule: str) -> float | None:
-    """从 1-12 月数值计算年度聚合值。"""
+    """从 1-12 月数值计算年度聚合值（不含 CALC）。"""
     rule = str(rule or "").strip().upper()
-    if rule not in VALID_RULES:
+    if rule == RULE_CALC or rule not in MONTHLY_AGG_RULES:
         return None
 
     padded = list(monthly_values[:12]) + [0.0] * max(0, 12 - len(monthly_values))
@@ -251,6 +254,258 @@ async def _fetch_rule_map(common_path: Path, data_acct_codes: list[str]) -> dict
     return rule_map
 
 
+@dataclass
+class MetricAnnualMeta:
+    node_code: str
+    annual_agg_rule: str
+    budget_formula: str
+    actual_formula: str
+    product_code: str = ""
+
+
+def _formula_for_budget_actual(meta: MetricAnnualMeta, budget_actual: int) -> str:
+    if int(budget_actual) == 0:
+        return meta.budget_formula
+    actual = meta.actual_formula.strip()
+    return actual or meta.budget_formula
+
+
+def _compute_calc_annual_value(
+    formula: str,
+    resolved: dict[str, float | None],
+) -> tuple[float | None, str | None]:
+    from app.routers.org_product_helpers import (
+        _extract_metric_formula_refs,
+        _prepare_metric_formula_expression,
+        _try_calculate_metric_formula_value,
+    )
+
+    expression = _prepare_metric_formula_expression(formula)
+    if not expression:
+        return None, "CALC 缺少公式"
+    refs = _extract_metric_formula_refs(expression)
+    ref_values: dict[str, float] = {}
+    for ref in refs:
+        if "/" in ref:
+            ref_values[ref] = 0.0
+            continue
+        val = resolved.get(ref.upper())
+        ref_values[ref] = float(val) if val is not None else 0.0
+    value, err = _try_calculate_metric_formula_value(formula, ref_values)
+    if err:
+        return None, err
+    return value, None
+
+
+def _calc_local_ref_codes(formula: str) -> list[str]:
+    from app.routers.org_product_helpers import (
+        _extract_metric_formula_refs,
+        _prepare_metric_formula_expression,
+    )
+
+    refs = _extract_metric_formula_refs(_prepare_metric_formula_expression(formula))
+    return [ref.upper() for ref in refs if "/" not in ref]
+
+
+def _row_to_metric_meta(row: Any) -> MetricAnnualMeta:
+    code = str(_row_value(row, "node_code", 0) or "").strip().upper()
+    return MetricAnnualMeta(
+        node_code=code,
+        annual_agg_rule=str(_row_value(row, "annual_agg_rule", 1) or "").strip().upper(),
+        budget_formula=str(_row_value(row, "budget_formula", 2) or "").strip(),
+        actual_formula=str(_row_value(row, "actual_formula", 3) or "").strip(),
+        product_code=str(_row_value(row, "product_code", 4) or "").strip(),
+    )
+
+
+def _sqlite_table_exists(db: sqlite3.Connection, table_name: str) -> bool:
+    row = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
+        (table_name,),
+    ).fetchone()
+    return row is not None
+
+
+async def _fetch_metric_meta_map(
+    common_path: Path,
+    data_acct_codes: list[str],
+) -> dict[str, MetricAnnualMeta]:
+    if not data_acct_codes:
+        return {}
+    codes = tuple(code.upper() for code in data_acct_codes)
+    meta_map: dict[str, MetricAnnualMeta] = {}
+    select_sql = """SELECT n.node_code, n.annual_agg_rule, n.budget_formula, n.actual_formula, n.product_code
+                    FROM data_account_metric_node n"""
+
+    if _uses_mysql_common_path(common_path):
+        placeholders = ",".join("%s" for _ in codes)
+        pool = get_pool()
+        node_rows = await pool.fetch_all(
+            f"""{select_sql}
+                WHERE n.node_code IN ({placeholders})""",
+            codes,
+        )
+        for row in node_rows:
+            meta = _row_to_metric_meta(row)
+            if meta.node_code:
+                meta_map[meta.node_code] = meta
+
+        binding_rows = await pool.fetch_all(
+            f"""SELECT b.data_acct_code AS node_code, n.annual_agg_rule, n.budget_formula,
+                       n.actual_formula, n.product_code
+                FROM data_account_metric_binding b
+                JOIN data_account_metric_node n ON n.node_code = b.metric_node_code
+                WHERE b.data_acct_code IN ({placeholders}) AND b.is_active = 1""",
+            codes,
+        )
+        for row in binding_rows:
+            meta = _row_to_metric_meta(row)
+            if meta.node_code:
+                meta_map[meta.node_code] = meta
+        return meta_map
+
+    placeholders = ",".join("?" for _ in codes)
+    with sqlite3.connect(common_path) as db:
+        node_rows = db.execute(
+            f"""{select_sql}
+                WHERE n.node_code IN ({placeholders})""",
+            codes,
+        ).fetchall()
+        for row in node_rows:
+            meta = _row_to_metric_meta(row)
+            if meta.node_code:
+                meta_map[meta.node_code] = meta
+
+        if _sqlite_table_exists(db, "data_account_metric_binding"):
+            binding_rows = db.execute(
+                f"""SELECT b.data_acct_code AS node_code, n.annual_agg_rule, n.budget_formula,
+                           n.actual_formula, n.product_code
+                    FROM data_account_metric_binding b
+                    JOIN data_account_metric_node n ON n.node_code = b.metric_node_code
+                    WHERE b.data_acct_code IN ({placeholders}) AND b.is_active = 1""",
+                codes,
+            ).fetchall()
+        else:
+            binding_rows = []
+        for row in binding_rows:
+            meta = _row_to_metric_meta(row)
+            if meta.node_code:
+                meta_map[meta.node_code] = meta
+    return meta_map
+
+
+async def _expand_calc_dependency_codes(
+    common_path: Path,
+    meta_map: dict[str, MetricAnnualMeta],
+    seed_codes: list[str],
+    budget_actual: int,
+) -> set[str]:
+    expanded = {code.upper() for code in seed_codes if code}
+    pending = list(expanded)
+    while pending:
+        code = pending.pop()
+        meta = meta_map.get(code)
+        if not meta or meta.annual_agg_rule != RULE_CALC:
+            continue
+        formula = _formula_for_budget_actual(meta, budget_actual)
+        for ref_code in _calc_local_ref_codes(formula):
+            if ref_code in expanded:
+                continue
+            expanded.add(ref_code)
+            pending.append(ref_code)
+            if ref_code not in meta_map:
+                extra = await _fetch_metric_meta_map(common_path, [ref_code])
+                meta_map.update(extra)
+    return expanded
+
+
+async def _resolve_annual_values_for_codes(
+    common_path: Path,
+    budget_path: Path,
+    *,
+    data_acct_codes: list[str],
+    budget_actual: int,
+    year: int,
+    version_id: int | None = None,
+) -> dict[str, tuple[float | None, str, int, str | None]]:
+    """返回 code -> (annual_value, rule, month_count, error)。"""
+    requested = [code.upper() for code in data_acct_codes if code]
+    if not requested:
+        return {}
+
+    meta_map = await _fetch_metric_meta_map(common_path, requested)
+    work_codes = sorted(
+        await _expand_calc_dependency_codes(common_path, meta_map, requested, budget_actual)
+    )
+
+    resolved: dict[str, float | None] = {}
+    details: dict[str, tuple[str, int, str | None]] = {}
+
+    for code in work_codes:
+        meta = meta_map.get(code)
+        if not meta:
+            resolved[code] = None
+            details[code] = ("", 0, "未找到指标")
+            continue
+        rule = meta.annual_agg_rule
+        if rule in MONTHLY_AGG_RULES:
+            rows = await _fetch_monthly_rows(
+                common_path,
+                budget_path,
+                data_acct_code=code,
+                budget_actual=budget_actual,
+                year=year,
+                version_id=version_id,
+            )
+            values = _month_values_from_rows(rows)
+            month_count = sum(1 for value in values if value != 0.0)
+            resolved[code] = compute_annual(values, rule)
+            details[code] = (rule, month_count, None)
+        elif rule == RULE_CALC:
+            resolved[code] = None
+            details[code] = (RULE_CALC, 0, None)
+        elif not rule:
+            resolved[code] = None
+            details[code] = ("", 0, "未配置规则")
+        else:
+            resolved[code] = None
+            details[code] = (rule, 0, f"无有效聚合规则: {rule!r}")
+
+    calc_codes = [
+        code
+        for code in work_codes
+        if meta_map.get(code) and meta_map[code].annual_agg_rule == RULE_CALC
+    ]
+    for _ in range(max(1, len(calc_codes))):
+        progress = False
+        for code in calc_codes:
+            if resolved.get(code) is not None:
+                continue
+            meta = meta_map[code]
+            formula = _formula_for_budget_actual(meta, budget_actual)
+            value, err = _compute_calc_annual_value(formula, resolved)
+            if value is not None:
+                resolved[code] = value
+                details[code] = (RULE_CALC, 0, err)
+                progress = True
+            elif err:
+                resolved[code] = None
+                details[code] = (RULE_CALC, 0, err)
+                progress = True
+        if not progress:
+            break
+
+    return {
+        code: (
+            resolved.get(code),
+            details.get(code, ("", 0, None))[0],
+            details.get(code, ("", 0, None))[1],
+            details.get(code, ("", 0, None))[2],
+        )
+        for code in requested
+    }
+
+
 async def _fetch_monthly_rows(
     common_path: Path,
     budget_path: Path,
@@ -312,23 +567,23 @@ async def aggregate_single_metric(
 ) -> AnnualAggregationResult:
     """计算单个指标的年度聚合值"""
     result = AnnualAggregationResult(data_acct_code=data_acct_code)
-    rule = await _fetch_rule(common_path, data_acct_code)
-    result.rule = rule
-
-    if rule not in VALID_RULES:
-        result.error = f"无有效聚合规则: {rule!r}"
-        return result
-
-    rows = await _fetch_monthly_rows(
+    resolved = await _resolve_annual_values_for_codes(
         common_path,
         budget_path,
-        data_acct_code=data_acct_code,
+        data_acct_codes=[data_acct_code],
         budget_actual=budget_actual,
         year=year,
     )
-    values = _month_values_from_rows(rows)
-    result.month_count = sum(1 for value in values if value != 0.0)
-    result.annual_value = compute_annual(values, rule)
+    annual_value, rule, month_count, error = resolved.get(
+        data_acct_code.upper(),
+        (None, "", 0, "未找到指标"),
+    )
+    result.rule = rule
+    result.month_count = month_count
+    result.annual_value = annual_value
+    result.error = error
+    if rule not in VALID_RULES and not error:
+        result.error = f"无有效聚合规则: {rule!r}" if rule else "未配置规则"
     return result
 
 
@@ -341,30 +596,33 @@ async def aggregate_batch(
 ) -> AnnualAggregationReport:
     """批量计算年度聚合值"""
     report = AnnualAggregationReport()
-    rule_map = await _fetch_rule_map(common_path, data_acct_codes)
+    resolved = await _resolve_annual_values_for_codes(
+        common_path,
+        budget_path,
+        data_acct_codes=data_acct_codes,
+        budget_actual=budget_actual,
+        year=year,
+    )
 
     for code in data_acct_codes:
         result = AnnualAggregationResult(data_acct_code=code)
-        rule = rule_map.get(code.upper(), "")
-        result.rule = rule
-
-        if rule not in VALID_RULES:
-            result.error = f"无有效聚合规则: {rule!r}" if rule else "未配置规则"
-            report.skipped += 1
-            report.results.append(result)
-            continue
-
-        rows = await _fetch_monthly_rows(
-            common_path,
-            budget_path,
-            data_acct_code=code,
-            budget_actual=budget_actual,
-            year=year,
+        annual_value, rule, month_count, error = resolved.get(
+            code.upper(),
+            (None, "", 0, "未找到指标"),
         )
-        values = _month_values_from_rows(rows)
-        result.month_count = sum(1 for value in values if value != 0.0)
-        result.annual_value = compute_annual(values, rule)
-        report.computed += 1
+        result.rule = rule
+        result.month_count = month_count
+        result.annual_value = annual_value
+        result.error = error
+
+        if rule not in VALID_RULES or annual_value is None:
+            if not error:
+                result.error = f"无有效聚合规则: {rule!r}" if rule else "未配置规则"
+            report.skipped += 1
+        else:
+            report.computed += 1
+            if error:
+                report.errors += 1
         report.results.append(result)
 
     return report
@@ -528,37 +786,35 @@ async def refresh_annual_aggregates_for_products(
     if not metric_rows:
         return {"refreshed": 0}
 
+    product_by_code = {
+        str(_row_value(row, "node_code", 0) or "").strip().upper(): str(
+            _row_value(row, "product_code", 2) or ""
+        )
+        for row in metric_rows
+    }
+    node_codes = [code for code in product_by_code if code]
+
     refreshed = 0
-    for row in metric_rows:
-        node_code = str(_row_value(row, "node_code", 0) or "").strip().upper()
-        rule = str(_row_value(row, "annual_agg_rule", 1) or "").strip().upper()
-        product_code = str(_row_value(row, "product_code", 2) or "")
-        if not node_code or rule not in VALID_RULES:
-            continue
-
-        for budget_actual in budget_actuals:
-            rows = await _fetch_monthly_rows(
-                common_path,
-                budget_path,
-                data_acct_code=node_code,
-                budget_actual=int(budget_actual),
-                year=year,
-                version_id=version_id,
-            )
-            values = _month_values_from_rows(rows)
-            month_count = sum(1 for value in values if value != 0.0)
-            annual_value = compute_annual(values, rule)
-
-            if annual_value is None:
+    for budget_actual in budget_actuals:
+        resolved = await _resolve_annual_values_for_codes(
+            common_path,
+            budget_path,
+            data_acct_codes=node_codes,
+            budget_actual=int(budget_actual),
+            year=year,
+            version_id=version_id,
+        )
+        for node_code, (annual_value, rule, month_count, _error) in resolved.items():
+            if annual_value is None or rule not in VALID_RULES:
                 continue
             await upsert_annual_aggregate(
                 budget_path=budget_path,
                 data_acct_code=node_code,
-                product_code=product_code,
+                product_code=product_by_code.get(node_code, ""),
                 year=year,
                 budget_actual=int(budget_actual),
                 version_id=version_id,
-                annual_value=annual_value,
+                annual_value=float(annual_value),
                 agg_rule=rule,
                 month_count=month_count,
             )

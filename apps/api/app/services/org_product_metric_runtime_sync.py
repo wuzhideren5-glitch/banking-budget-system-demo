@@ -60,6 +60,37 @@ class _RuntimeMetricRef:
     horizontal_rollup: int
     vertical_rollup: int
     logic_code: str
+    annual_agg_rule: str = ""
+    budget_formula: str = ""
+    actual_formula: str = ""
+
+
+_VALID_ANNUAL_AGG_RULES = frozenset({"SUM", "AVG", "LAST", "WGT", "CALC"})
+
+
+def _normalize_annual_agg_rule(value: Any) -> str:
+    text = str(value or "").strip().upper()
+    if text in _VALID_ANNUAL_AGG_RULES:
+        return text
+    aliases = {
+        "求和": "SUM",
+        "合计": "SUM",
+        "平均": "AVG",
+        "均值": "AVG",
+        "期末": "LAST",
+        "加权": "WGT",
+        "公式": "CALC",
+        "计算": "CALC",
+    }
+    return aliases.get(text, "")
+
+
+def _metric_budget_formula(node: dict[str, Any]) -> str:
+    return _normalize_text(node.get("formula_budget_annual")) or _normalize_text(node.get("formula"))
+
+
+def _metric_actual_formula(node: dict[str, Any]) -> str:
+    return _normalize_text(node.get("formula_actual")) or _normalize_text(node.get("formula_forecast"))
 
 
 # ─── 编码归一化与辅助函数 ───
@@ -263,6 +294,7 @@ def _merge_duplicate_payload_node(target: dict[str, Any], source: dict[str, Any]
         "formula_note",
         "entry_granularity",
         "logic_code",
+        "annual_agg_rule",
     ):
         if target.get(key) in (None, "") and source.get(key) not in (None, ""):
             target[key] = source[key]
@@ -387,6 +419,9 @@ def normalize_org_product_metric_runtime_refs(
             horizontal_rollup=_normalize_rollup_flag(node.get("horizontal_rollup")),
             vertical_rollup=_normalize_rollup_flag(node.get("vertical_rollup")),
             logic_code=_normalize_code(node.get("logic_code")) or _local_metric_code(ref),
+            annual_agg_rule=_normalize_annual_agg_rule(node.get("annual_agg_rule")),
+            budget_formula=_metric_budget_formula(node),
+            actual_formula=_metric_actual_formula(node),
         )
     return tuple(refs.values())
 
@@ -605,6 +640,9 @@ def sync_org_product_metric_runtime_refs(
                     allow_manual_entry=?,
                     value_type=?,
                     nature=?,
+                    budget_formula=?,
+                    actual_formula=?,
+                    annual_agg_rule=?,
                     remark=COALESCE(remark, ?),
                     updated_at=CURRENT_TIMESTAMP
                 WHERE node_code=?
@@ -614,6 +652,9 @@ def sync_org_product_metric_runtime_refs(
                     ref.allow_manual_entry,
                     ref.value_type,
                     ref.nature,
+                    ref.budget_formula,
+                    ref.actual_formula,
+                    ref.annual_agg_rule,
                     f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
                     ref.code,
                 ),
@@ -634,6 +675,18 @@ def sync_org_product_metric_runtime_refs(
                       WHEN COALESCE(nature, '') NOT IN ('', '其他') THEN nature
                       ELSE COALESCE(NULLIF(?, ''), '其他')
                     END,
+                    budget_formula=CASE
+                      WHEN COALESCE(?, '') <> '' THEN ?
+                      ELSE budget_formula
+                    END,
+                    actual_formula=CASE
+                      WHEN COALESCE(?, '') <> '' THEN ?
+                      ELSE actual_formula
+                    END,
+                    annual_agg_rule=CASE
+                      WHEN COALESCE(?, '') <> '' THEN ?
+                      ELSE annual_agg_rule
+                    END,
                     remark=COALESCE(remark, ?)
                 WHERE node_code=?
                 """,
@@ -644,6 +697,12 @@ def sync_org_product_metric_runtime_refs(
                     ref.allow_manual_entry,
                     ref.value_type,
                     ref.nature,
+                    ref.budget_formula,
+                    ref.budget_formula,
+                    ref.actual_formula,
+                    ref.actual_formula,
+                    ref.annual_agg_rule,
+                    ref.annual_agg_rule,
                     f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
                     ref.code,
                 ),

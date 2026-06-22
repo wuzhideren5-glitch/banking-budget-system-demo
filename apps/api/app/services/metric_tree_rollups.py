@@ -295,6 +295,20 @@ async def _load_product_children(common_path: Path) -> dict[str, set[str]]:
     return child_map
 
 
+def _rollup_target_has_formula(
+    binding: dict[str, Any] | None,
+    *,
+    budget_actual: int,
+) -> bool:
+    if not binding:
+        return False
+    if int(budget_actual) == 0:
+        formula = binding.get("budget_formula")
+    else:
+        formula = binding.get("actual_formula")
+    return bool(str(formula or "").strip())
+
+
 async def _load_bindings(common_path: Path) -> dict[tuple[str, str], dict[str, Any]]:
     sql = """
     SELECT b.metric_node_code, b.scope_type, b.scope_code, b.data_acct_code,
@@ -566,6 +580,8 @@ async def build_metric_tree_rollup_plan(
                 source_codes = tuple(sorted({code for code, _product in source_refs}))
                 all_source_codes.update(source_codes)
                 for budget_actual in actuals:
+                    if _rollup_target_has_formula(target, budget_actual=budget_actual):
+                        continue
                     plan.tasks.append(
                         MetricTreeRollupTask(
                             node_code=node_code,
@@ -591,6 +607,8 @@ async def build_metric_tree_rollup_plan(
                 source_refs = tuple((source, scope) for source in sources)
                 task_method = "SUM"
                 for budget_actual in actuals:
+                    if _rollup_target_has_formula(target, budget_actual=budget_actual):
+                        continue
                     plan.tasks.append(
                         MetricTreeRollupTask(
                             node_code=node_code,

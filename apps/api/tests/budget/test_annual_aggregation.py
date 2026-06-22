@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from app.services import annual_aggregation as annual_aggregation_module
 from app.services.annual_aggregation import (
+    RULE_CALC,
     aggregate_single_metric,
     compute_annual,
     refresh_annual_aggregates_for_products,
@@ -32,9 +33,13 @@ class _FakeAnnualAggregationMysqlPool:
                 {
                     "node_code": "A01.01.001",
                     "annual_agg_rule": "SUM",
+                    "budget_formula": "",
+                    "actual_formula": "",
                     "product_code": "A01",
                 }
             ]
+        if "from data_account_metric_binding" in normalized_sql:
+            return []
         if "from budget_data" in normalized_sql:
             return [
                 {"month": "M01", "value": 10},
@@ -51,6 +56,68 @@ class AnnualAggregationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(compute_annual(values, "AVG"), 7.0 / 3.0)
         self.assertEqual(compute_annual(values, "LAST"), 4.0)
         self.assertIsNone(compute_annual(values, ""))
+        self.assertIsNone(compute_annual(values, RULE_CALC))
+
+    async def test_aggregate_single_metric_calc_uses_annual_formula(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            common_path = root / "fixture_common.sqlite"
+            budget_path = root / "fixture_budget.sqlite"
+            with sqlite3.connect(common_path) as db:
+                db.executescript(
+                    """
+                    CREATE TABLE data_account_metric_node (
+                      node_code TEXT PRIMARY KEY,
+                      annual_agg_rule TEXT NOT NULL,
+                      budget_formula TEXT,
+                      actual_formula TEXT,
+                      product_code TEXT
+                    );
+                    CREATE TABLE period (
+                      period_id INTEGER PRIMARY KEY,
+                      year TEXT NOT NULL,
+                      month TEXT NOT NULL
+                    );
+                    INSERT INTO data_account_metric_node(
+                      node_code, annual_agg_rule, budget_formula, product_code
+                    ) VALUES
+                      ('AA.01.001', 'SUM', '', 'AA'),
+                      ('AA.01.002', 'SUM', '', 'AA'),
+                      ('AA.01.003', 'CALC', 'AA.01.001/AA.01.002', 'AA');
+                    INSERT INTO period(period_id, year, month)
+                    VALUES
+                      (1, 'Y2099', 'M01'), (2, 'Y2099', 'M02'),
+                      (3, 'Y2099', 'M01'), (4, 'Y2099', 'M02'),
+                      (5, 'Y2099', 'M01'), (6, 'Y2099', 'M02');
+                    """
+                )
+            with sqlite3.connect(budget_path) as db:
+                db.executescript(
+                    """
+                    CREATE TABLE budget_data (
+                      data_acct_code TEXT NOT NULL,
+                      period_id INTEGER NOT NULL,
+                      budget_actual INTEGER NOT NULL,
+                      value REAL NOT NULL
+                    );
+                    INSERT INTO budget_data(data_acct_code, period_id, budget_actual, value)
+                    VALUES
+                      ('AA.01.001', 1, 0, 100), ('AA.01.001', 2, 0, 50),
+                      ('AA.01.002', 3, 0, 200), ('AA.01.002', 4, 0, 100);
+                    """
+                )
+
+            result = await aggregate_single_metric(
+                common_path,
+                budget_path,
+                "AA.01.003",
+                budget_actual=0,
+                year=2099,
+            )
+
+        self.assertEqual(result.rule, "CALC")
+        self.assertEqual(result.annual_value, 0.5)
+        self.assertIsNone(result.error)
 
     async def test_aggregate_single_metric_supports_non_runtime_sqlite_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -62,7 +129,10 @@ class AnnualAggregationTests(unittest.IsolatedAsyncioTestCase):
                     """
                     CREATE TABLE data_account_metric_node (
                       node_code TEXT PRIMARY KEY,
-                      annual_agg_rule TEXT NOT NULL
+                      annual_agg_rule TEXT NOT NULL,
+                      budget_formula TEXT,
+                      actual_formula TEXT,
+                      product_code TEXT
                     );
                     CREATE TABLE data_account_metric_binding (
                       metric_node_code TEXT NOT NULL,

@@ -281,6 +281,64 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
             }
             self.assertTrue({"A01", "A01.01", "A01.01.01"}.issubset(parent_codes))
 
+    def test_runtime_sync_persists_annual_agg_rule_and_formulas(self) -> None:
+        with sqlite3.connect(":memory:") as conn:
+            self._create_runtime_metric_tables(conn)
+            metrics = [
+                {
+                    "code": "AA.01.001",
+                    "name": "分子",
+                    "nature": "收入",
+                    "annual_agg_rule": "SUM",
+                    "formula_budget_annual": "",
+                    "children": [],
+                },
+                {
+                    "code": "AA.01.002",
+                    "name": "分母",
+                    "nature": "收入",
+                    "annual_agg_rule": "SUM",
+                    "children": [],
+                },
+                {
+                    "code": "AA.01.003",
+                    "name": "不良率",
+                    "nature": "比例",
+                    "annual_agg_rule": "CALC",
+                    "formula_budget_annual": "AA.01.001/AA.01.002",
+                    "children": [],
+                },
+            ]
+
+            sync_org_product_metric_runtime_refs(
+                conn,
+                entity_code="AA",
+                table_name="业务状况表",
+                metrics=metrics,
+                overwrite_existing_metadata=True,
+            )
+
+            self.assertEqual(
+                conn.execute(
+                    """
+                    SELECT annual_agg_rule, budget_formula
+                    FROM data_account_metric_node
+                    WHERE node_code='AA.01.001'
+                    """
+                ).fetchone(),
+                ("SUM", ""),
+            )
+            self.assertEqual(
+                conn.execute(
+                    """
+                    SELECT annual_agg_rule, budget_formula
+                    FROM data_account_metric_node
+                    WHERE node_code='AA.01.003'
+                    """
+                ).fetchone(),
+                ("CALC", "AA.01.001/AA.01.002"),
+            )
+
     def test_runtime_sync_derives_confirmed_leaf_ref_from_org_product_metric_code(self) -> None:
         with sqlite3.connect(":memory:") as conn:
             self._create_runtime_metric_tables(conn)

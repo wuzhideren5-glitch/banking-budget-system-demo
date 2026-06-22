@@ -12,6 +12,7 @@ from openpyxl import Workbook
 
 from app.core.db_paths import budget_db_path, common_db_path
 from app.routers.org_product_helpers import *
+from app.services.annual_aggregation import MONTHLY_AGG_RULES, compute_annual
 
 router = APIRouter()
 
@@ -116,6 +117,7 @@ async def run_org_product_output(payload: OrgProductOutputRunRequest):
                         "formula_actual": _normalize_text(x.get("formula_actual")),
                         "formula_forecast": _normalize_text(x.get("formula_forecast")),
                         "formula_note": _normalize_text(x.get("formula_note")),
+                        "annual_agg_rule": _normalize_text(x.get("annual_agg_rule")).upper(),
                         "value_type": _normalize_metric_value_type(x.get("value_type"), x.get("nature")),
                         "horizontal_rollup": _normalize_rollup_flag(x.get("horizontal_rollup")),
                         "vertical_rollup": _normalize_rollup_flag(x.get("vertical_rollup")),
@@ -358,28 +360,20 @@ async def run_org_product_output(payload: OrgProductOutputRunRequest):
 
                     nature = str(meta.get("nature") or "")
                     formula = str(meta.get("formula") or "").strip()
+                    formula_budget_annual = str(meta.get("formula_budget_annual") or "").strip()
+                    annual_agg_rule = str(meta.get("annual_agg_rule") or "").strip().upper()
 
-                    if _normalize_rollup_flag(meta.get("vertical_rollup")):
-                        child_codes = children_by_code.get(code_key) or []
-                        if child_codes:
-                            annual_visiting.add(code_key)
-                            try:
-                                total = 0.0
-                                found_any = False
-                                for child_code in child_codes:
-                                    av = compute_metric_annual(child_code)
-                                    if av is not None:
-                                        total += float(av)
-                                        found_any = True
-                                annual_cache[code_key] = total if found_any else None
-                                return annual_cache[code_key]
-                            finally:
-                                annual_visiting.discard(code_key)
-
-                    if _should_annual_recompute_via_formula(nature, formula):
+                    use_formula, annual_formula = _resolve_annual_formula_recompute(
+                        nature=nature,
+                        formula=formula,
+                        formula_budget_annual=formula_budget_annual,
+                        formula_forecast_annual=str(meta.get("formula_forecast_annual") or "").strip(),
+                        annual_agg_rule=annual_agg_rule,
+                    )
+                    if use_formula:
                         annual_visiting.add(code_key)
                         try:
-                            expr = _prepare_metric_formula_expression(formula)
+                            expr = _prepare_metric_formula_expression(annual_formula)
                             refs = _extract_metric_formula_refs(expr)
                             ref_values: dict[str, float] = {}
                             for r in refs:
@@ -426,6 +420,30 @@ async def run_org_product_output(payload: OrgProductOutputRunRequest):
                         finally:
                             annual_visiting.discard(code_key)
 
+                    if annual_agg_rule in MONTHLY_AGG_RULES:
+                        month_floats = [
+                            float(x) if x is not None else 0.0 for x in month_vals
+                        ]
+                        annual_cache[code_key] = compute_annual(month_floats, annual_agg_rule)
+                        return annual_cache[code_key]
+
+                    if _should_use_vertical_rollup_annual(meta):
+                        child_codes = children_by_code.get(code_key) or []
+                        if child_codes:
+                            annual_visiting.add(code_key)
+                            try:
+                                total = 0.0
+                                found_any = False
+                                for child_code in child_codes:
+                                    av = compute_metric_annual(child_code)
+                                    if av is not None:
+                                        total += float(av)
+                                        found_any = True
+                                annual_cache[code_key] = total if found_any else None
+                                return annual_cache[code_key]
+                            finally:
+                                annual_visiting.discard(code_key)
+
                     annual_cache[code_key] = _annual_summary_by_nature(nature, month_vals, run_year)
                     return annual_cache[code_key]
 
@@ -447,7 +465,11 @@ async def run_org_product_output(payload: OrgProductOutputRunRequest):
                             "months": months,
                             "month_errors": month_errors,
                             "annual": annual,
-                            "annual_method": _annual_method_label(m["nature"], formula),
+                            "annual_method": _annual_method_label(
+                                m["nature"],
+                                formula,
+                                str(m.get("annual_agg_rule") or ""),
+                            ),
                         }
                     )
 

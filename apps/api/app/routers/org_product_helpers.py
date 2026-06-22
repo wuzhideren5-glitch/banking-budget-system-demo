@@ -152,6 +152,7 @@ class MetricNodePayload(BaseModel):
     horizontal_rollup: int | bool | str = 0
     vertical_rollup: int | bool | str = 0
     logic_code: str = ""
+    annual_agg_rule: str = ""
     children: list["MetricNodePayload"] = []
 
 
@@ -817,8 +818,79 @@ def _is_rate_like_nature(nature: str) -> bool:
     return ("率" in n) or ("占比" in n) or ("比例" in n)
 
 
-def _should_annual_recompute_via_formula(nature: str, formula: str) -> bool:
+VALID_ANNUAL_AGG_RULES = frozenset({"SUM", "AVG", "LAST", "WGT", "CALC"})
+
+
+def _normalize_annual_agg_rule(raw: Any) -> str:
+    text = str(raw or "").strip().upper()
+    if text in VALID_ANNUAL_AGG_RULES:
+        return text
+    aliases = {
+        "求和": "SUM",
+        "合计": "SUM",
+        "平均": "AVG",
+        "均值": "AVG",
+        "期末": "LAST",
+        "加权": "WGT",
+        "公式": "CALC",
+        "计算": "CALC",
+    }
+    return aliases.get(text, "")
+
+
+def _should_annual_recompute_via_formula(
+    nature: str,
+    formula: str,
+    annual_agg_rule: str = "",
+) -> bool:
+    rule = str(annual_agg_rule or "").strip().upper()
+    if rule == "CALC":
+        return bool(str(formula or "").strip())
     return bool(str(formula or "").strip()) and _is_rate_like_nature(nature)
+
+
+def _resolve_annual_formula_recompute(
+    *,
+    nature: str,
+    formula: str,
+    formula_budget_annual: str = "",
+    formula_forecast_annual: str = "",
+    annual_agg_rule: str = "",
+) -> tuple[bool, str]:
+    rule = str(annual_agg_rule or "").strip().upper()
+    if rule == "CALC":
+        annual_formula = str(formula_budget_annual or formula or "").strip()
+        return bool(annual_formula), annual_formula
+    annual_formula = (
+        str(formula_budget_annual or "").strip()
+        or str(formula_forecast_annual or "").strip()
+    )
+    if annual_formula:
+        return True, annual_formula
+    if _should_annual_recompute_via_formula(nature, formula, annual_agg_rule):
+        return True, str(formula or "").strip()
+    return False, ""
+
+
+def _should_use_vertical_rollup_annual(meta: dict[str, Any]) -> bool:
+    """全年列：仅当无年规则、无 CALC/年公式时，才用纵向汇总子节点。"""
+    if not _normalize_rollup_flag(meta.get("vertical_rollup")):
+        return False
+    annual_agg_rule = str(meta.get("annual_agg_rule") or "").strip().upper()
+    if annual_agg_rule in VALID_ANNUAL_AGG_RULES:
+        return False
+    if str(meta.get("formula_budget_annual") or "").strip() or str(
+        meta.get("formula_forecast_annual") or ""
+    ).strip():
+        return False
+    use_formula, _annual_formula = _resolve_annual_formula_recompute(
+        nature=str(meta.get("nature") or ""),
+        formula=str(meta.get("formula") or "").strip(),
+        formula_budget_annual=str(meta.get("formula_budget_annual") or "").strip(),
+        formula_forecast_annual=str(meta.get("formula_forecast_annual") or "").strip(),
+        annual_agg_rule=annual_agg_rule,
+    )
+    return not use_formula
 
 
 def _annual_summary_by_nature(
@@ -851,9 +923,16 @@ def _annual_summary_by_nature(
     return float(sum(xs) / len(xs)) if xs else None
 
 
-def _annual_method_label(nature: str, formula: str) -> str:
+def _annual_method_label(
+    nature: str,
+    formula: str,
+    annual_agg_rule: str = "",
+) -> str:
     n = str(nature or "").strip()
-    if _should_annual_recompute_via_formula(n, formula):
+    rule = str(annual_agg_rule or "").strip().upper()
+    if rule == "CALC":
+        return "按公式重算（CALC：引用项为全年口径）"
+    if _should_annual_recompute_via_formula(n, formula, annual_agg_rule):
         return "按公式重算（引用项为全年口径）"
     if n in {"资产余额", "负债余额"}:
         return "取 12 月"
@@ -2324,6 +2403,7 @@ def _parse_metric_worksheet_basic(
     logic_code_col = header_map.get("逻辑码")
     value_type_col = header_map.get("数值类型")
     allow_manual_entry_col = header_map.get("允许手工录入")
+    annual_agg_rule_col = header_map.get("规则")
     if not code_col or not name_col:
         found = "、".join(sorted(header_map.keys())) or "无"
         return [], 0, f"表头中未找到「科目代码/科目名称」列（已识别：{found}）", header_map
@@ -2414,6 +2494,11 @@ def _parse_metric_worksheet_basic(
             if allow_manual_entry_col
             else 1
         )
+        annual_agg_rule = (
+            _normalize_annual_agg_rule(_ws_cell_value(ws, row_idx, annual_agg_rule_col))
+            if annual_agg_rule_col
+            else ""
+        )
         horizontal_rollup = _normalize_rollup_flag(_ws_cell_value(ws, row_idx, horizontal_rollup_col)) if horizontal_rollup_col else 0
         vertical_rollup = _normalize_rollup_flag(_ws_cell_value(ws, row_idx, vertical_rollup_col)) if vertical_rollup_col else 0
         logic_code = _derive_metric_logic_code(
@@ -2491,6 +2576,7 @@ def _parse_metric_worksheet_basic(
             "horizontal_rollup": horizontal_rollup,
             "vertical_rollup": vertical_rollup,
             "logic_code": logic_code,
+            "annual_agg_rule": annual_agg_rule,
             "children": [],
         }
         if rank == 1 or stack.get(rank - 1) is None:

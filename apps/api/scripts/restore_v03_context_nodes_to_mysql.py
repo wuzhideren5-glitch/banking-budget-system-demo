@@ -60,7 +60,7 @@ from scripts.import_v03_formulas_to_mysql import (  # noqa: E402
     resolve_v03_db_formulas,
 )
 
-VALID_ANNUAL_RULES = frozenset({"SUM", "AVG", "LAST", "WGT"})
+VALID_ANNUAL_RULES = frozenset({"SUM", "AVG", "LAST", "WGT", "CALC"})
 
 
 def _norm(value: Any) -> str:
