@@ -82,6 +82,7 @@ COMMON_TABLES: list[str] = [
     "org_product_data_entry_snapshot",
     "org_product_data_entry_snapshot_v2",
     "org_product_metric_table_catalog",
+    "org_product_metric_table_payload",
     "org_product_output_snapshot_v1",
     "org_product_tree_snapshot",
 ]

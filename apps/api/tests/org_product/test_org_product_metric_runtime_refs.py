@@ -35,6 +35,8 @@ from app.services.org_product_metric_runtime_sync import (
 )
 from app.services.org_product_metric_runtime_snapshot import (
     load_org_product_metric_payload_from_runtime_tree,
+    load_org_product_metric_table_rows_from_runtime_tree,
+    persist_org_product_metric_table_payload,
 )
 from app.services.runtime_metric_refs import (
     compact_org_product_metric_code,
@@ -1856,6 +1858,46 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
         self.assertEqual(sanitized["entity_code"], "A01")
         self.assertEqual(sanitized["table_name"], "业务状况表")
         _assert_no_legacy_runtime_identity_fields(self, sanitized["rows"][0])
+
+
+class OrgProductMetricTablePayloadRoundTripTests(unittest.TestCase):
+    def test_saved_payload_is_preferred_over_runtime_tree_rebuild(self) -> None:
+        nested_metrics = [
+            {
+                "id": "aa-root",
+                "levelLabel": "二级",
+                "nature": "其他",
+                "code": "AA.90.01",
+                "name": "利息收入",
+                "children": [
+                    {
+                        "id": "aa-child",
+                        "levelLabel": "三级",
+                        "nature": "收入",
+                        "code": "AA.90.01.03.01",
+                        "name": "IT",
+                        "formula_forecast": "=AA.90.01.03.02",
+                        "children": [],
+                    }
+                ],
+            }
+        ]
+        with sqlite3.connect(":memory:") as conn:
+            persist_org_product_metric_table_payload(
+                conn,
+                entity_code="AA",
+                entity_name="微众银行",
+                table_name="业务状况表",
+                table_id="table-业务状况表",
+                metrics=nested_metrics,
+            )
+            conn.commit()
+
+            rows = load_org_product_metric_table_rows_from_runtime_tree(conn)
+            self.assertEqual(len(rows), 1)
+            payload = json.loads(rows[0]["payload_json"])
+            self.assertEqual(payload["metrics"][0]["children"][0]["code"], "AA.90.01.03.01")
+            self.assertEqual(payload["metrics"][0]["children"][0]["formula_forecast"], "=AA.90.01.03.02")
 
 
 if __name__ == "__main__":

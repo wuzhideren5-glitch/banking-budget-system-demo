@@ -122,7 +122,19 @@ METRIC_HEADER_ALIASES = {
     "逻辑码": "逻辑码",
     "逻辑代码": "逻辑码",
     "指标逻辑码": "逻辑码",
+    "科目层级※仅展示": "科目层级",
+    "科目层级（仅展示）": "科目层级",
+    "科目层级(仅展示)": "科目层级",
+    "逻辑码※仅展示": "逻辑码",
+    "逻辑码（仅展示）": "逻辑码",
+    "逻辑码(仅展示)": "逻辑码",
+    "规则": "规则",
+    "年度规则": "规则",
+    "时间汇总规则": "规则",
 }
+METRIC_EXPORT_HEADER_LEVEL = "科目层级※仅展示"
+METRIC_EXPORT_HEADER_LOGIC = "逻辑码※仅展示"
+METRIC_DISPLAY_ONLY_HEADER_SUFFIXES = ("※仅展示", "（仅展示）", "(仅展示)")
 NATURE_VALUE_SET = {"收入", "支出", "利润", "其他", "其它"}
 ENTRY_GRANULARITY_ANNUAL = {"annual", "year", "yearly", "按年", "按年录入", "仅年度", "仅年度录入", "年度", "全年", "仅全年录入"}
 ENTRY_GRANULARITY_MONTHLY = {"monthly", "month", "按月", "按月录入", "月度", "按月录入（默认）"}
@@ -1123,6 +1135,9 @@ def _ensure_org_product_tree_table(conn: sqlite3.Connection) -> None:
 def ensure_org_product_schema(conn: sqlite3.Connection) -> None:
     _ensure_org_product_tree_table(conn)
     # _ensure_metrics_table removed (retired no-op)
+    from app.services.org_product_metric_runtime_snapshot import ensure_org_product_metric_table_payload
+
+    ensure_org_product_metric_table_payload(conn)
     _ensure_metric_table_catalog(conn)
     _seed_metric_table_catalog(conn)
     _ensure_data_entry_snapshot_table(conn)
@@ -1730,6 +1745,7 @@ def _build_metric_rows(nodes: list[dict[str, Any]], rows: list[dict[str, str]], 
                 "horizontal_rollup": _normalize_rollup_flag(node.get("horizontal_rollup")),
                 "vertical_rollup": _normalize_rollup_flag(node.get("vertical_rollup")),
                 "logic_code": _derive_metric_logic_code(entity_code, node.get("code"), node.get("logic_code")),
+                "annual_agg_rule": _normalize_annual_agg_rule(node.get("annual_agg_rule")),
             }
         )
         _build_metric_rows(list(node.get("children") or []), rows, entity_code)
@@ -1978,6 +1994,7 @@ def _known_metric_header_labels() -> set[str]:
         "横向汇总",
         "纵向汇总",
         "逻辑码",
+        "规则",
     }
 
 
@@ -2000,13 +2017,185 @@ def _header_map_scan_rows(ws, max_scan_row: int = 12) -> tuple[int | None, dict[
     return None, {}
 
 
+def _strip_display_only_header_suffix(text: str) -> str:
+    out = str(text or "").strip()
+    for suffix in METRIC_DISPLAY_ONLY_HEADER_SUFFIXES:
+        out = out.replace(suffix, "")
+    return out.strip()
+
+
 def _canon_header_label(raw: str) -> str:
-    text = _normalize_text(raw)
+    text = _strip_display_only_header_suffix(_normalize_text(raw))
     if text in METRIC_HEADER_ALIASES:
         return METRIC_HEADER_ALIASES[text]
     if text in _known_metric_header_labels():
         return text
     return text
+
+
+def metric_export_headers_v04(*, include_admin_columns: bool = False) -> list[str]:
+    headers = [
+        METRIC_EXPORT_HEADER_LEVEL,
+        "科目性质",
+        "科目代码",
+        "科目名称",
+    ]
+    if include_admin_columns:
+        headers.extend(["数值类型", "允许手工录入"])
+    headers.extend(
+        [
+            "录入粒度",
+            "年预算公式",
+            "年预测公式",
+            "实际月公式",
+            "预测月公式",
+            "公式说明",
+            "横向汇总",
+            "纵向汇总",
+            METRIC_EXPORT_HEADER_LOGIC,
+            "规则",
+        ]
+    )
+    return headers
+
+
+def metric_export_row_values(row: dict[str, Any], *, include_admin_columns: bool = False) -> list[Any]:
+    actual = str(row.get("formula_actual") or row.get("formula") or "").strip()
+    forecast = str(row.get("formula_forecast") or row.get("formula") or "").strip()
+    values: list[Any] = [
+        row.get("levelLabel") or "",
+        row.get("nature") or "",
+        row.get("code") or "",
+        row.get("name") or "",
+    ]
+    if include_admin_columns:
+        values.extend(
+            [
+                row.get("value_type") or "",
+                _allow_manual_entry_label(row.get("allow_manual_entry")),
+            ]
+        )
+    values.extend(
+        [
+            _entry_granularity_label(row.get("entry_granularity")),
+            row.get("formula_budget_annual") or "",
+            row.get("formula_forecast_annual") or "",
+            actual,
+            forecast,
+            row.get("formula_note") or "",
+            _rollup_flag_label(row.get("horizontal_rollup")),
+            _rollup_flag_label(row.get("vertical_rollup")),
+            row.get("logic_code") or "",
+            str(row.get("annual_agg_rule") or "").strip().upper(),
+        ]
+    )
+    return values
+
+
+def _style_metric_export_header_row(ws, header_count: int) -> None:
+    for cell in ws[1][:header_count]:
+        cell.font = Font(bold=True)
+
+
+def _apply_metric_export_v04_column_widths(ws, *, include_admin_columns: bool = False) -> None:
+    ws.column_dimensions["A"].width = 16
+    ws.column_dimensions["B"].width = 12
+    ws.column_dimensions["C"].width = 20
+    ws.column_dimensions["D"].width = 36
+    if include_admin_columns:
+        ws.column_dimensions["E"].width = 12
+        ws.column_dimensions["F"].width = 14
+        ws.column_dimensions["G"].width = 12
+        ws.column_dimensions["H"].width = 48
+        ws.column_dimensions["I"].width = 48
+        ws.column_dimensions["J"].width = 48
+        ws.column_dimensions["K"].width = 48
+        ws.column_dimensions["L"].width = 16
+        ws.column_dimensions["M"].width = 10
+        ws.column_dimensions["N"].width = 10
+        ws.column_dimensions["O"].width = 14
+        ws.column_dimensions["P"].width = 10
+    else:
+        ws.column_dimensions["E"].width = 12
+        ws.column_dimensions["F"].width = 48
+        ws.column_dimensions["G"].width = 48
+        ws.column_dimensions["H"].width = 48
+        ws.column_dimensions["I"].width = 48
+        ws.column_dimensions["J"].width = 16
+        ws.column_dimensions["K"].width = 10
+        ws.column_dimensions["L"].width = 10
+        ws.column_dimensions["M"].width = 14
+        ws.column_dimensions["N"].width = 10
+
+
+def build_org_product_metric_import_template_workbook() -> BytesIO:
+    """v04 导入模板：表头 + 示例 sheet + 填写说明。"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "AA业务状况表"
+
+    headers = metric_export_headers_v04(include_admin_columns=False)
+    ws.append(headers)
+    _style_metric_export_header_row(ws, len(headers))
+    ws.append(
+        [
+            "一级",
+            "收入",
+            "AA.01",
+            "营业收入",
+            "按月",
+            "",
+            "",
+            "=H3+H6+H9",
+            "=I3+I6+I9",
+            "收支月化指标",
+            "是",
+            "",
+            "01",
+            "SUM",
+        ]
+    )
+    ws.append(
+        [
+            "二级",
+            "收入",
+            "AA.01.01",
+            "  利息净收入",
+            "",
+            "",
+            "",
+            "=H4-H5",
+            "=I4-I5",
+            "",
+            "是",
+            "",
+            "01.01",
+            "SUM",
+        ]
+    )
+    ws.append(["三级", "收入", "AA.14", "    利息收入", "", "", "", "", "", "", "", "", "01.01.14", ""])
+    ws.append(["三级", "支出", "AA.16", "    利息支出", "", "", "", "", "", "", "", "", "01.01.16", ""])
+    ws.append(["二级", "收入", "AA.01.02", "  净手续费收入", "", "", "", "=H7-H8", "=I7-I8", "", "是", "", "01.02", "SUM"])
+    ws.append(["三级", "收入", "AA.18", "    手续费收入", "", "", "", "", "", "", "", "", "01.02.18", ""])
+    ws.append(["三级", "支出", "AA.19", "    手续费支出", "", "", "", "", "", "", "", "", "01.02.19", ""])
+    _apply_metric_export_v04_column_widths(ws, include_admin_columns=False)
+
+    guide = wb.create_sheet("填写说明")
+    guide.append(["机构及产品指标 Excel 导入模板（v04）"])
+    guide.append([])
+    guide.append(["1. 工作表命名", "机构代码 + 指标表名称，如 AA业务状况表、A01泛微粒贷（默认业务状况表）"])
+    guide.append(["2. 必填列", "科目性质、科目代码、科目名称"])
+    guide.append(["3. 公式列", "实际月公式 / 预测月公式可写 Excel 单元格公式（如 =H3+H6），导入时自动转为科目代码公式"])
+    guide.append(["4. 仅展示列", "科目层级※仅展示、逻辑码※仅展示：导出供查看，导入时系统按科目代码重算，可留空"])
+    guide.append(["5. 规则列", "SUM / AVG / LAST / WGT / CALC；率类全年重算填 CALC"])
+    guide.append(["6. 导入后", "在页面点击「保存刷新」写入数据库"])
+    guide.column_dimensions["A"].width = 18
+    guide.column_dimensions["B"].width = 72
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
 
 
 def _collect_header_hits(ws, max_row: int = 120, max_col: int = 40) -> list[tuple[int, int, str]]:
@@ -2423,10 +2612,13 @@ def _parse_metric_worksheet_basic(
         nature_raw = _ws_cell_value(ws, row_idx, nature_col) if nature_col else None
         code_raw = _ws_cell_value(ws, row_idx, code_col) if code_col else None
         name_raw = _ws_cell_value(ws, row_idx, name_col) if name_col else None
-        level_label = _normalize_level_label(level_raw)
-        nature = _normalize_nature(nature_raw)
         code = _normalize_metric_code(entity_code, code_raw)
         name = _normalize_text(name_raw)
+        level_label = _infer_level_label_from_code(code)
+        rank = LEVEL_RANK.get(level_label)
+        if not rank:
+            level_label, rank = _resolve_metric_level_label(_normalize_level_label(level_raw), code, strict=strict)
+        nature = _normalize_nature(nature_raw)
         formula_legacy = _parse_formula_cell_value(
             ws,
             row_idx,
@@ -2491,11 +2683,7 @@ def _parse_metric_worksheet_basic(
         )
         horizontal_rollup = _normalize_rollup_flag(_ws_cell_value(ws, row_idx, horizontal_rollup_col)) if horizontal_rollup_col else 0
         vertical_rollup = _normalize_rollup_flag(_ws_cell_value(ws, row_idx, vertical_rollup_col)) if vertical_rollup_col else 0
-        logic_code = _derive_metric_logic_code(
-            entity_code,
-            code,
-            _ws_cell_value(ws, row_idx, logic_code_col) if logic_code_col else "",
-        )
+        logic_code = _derive_metric_logic_code(entity_code, code, "")
         if strict:
             if not any(
                 [
@@ -2602,15 +2790,239 @@ def _parse_metric_worksheet_basic(
     return roots, row_count, None, header_map
 
 
-def _parse_metric_upload(content: bytes, filename: str) -> tuple[list[dict[str, Any]], int]:
+def _default_metric_import_candidates() -> list[tuple[str, str, str]]:
+    return [
+        ("AA", "微众银行", table_name)
+        for table_name in (
+            "业务状况表",
+            "损益表",
+            "资产负债表（余额）",
+            "资产负债表（日均）",
+            "资产质量表",
+            "利息净收入表",
+            "净利息收入表",
+        )
+    ]
+
+
+def _merge_metric_import_candidates(candidates_json: str = "") -> list[tuple[str, str, str]]:
+    candidates: list[tuple[str, str, str]] = []
+    seen_candidate_keys: set[str] = set()
+
+    def _add_candidate(code: str, name: str, table_name: str) -> None:
+        entity_code = _normalize_text(code).upper()
+        canonical_table = _normalize_text(table_name)
+        if not entity_code or not canonical_table:
+            return
+        key = f"{entity_code}::{canonical_table}"
+        if key in seen_candidate_keys:
+            return
+        seen_candidate_keys.add(key)
+        candidates.append((entity_code, _normalize_text(name), canonical_table))
+
+    if candidates_json.strip():
+        try:
+            parsed = json.loads(candidates_json)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"candidates_json 无效：{exc}") from exc
+        if isinstance(parsed, list):
+            for item in parsed:
+                if not isinstance(item, dict):
+                    continue
+                _add_candidate(
+                    str(item.get("entity_code") or ""),
+                    str(item.get("entity_name") or ""),
+                    str(item.get("table_name") or ""),
+                )
+
+    path = common_db_path()
+    if path.exists():
+        try:
+            with sqlite3.connect(path) as conn:
+                _ensure_metric_table_catalog(conn)
+                _seed_metric_table_catalog(conn)
+                known_names = _canonical_import_table_names(conn)
+                for entity_code, entity_name, table_name in _import_report_catalog_candidates(conn):
+                    _add_candidate(
+                        entity_code,
+                        entity_name,
+                        _canonical_import_table_name(table_name, known_names=known_names),
+                    )
+                for entity_code, entity_name, table_name in _import_report_saved_metric_candidates(conn):
+                    _add_candidate(
+                        entity_code,
+                        entity_name,
+                        _canonical_import_table_name(table_name, known_names=known_names),
+                    )
+        except Exception:
+            for entity_code, entity_name, table_name in _default_metric_import_candidates():
+                _add_candidate(entity_code, entity_name, table_name)
+    else:
+        for entity_code, entity_name, table_name in _default_metric_import_candidates():
+            _add_candidate(entity_code, entity_name, table_name)
+
+    return candidates
+
+
+def parse_metric_workbook_import(
+    content: bytes,
+    filename: str,
+    *,
+    candidates_json: str = "",
+    strict_import: bool = True,
+    table_names_filter: list[str] | None = None,
+    only_first_sheet: bool = False,
+) -> dict[str, Any]:
     try:
-        workbook = load_workbook(filename=BytesIO(content), data_only=True)
+        workbook = load_workbook(filename=BytesIO(content), data_only=False, read_only=False)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"无法读取Excel文件：{exc}") from exc
 
-    ws = workbook[workbook.sheetnames[0]]
-    prefix = re.sub(r"[^A-Za-z0-9]+", "-", Path(filename).stem) or "import"
-    return _parse_metric_worksheet(ws, prefix)
+    candidates = _merge_metric_import_candidates(candidates_json)
+    imported_entities: list[dict[str, Any]] = []
+    ignored_sheets: list[str] = []
+    ignored_details: list[dict[str, str]] = []
+    formula_convert_errors: list[dict[str, Any]] = []
+    prefix = re.sub(r"[^A-Za-z0-9]+", "-", Path(filename or "metrics.xlsx").stem) or "import"
+    strict_flag = _parse_strict_import_flag(str(strict_import))
+    filter_keys = {
+        _canonical_metric_table_key(name)
+        for name in (table_names_filter or [])
+        if _normalize_text(name)
+    }
+
+    def _ignore_sheet(sheet: str, reason: str) -> None:
+        ignored_sheets.append(sheet)
+        ignored_details.append({"sheet_name": sheet, "reason": reason})
+
+    sheet_names = workbook.sheetnames[:1] if only_first_sheet else list(workbook.sheetnames)
+
+    sheet_contexts: list[SheetFormulaContext] = []
+    for sheet_name in workbook.sheetnames:
+        ws = workbook[sheet_name]
+        _prepare_metric_worksheet(ws)
+        resolved = _resolve_import_sheet_entity_table(sheet_name, candidates, strict=not only_first_sheet)
+        if not resolved and only_first_sheet and sheet_name == workbook.sheetnames[0]:
+            owner_code = _extract_owner_code(sheet_name, [])
+            if owner_code:
+                resolved = (owner_code, DEFAULT_METRIC_TABLE_NAME, sheet_name)
+        if not resolved:
+            continue
+        entity_code, table_name, _entity_name = resolved
+        header_row_idx, header_map, _header_mode, _header_source = _find_header_row(
+            ws, entity_code, strict=strict_flag, sheet_title=sheet_name
+        )
+        code_col = header_map.get("科目代码") if header_row_idx else None
+        name_col = header_map.get("科目名称") if header_row_idx else None
+        code_col, _name_col = _maybe_swap_metric_code_name_columns(
+            ws,
+            header_row_idx=header_row_idx or 1,
+            entity_code=entity_code,
+            code_col=code_col,
+            name_col=name_col,
+        )
+        if not header_row_idx or not code_col:
+            continue
+        row_limit = _sheet_scan_row_limit(ws, header_row_idx)
+        sheet_contexts.append(
+            build_sheet_formula_context(
+                sheet_name,
+                entity_code,
+                table_name,
+                header_row_idx,
+                code_col,
+                lambda r, c, _ws=ws: _ws_cell_value(_ws, r, c),
+                _normalize_metric_code,
+                row_limit,
+            )
+        )
+    all_sheet_contexts = index_sheet_contexts(sheet_contexts)
+
+    for sheet_name in sheet_names:
+        ws = workbook[sheet_name]
+        _prepare_metric_worksheet(ws)
+
+        resolved = _resolve_import_sheet_entity_table(sheet_name, candidates, strict=not only_first_sheet)
+        if not resolved and only_first_sheet:
+            owner_code = _extract_owner_code(sheet_name, [])
+            if owner_code:
+                resolved = (owner_code, DEFAULT_METRIC_TABLE_NAME, sheet_name)
+        if not resolved:
+            _ignore_sheet(
+                sheet_name,
+                "工作表名未匹配到机构/指标表（标准格式：代码+表名，如 AA资产质量表）",
+            )
+            continue
+        entity_code, table_name, entity_name = resolved
+        table_key = _canonical_metric_table_key(table_name)
+        if filter_keys and table_key not in filter_keys:
+            continue
+
+        sheet_ctx = all_sheet_contexts.get(normalize_sheet_lookup_key(sheet_name))
+
+        metrics, row_count, parse_error, header_map = _parse_metric_worksheet_basic(
+            ws,
+            f"{prefix}-{sheet_name}",
+            entity_code=entity_code,
+            strict=strict_flag,
+            sheet_formula_context=sheet_ctx,
+            all_sheet_contexts=all_sheet_contexts,
+            formula_convert_errors=formula_convert_errors,
+        )
+        if parse_error:
+            detail = parse_error
+            if header_map:
+                detail += f"；列映射={header_map}"
+            _ignore_sheet(sheet_name, detail)
+            continue
+
+        if row_count > 0 and len(metrics) <= 0:
+            _ignore_sheet(sheet_name, "解析到行数但科目树为空，请检查科目层级/代码列")
+            continue
+
+        imported_entities.append(
+            {
+                "sheet_name": sheet_name,
+                "entity_code": entity_code,
+                "entity_name": entity_name,
+                "table_name": table_name,
+                "row_count": row_count,
+                "has_formula_column": bool(
+                    header_map.get("取数公式")
+                    or header_map.get("年预算公式")
+                    or header_map.get("年预测公式")
+                    or header_map.get("实际月公式")
+                    or header_map.get("预测月公式")
+                ),
+                "metrics": metrics,
+            }
+        )
+
+    return {
+        "imported_entities": imported_entities,
+        "ignored_sheets": ignored_sheets,
+        "ignored_details": ignored_details,
+        "formula_convert_errors": formula_convert_errors,
+    }
+
+
+def _parse_metric_upload(content: bytes, filename: str) -> tuple[list[dict[str, Any]], int]:
+    result = parse_metric_workbook_import(
+        content,
+        filename or "metrics.xlsx",
+        strict_import=False,
+        only_first_sheet=True,
+    )
+    if result["imported_entities"]:
+        first = result["imported_entities"][0]
+        return list(first["metrics"]), int(first["row_count"])
+    detail = ""
+    if result["ignored_details"]:
+        detail = str(result["ignored_details"][0].get("reason") or "")
+    raise HTTPException(
+        status_code=400,
+        detail=detail or "无法解析 Excel：请确认表头含科目代码/科目名称，且公式列使用 Excel 原生公式或系统文本",
+    )
 
 
 def _normalize_sheet_key(value: str) -> str:
@@ -2628,32 +3040,32 @@ def _match_sheet_to_table(sheet_name: str, table_name: str) -> bool:
 
 
 def _parse_metric_batch_upload(content: bytes, filename: str, table_names: list[str]) -> tuple[list[dict[str, Any]], list[str], list[str]]:
-    try:
-        workbook = load_workbook(filename=BytesIO(content), data_only=True)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"无法读取Excel文件：{exc}") from exc
-
-    imported_tables: list[dict[str, Any]] = []
-    matched_sheet_names: set[str] = set()
-    prefix = re.sub(r"[^A-Za-z0-9]+", "-", Path(filename).stem) or "import"
-
-    for table_name in table_names:
-        target_sheet_name = next((sheet_name for sheet_name in workbook.sheetnames if _match_sheet_to_table(sheet_name, table_name)), None)
-        if not target_sheet_name:
-            continue
-        ws = workbook[target_sheet_name]
-        metrics, row_count = _parse_metric_worksheet(ws, f"{prefix}-{table_name}")
-        imported_tables.append(
-            {
-                "table_name": table_name,
-                "row_count": row_count,
-                "metrics": metrics,
-            }
-        )
-        matched_sheet_names.add(target_sheet_name)
-
-    missing_tables = [table_name for table_name in table_names if not any(item["table_name"] == table_name for item in imported_tables)]
-    ignored_sheets = [sheet_name for sheet_name in workbook.sheetnames if sheet_name not in matched_sheet_names]
+    result = parse_metric_workbook_import(
+        content,
+        filename or "metrics.xlsx",
+        strict_import=False,
+        table_names_filter=[name.strip() for name in table_names if name.strip()],
+    )
+    imported_tables = [
+        {
+            "table_name": item["table_name"],
+            "row_count": item["row_count"],
+            "metrics": item["metrics"],
+        }
+        for item in result["imported_entities"]
+    ]
+    imported_table_keys = {_canonical_metric_table_key(item["table_name"]) for item in imported_tables}
+    missing_tables = [
+        name
+        for name in table_names
+        if _canonical_metric_table_key(name) not in imported_table_keys
+    ]
+    matched_sheet_names = {str(item.get("sheet_name") or "") for item in result["imported_entities"]}
+    ignored_sheets = [
+        sheet_name
+        for sheet_name in result["ignored_sheets"]
+        if sheet_name not in matched_sheet_names
+    ]
     return imported_tables, missing_tables, ignored_sheets
 
 

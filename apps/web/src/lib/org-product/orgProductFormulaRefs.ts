@@ -14,15 +14,79 @@ export function normalizeFormulaRefText(input: string): string {
   return String(input || "")
     .trim()
     .toUpperCase()
+    .replace(/\u200b/g, "")
     .replace(/\s+/g, "")
     .replace(/（/g, "(")
     .replace(/）/g, ")")
     .replace(/\./g, "");
 }
 
-const CROSS_ENTITY_REF_RE = /([A-Za-z0-9]{1,6})[\/|]([^\/|\s()+\-*.,]+)[\/|]([A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+)/g;
-const CROSS_TABLE_REF_RE = /([^\/|\s()+\-*.,]+?表)[\/|]([A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+)/g;
-const LOCAL_CODE_RE = /\b[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+\b/g;
+/** 展示态「代码+名称」连写时，避免名称首字母被正则吃进代码段。 */
+function glueMetricCodeAndName(displayCode: string, name: string): string {
+  const code = String(displayCode || "");
+  const metricName = String(name || "");
+  if (!code || !metricName) return `${code}${metricName}`;
+  if (/[A-Za-z0-9]$/.test(code) && /^[A-Za-z0-9]/.test(metricName)) {
+    return `${code}\u200b${metricName}`;
+  }
+  return `${code}${metricName}`;
+}
+
+/** 用已知科目代码集合纠正展示态连写导致的尾部粘连（如 AA90010301IT → AA90010301）。 */
+export function snapNormalizedMetricCode(normalized: string, knownCodes: Set<string> | null | undefined): string {
+  const token = String(normalized || "").trim();
+  if (!token || !knownCodes || knownCodes.size === 0) return token;
+  if (knownCodes.has(token)) return token;
+  let best = "";
+  knownCodes.forEach((code) => {
+    if (token.startsWith(code) && code.length > best.length) {
+      best = code;
+    }
+  });
+  return best && token.length > best.length ? best : token;
+}
+
+export function knownCodesForFormulaRef(
+  ref: ParsedFormulaRef,
+  opts: {
+    currentEntityId: string;
+    currentTableName: string;
+    entityIdByCode: Map<string, string>;
+    knownCodesByEntityTableKey: Map<string, Set<string>>;
+  }
+): Set<string> | null {
+  if (ref.kind === "local") {
+    return opts.knownCodesByEntityTableKey.get(`${opts.currentEntityId}::${opts.currentTableName}`) ?? null;
+  }
+  if (ref.kind === "cross_table") {
+    return opts.knownCodesByEntityTableKey.get(`${opts.currentEntityId}::${ref.tableName}`) ?? null;
+  }
+  const entityId = opts.entityIdByCode.get(ref.entityCode) ?? "";
+  if (!entityId) return null;
+  return opts.knownCodesByEntityTableKey.get(`${entityId}::${ref.tableName}`) ?? null;
+}
+
+export function resolvedMetricCodeNormalized(
+  ref: ParsedFormulaRef,
+  opts: {
+    currentEntityId: string;
+    currentTableName: string;
+    entityIdByCode: Map<string, string>;
+    knownCodesByEntityTableKey: Map<string, Set<string>>;
+  }
+): string {
+  const knownCodes = knownCodesForFormulaRef(ref, opts);
+  return snapNormalizedMetricCode(ref.metricCodeNormalized, knownCodes);
+}
+
+// 与 formatMetricCodeForDisplay 一致：机构前缀 + 每段 2 位数字/字母，避免把指标名称吃进末段（如 .01+IT → .01IT）
+const METRIC_CODE_TOKEN_RE = String.raw`[A-Za-z][A-Za-z0-9]*(?:\.[0-9A-Z]{2})+`;
+const CROSS_ENTITY_REF_RE = new RegExp(
+  `([A-Za-z0-9]{1,6})[\\/|]([^\\/|\\s()+\\-*.,]+)[\\/|](${METRIC_CODE_TOKEN_RE})`,
+  "g"
+);
+const CROSS_TABLE_REF_RE = new RegExp(`([^\\/|\\s()+\\-*.,]+?表)[\\/|](${METRIC_CODE_TOKEN_RE})`, "g");
+const LOCAL_CODE_RE = new RegExp(String.raw`\b${METRIC_CODE_TOKEN_RE}\b`, "g");
 
 export function parseFormulaRefs(formula: string): ParsedFormulaRef[] {
   const text = String(formula || "");
@@ -89,7 +153,7 @@ export function buildFormulaInsertText(
   const entityName = String(sourceEntityName || "").trim();
 
   if (srcCode === activeCode && srcTable === curTable) {
-    return `${entityName}${displayCode}${name}`;
+    return `${entityName}${glueMetricCodeAndName(displayCode, name)}`;
   }
   if (srcCode === activeCode) {
     return `${srcTable}/${displayCode}`;
@@ -121,8 +185,9 @@ export function decorateFormulaTextForDisplay(
       const entityId = entityIdByCode.get(ref.entityCode) ?? "";
       const entityName = getEntityName(entityId, ref.entityCode);
       const infoMap = entityId ? metricRefInfoByEntityTableKey.get(`${entityId}::${ref.tableName}`) ?? null : null;
-      const info = infoMap?.get(ref.metricCodeNormalized) ?? null;
-      const replacement = info?.name ? `${entityName}${info.displayCode}${info.name}` : ref.raw;
+      const normalized = snapNormalizedMetricCode(ref.metricCodeNormalized, infoMap ? new Set(infoMap.keys()) : null);
+      const info = infoMap?.get(normalized) ?? null;
+      const replacement = info?.name ? `${entityName}${glueMetricCodeAndName(info.displayCode, info.name)}` : ref.raw;
       placeholders.push({ placeholder, replacement });
       out = out.split(ref.raw).join(placeholder);
       return;
@@ -130,8 +195,9 @@ export function decorateFormulaTextForDisplay(
     if (ref.kind === "cross_table") {
       const placeholder = `__TREF_${idx}__`;
       const infoMap = metricRefInfoByEntityTableKey.get(`${baseEntityId}::${ref.tableName}`) ?? null;
-      const info = infoMap?.get(ref.metricCodeNormalized) ?? null;
-      const replacement = info?.name ? `${localPrefix}${info.displayCode}${info.name}` : ref.raw;
+      const normalized = snapNormalizedMetricCode(ref.metricCodeNormalized, infoMap ? new Set(infoMap.keys()) : null);
+      const info = infoMap?.get(normalized) ?? null;
+      const replacement = info?.name ? `${localPrefix}${glueMetricCodeAndName(info.displayCode, info.name)}` : ref.raw;
       placeholders.push({ placeholder, replacement });
       out = out.split(ref.raw).join(placeholder);
     }
@@ -143,10 +209,10 @@ export function decorateFormulaTextForDisplay(
       const before = offset > 0 ? String(full[offset - 1] || "") : "";
       const after = offset + m.length < String(full).length ? String(full[offset + m.length] || "") : "";
       if ((before && hanRe.test(before)) || (after && hanRe.test(after))) return m;
-      const normalized = normalizeFormulaRefText(m);
+      const normalized = snapNormalizedMetricCode(normalizeFormulaRefText(m), new Set(localInfoMap.keys()));
       const info = localInfoMap.get(normalized) ?? null;
       if (!info?.name) return m;
-      return `${localPrefix}${info.displayCode}${info.name}`;
+      return `${localPrefix}${glueMetricCodeAndName(info.displayCode, info.name)}`;
     });
   }
 
@@ -166,7 +232,7 @@ export function canonicalizeFormulaForStorage(
   entityIdByCode: Map<string, string>,
   getEntityName: (entityId: string) => string
 ): string {
-  let out = String(displayText || "");
+  let out = String(displayText || "").replace(/\u200b/g, "");
   if (!out.trim()) return "";
 
   const prefix = String(activeEntityName || "").trim();
@@ -180,9 +246,9 @@ export function canonicalizeFormulaForStorage(
       const displayCode = String(info.displayCode || "").trim();
       const name = String(info.name || "").trim();
       if (!displayCode || !name) return;
-      const decorated = `${prefix}${displayCode}${name}`;
+      const decorated = `${prefix}${glueMetricCodeAndName(displayCode, name)}`;
       if (out.includes(decorated)) out = out.split(decorated).join(displayCode);
-      const decoratedWithoutPrefix = `${displayCode}${name}`;
+      const decoratedWithoutPrefix = glueMetricCodeAndName(displayCode, name);
       if (out.includes(decoratedWithoutPrefix)) out = out.split(decoratedWithoutPrefix).join(displayCode);
     });
   }
@@ -194,7 +260,7 @@ export function canonicalizeFormulaForStorage(
       const displayCode = String(info.displayCode || "").trim();
       const name = String(info.name || "").trim();
       if (!displayCode || !name || !prefix) return;
-      const decorated = `${prefix}${displayCode}${name}`;
+      const decorated = `${prefix}${glueMetricCodeAndName(displayCode, name)}`;
       if (out.includes(decorated)) {
         out = out.split(decorated).join(`${tableName}/${displayCode}`);
       }
@@ -223,10 +289,10 @@ export function canonicalizeFormulaForStorage(
         if (!displayCode || !name) return;
         const canonical = `${entityCode}/${tableName}/${displayCode}`;
         if (entityName) {
-          const decoratedFull = `${entityName}${displayCode}${name}`;
+          const decoratedFull = `${entityName}${glueMetricCodeAndName(displayCode, name)}`;
           if (out.includes(decoratedFull)) out = out.split(decoratedFull).join(canonical);
         }
-        const decorated = `${displayCode}${name}`;
+        const decorated = glueMetricCodeAndName(displayCode, name);
         if (out.includes(decorated)) out = out.split(decorated).join(canonical);
       });
     });
@@ -261,12 +327,19 @@ export function validateFormulaText(
   if (balance !== 0) return "括号不匹配：请检查左括号与右括号数量。";
 
   const refs = parseFormulaRefs(text);
+  const refResolveOpts = {
+    currentEntityId: opts.currentEntityId,
+    currentTableName: opts.currentTableName,
+    entityIdByCode: opts.entityIdByCode,
+    knownCodesByEntityTableKey: opts.knownCodesByEntityTableKey,
+  };
   const missing: string[] = [];
   let hasSelf = false;
   for (const ref of refs) {
+    const metricCodeNormalized = resolvedMetricCodeNormalized(ref, refResolveOpts);
     if (ref.kind === "local") {
-      if (opts.selfCodeNormalized && ref.metricCodeNormalized === opts.selfCodeNormalized) hasSelf = true;
-      if (!opts.currentKnownCodes.has(ref.metricCodeNormalized)) missing.push(ref.metricCodeRaw);
+      if (opts.selfCodeNormalized && metricCodeNormalized === opts.selfCodeNormalized) hasSelf = true;
+      if (!opts.currentKnownCodes.has(metricCodeNormalized)) missing.push(ref.metricCodeRaw);
       continue;
     }
     if (ref.kind === "cross_table") {
@@ -275,9 +348,9 @@ export function validateFormulaText(
       const isSelf =
         String(ref.tableName).trim() === String(opts.currentTableName).trim() &&
         opts.selfCodeNormalized &&
-        ref.metricCodeNormalized === opts.selfCodeNormalized;
+        metricCodeNormalized === opts.selfCodeNormalized;
       if (isSelf) hasSelf = true;
-      if (!codeSet || !codeSet.has(ref.metricCodeNormalized)) missing.push(`${ref.tableName}/${ref.metricCodeRaw}`);
+      if (!codeSet || !codeSet.has(metricCodeNormalized)) missing.push(`${ref.tableName}/${ref.metricCodeRaw}`);
       continue;
     }
     const entityId = opts.entityIdByCode.get(ref.entityCode);
@@ -291,9 +364,9 @@ export function validateFormulaText(
       entityId === opts.currentEntityId &&
       String(ref.tableName).trim() === String(opts.currentTableName).trim() &&
       opts.selfCodeNormalized &&
-      ref.metricCodeNormalized === opts.selfCodeNormalized;
+      metricCodeNormalized === opts.selfCodeNormalized;
     if (isSelf) hasSelf = true;
-    if (!codeSet || !codeSet.has(ref.metricCodeNormalized)) {
+    if (!codeSet || !codeSet.has(metricCodeNormalized)) {
       missing.push(`${ref.entityCode}/${ref.tableName}/${ref.metricCodeRaw}`);
     }
   }
@@ -315,20 +388,30 @@ export function resolveFormulaRefDependency(
   entityIdByCode: Map<string, string>,
   codeToMetricIdByEntityTableKey: Map<string, Map<string, string>>
 ): { entityId: string; tableName: string; metricId: string } | null {
+  const snapFromTableKey = (tableKey: string, normalized: string): string => {
+    const codeMap = codeToMetricIdByEntityTableKey.get(tableKey);
+    return snapNormalizedMetricCode(normalized, codeMap ? new Set(codeMap.keys()) : null);
+  };
   if (ref.kind === "local") {
-    const depId = codeToMetricIdByEntityTableKey.get(`${fromEntityId}::${fromTableName}`)?.get(ref.metricCodeNormalized);
+    const tableKey = `${fromEntityId}::${fromTableName}`;
+    const metricCodeNormalized = snapFromTableKey(tableKey, ref.metricCodeNormalized);
+    const depId = codeToMetricIdByEntityTableKey.get(tableKey)?.get(metricCodeNormalized);
     if (!depId) return null;
     return { entityId: fromEntityId, tableName: fromTableName, metricId: depId };
   }
   if (ref.kind === "cross_table") {
-    const depId = codeToMetricIdByEntityTableKey.get(`${fromEntityId}::${ref.tableName}`)?.get(ref.metricCodeNormalized);
+    const tableKey = `${fromEntityId}::${ref.tableName}`;
+    const metricCodeNormalized = snapFromTableKey(tableKey, ref.metricCodeNormalized);
+    const depId = codeToMetricIdByEntityTableKey.get(tableKey)?.get(metricCodeNormalized);
     if (!depId) return null;
     return { entityId: fromEntityId, tableName: ref.tableName, metricId: depId };
   }
   const depEntityId = entityIdByCode.get(ref.entityCode);
   if (!depEntityId) return null;
   const depTableName = String(ref.tableName || "").trim();
-  const depId = codeToMetricIdByEntityTableKey.get(`${depEntityId}::${depTableName}`)?.get(ref.metricCodeNormalized);
+  const tableKey = `${depEntityId}::${depTableName}`;
+  const metricCodeNormalized = snapFromTableKey(tableKey, ref.metricCodeNormalized);
+  const depId = codeToMetricIdByEntityTableKey.get(tableKey)?.get(metricCodeNormalized);
   if (!depId) return null;
   return { entityId: depEntityId, tableName: depTableName, metricId: depId };
 }

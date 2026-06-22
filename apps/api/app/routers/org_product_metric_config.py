@@ -11,6 +11,8 @@ from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 
 from app.core.db_paths import budget_db_path, common_db_path
+from app.services.export_common import excel_streaming_response
+from app.services.org_product_metric_runtime_snapshot import persist_org_product_metric_table_payload
 from app.routers.org_product_helpers import *
 from app.routers.org_product_helpers import (
     _ensure_metric_table_catalog,
@@ -60,6 +62,17 @@ def _build_entities_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]
     return list(entities.values())
 
 
+def _db_has_saved_metric_entities(entities: list[dict[str, Any]]) -> bool:
+    for ent in entities:
+        for table in ent.get("tables") or []:
+            if not isinstance(table, dict):
+                continue
+            metrics = table.get("metrics")
+            if isinstance(metrics, list) and len(metrics) > 0:
+                return True
+    return False
+
+
 router = APIRouter()
 
 @router.get("/api/org-product-metrics/bootstrap")
@@ -86,6 +99,12 @@ async def get_org_product_metric_seed():
                 except Exception:
                     db_entities = []
 
+            # 数据库已有保存数据时，不再把 Excel 种子交给前端参与合并（避免刷新后盖掉已保存公式）
+            prefer_db = _db_has_saved_metric_entities(db_entities)
+            if prefer_db:
+                items = {}
+                table_items = {}
+
             return {
                 "items": items,
                 "table_items": table_items,
@@ -93,6 +112,7 @@ async def get_org_product_metric_seed():
                 "sources": {
                     "org_metric_file": str(ORG_METRIC_FILE),
                     "product_metric_file": str(PRODUCT_METRIC_FILE),
+                    "prefer": "db" if prefer_db else "excel_seed",
                 },
             }
         except FileNotFoundError:
@@ -326,6 +346,14 @@ async def save_org_product_metrics_table(payload: MetricSaveTablePayload):
                 metrics=metrics,
                 overwrite_existing_metadata=True,
             )
+            persist_org_product_metric_table_payload(
+                conn,
+                entity_code=entity_code,
+                entity_name=payload.entity_name.strip() or entity_code,
+                table_name=table_name,
+                table_id=payload.table_id.strip(),
+                metrics=metrics,
+            )
             conn.commit()
     except OrgProductMetricRuntimeSyncError as exc:
         raise HTTPException(status_code=400, detail=f"保存失败：{exc}") from exc
@@ -351,15 +379,25 @@ async def save_org_product_metrics(payload: MetricSavePayload):
                 if not entity.tables:
                     continue
                 saved_entities += 1
+                entity_code = entity.entity_code.strip()
+                entity_name = entity.entity_name.strip() or entity_code
                 for table in entity.tables:
                     table_name = (table.name or "").strip() or "业务状况表"
-                    metrics = _sanitize_metric_nodes_for_save(entity.entity_code.strip(), table.metrics)
+                    metrics = _sanitize_metric_nodes_for_save(entity_code, table.metrics)
                     sync_org_product_metric_runtime_refs(
                         conn,
-                        entity_code=entity.entity_code.strip(),
+                        entity_code=entity_code,
                         table_name=table_name,
                         metrics=metrics,
                         overwrite_existing_metadata=True,
+                    )
+                    persist_org_product_metric_table_payload(
+                        conn,
+                        entity_code=entity_code,
+                        entity_name=entity_name,
+                        table_name=table_name,
+                        table_id=(table.id or "").strip(),
+                        metrics=metrics,
                     )
                     saved_tables += 1
             conn.commit()
@@ -411,6 +449,15 @@ async def get_org_product_metrics_snapshot():
         ent["tables"].append(table_obj)
 
     return {"entities": list(entities.values())}
+
+@router.get("/api/org-product-metrics/import-template")
+async def download_org_product_metric_import_template():
+    output = build_org_product_metric_import_template_workbook()
+    return excel_streaming_response(
+        output.getvalue(),
+        filename="机构及产品指标导入模板.xlsx",
+        fallback_filename="org_product_metric_import_template.xlsx",
+    )
 
 @router.post("/api/org-product-metrics/annual-aggregate")
 async def compute_annual_aggregation(

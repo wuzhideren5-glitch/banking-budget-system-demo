@@ -49,6 +49,7 @@ import {
   saveRefreshOrgProductMetrics,
   importMetricReport,
   exportMetricReport,
+  downloadMetricImportTemplate,
   saveMetricTableCatalog,
   patchMetricTableCatalogItem,
 } from "@/lib/org-product/orgProductMetricApi";
@@ -58,6 +59,7 @@ import {
   decorateFormulaTextForDisplay as decorateFormulaTextForDisplayShared,
   normalizeFormulaRefText,
   parseFormulaRefs,
+  resolvedMetricCodeNormalized,
   resolveFormulaRefDependency,
   validateFormulaText,
 } from "@/lib/org-product/orgProductFormulaRefs";
@@ -1108,6 +1110,33 @@ function persistMetricTablesCache(storageKey: string, tablesByEntityId: Record<s
   }
 }
 
+function activeMetricTableStorageKey(metricStorageKey: string): string {
+  return `${metricStorageKey}::active-tables`;
+}
+
+function loadActiveMetricTableIds(metricStorageKey: string): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(activeMetricTableStorageKey(metricStorageKey));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function persistActiveMetricTableIds(metricStorageKey: string, activeTableIdByEntityId: Record<string, string>): void {
+  try {
+    window.localStorage.setItem(
+      activeMetricTableStorageKey(metricStorageKey),
+      JSON.stringify(activeTableIdByEntityId)
+    );
+  } catch {
+    // Ignore browser storage errors; worst case user lands on default tab after refresh.
+  }
+}
+
 function loadOrgTree(storageKey: string, storagePrefix: string): OrgProductNode {
   const read = (key: string): OrgProductNode | null => {
     try {
@@ -1170,6 +1199,7 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
   const [loadError, setLoadError] = useState("");
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [savingRefresh, setSavingRefresh] = useState(false);
   const [metricEditorOpen, setMetricEditorOpen] = useState(false);
   const [metricEditorSaving, setMetricEditorSaving] = useState(false);
@@ -1538,14 +1568,21 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
   const formulaResolvedRefs = useMemo(() => {
     if (!activeMetric) return [];
     const refs = parseFormulaRefs(formulaText);
+    const refResolveOpts = {
+      currentEntityId: activeEntityId,
+      currentTableName,
+      entityIdByCode,
+      knownCodesByEntityTableKey,
+    };
     const out: Array<{ key: string; label: string; missing: boolean }> = [];
     const seen = new Set<string>();
     refs.forEach((ref) => {
+      const metricCodeNormalized = resolvedMetricCodeNormalized(ref, refResolveOpts);
       if (ref.kind === "local") {
         const tableKey = `${activeEntityId}::${currentTableName}`;
-        const info = metricRefInfoByEntityTableKey.get(tableKey)?.get(ref.metricCodeNormalized) ?? null;
+        const info = metricRefInfoByEntityTableKey.get(tableKey)?.get(metricCodeNormalized) ?? null;
         const label = info?.name ? `${info.displayCode} ${info.name}` : `${ref.metricCodeRaw}（未找到）`;
-        const key = `local:${tableKey}:${ref.metricCodeNormalized}`;
+        const key = `local:${tableKey}:${metricCodeNormalized}`;
         if (seen.has(key)) return;
         seen.add(key);
         out.push({ key, label, missing: !info?.name });
@@ -1553,10 +1590,10 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
       }
       if (ref.kind === "cross_table") {
         const tableKey = `${activeEntityId}::${ref.tableName}`;
-        const info = metricRefInfoByEntityTableKey.get(tableKey)?.get(ref.metricCodeNormalized) ?? null;
+        const info = metricRefInfoByEntityTableKey.get(tableKey)?.get(metricCodeNormalized) ?? null;
         const labelBase = `${ref.tableName}/${ref.metricCodeRaw}`;
         const label = info?.name ? `${labelBase} ${info.name}` : `${labelBase}（未找到）`;
-        const key = `table:${ref.tableName}:${ref.metricCodeNormalized}`;
+        const key = `table:${ref.tableName}:${metricCodeNormalized}`;
         if (seen.has(key)) return;
         seen.add(key);
         out.push({ key, label, missing: !info?.name });
@@ -1565,16 +1602,16 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
       const entityId = entityIdByCode.get(ref.entityCode) ?? "";
       const tableName = String(ref.tableName || "").trim();
       const tableKey = entityId ? `${entityId}::${tableName}` : "";
-      const info = tableKey ? metricRefInfoByEntityTableKey.get(tableKey)?.get(ref.metricCodeNormalized) ?? null : null;
+      const info = tableKey ? metricRefInfoByEntityTableKey.get(tableKey)?.get(metricCodeNormalized) ?? null : null;
       const labelBase = `${ref.entityCode}/${tableName}/${ref.metricCodeRaw}`;
       const label = info?.name ? `${labelBase} ${info.name}` : `${labelBase}（未找到）`;
-      const key = `entity:${ref.entityCode}:${tableName}:${ref.metricCodeNormalized}`;
+      const key = `entity:${ref.entityCode}:${tableName}:${metricCodeNormalized}`;
       if (seen.has(key)) return;
       seen.add(key);
       out.push({ key, label, missing: !info?.name });
     });
     return out;
-  }, [activeEntityId, activeMetric, currentTableName, entityIdByCode, formulaText, metricRefInfoByEntityTableKey]);
+  }, [activeEntityId, activeMetric, currentTableName, entityIdByCode, formulaText, knownCodesByEntityTableKey, metricRefInfoByEntityTableKey]);
 
   const insertIntoFormula = (text: string, cursorShift: number) => {
     const el = formulaFullscreenOpen
@@ -2625,16 +2662,18 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
       setLoading(true);
       setLoadError("");
       try {
-        const [response, catalogResp] = await Promise.all([
+        const [response, catalogResp, dbSnapResp] = await Promise.all([
           (getOrgProductMetricBootstrap() as unknown as Promise<BootstrapResponse>),
           (getMetricTableCatalog() as unknown as Promise<MetricTableCatalogResponse>),
+          (getOrgProductMetricDbSnapshot() as unknown as Promise<OrgProductMetricDbSnapshotDto>).catch(() => ({
+            entities: [],
+          })),
         ]);
-        const snapResp = { entities: ((response as any).entities ?? []) } as OrgProductMetricDbSnapshotDto;
         if (cancelled) return;
-        currentTree = ensureOrgTreeIncludesDbSnapshotEntities(currentTree, snapResp);
+        currentTree = ensureOrgTreeIncludesDbSnapshotEntities(currentTree, dbSnapResp);
         setOrgTree(currentTree);
         setEntityExpanded(buildOrgExpandedState(currentTree));
-        const fallbackEntityId = defaultSelectableEntityId(currentTree, snapResp);
+        const fallbackEntityId = defaultSelectableEntityId(currentTree, dbSnapResp);
         setSelectedEntityIds((current) => {
           const kept = current.find((id) => findOrgNodeById(currentTree, id));
           return [kept ?? fallbackEntityId];
@@ -2664,24 +2703,38 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
         const migratedStored = parsedStored
           ? (migrateMetricEntityIdMap(currentTree, parsedStored) as Record<string, MetricTable[]>)
           : undefined;
-        const fromDb = dbSnapshotToMetricTablesByEntityId(snapResp, currentTree);
-        const storageFallback = hasMetricTables(fromDb) ? {} : migratedStored ?? {};
-        const mergedStored = mergeMetricTablesByEntityIdPreferRicher(storageFallback, fromDb, {
-          preferSecondaryOnTie: true,
-        });
-        const mergedWithSeedTables = mergeMetricTablesByEntityIdFillMissing(mergedStored, seedTablesByNodeId);
-        const reconciled = cleanupMetricTablesMap(
-          reconcileMetricTableMap(seedByNodeId, currentTree, mergedWithSeedTables, catalog)
+        const fromDb = dbSnapshotToMetricTablesByEntityId(
+          hasMetricTables(dbSnapshotToMetricTablesByEntityId(dbSnapResp, currentTree))
+            ? dbSnapResp
+            : { entities: (response.entities ?? []) as OrgProductMetricDbSnapshotDto["entities"] },
+          currentTree
         );
+        const dbHasSavedMetrics = hasMetricTables(fromDb);
+        let reconciled: Record<string, MetricTable[]>;
+        if (dbHasSavedMetrics) {
+          // 已保存过：刷新后只认数据库，不与 localStorage / Excel 种子合并
+          reconciled = cleanupMetricTablesMap(reconcileMetricTableMap({}, currentTree, fromDb, catalog));
+        } else {
+          const mergedStored = mergeMetricTablesByEntityIdPreferRicher(fromDb, migratedStored ?? {}, {
+            preferSecondaryOnTie: true,
+          });
+          const mergedWithSeedTables = mergeMetricTablesByEntityIdFillMissing(mergedStored, seedTablesByNodeId);
+          reconciled = cleanupMetricTablesMap(
+            reconcileMetricTableMap(seedByNodeId, currentTree, mergedWithSeedTables, catalog)
+          );
+        }
         setMetricTablesByEntityId(reconciled);
 
+        const savedActiveTables = loadActiveMetricTableIds(metricStorageKey);
         const selectedMetricState: Record<string, string | null> = {};
         const activeTableState: Record<string, string> = {};
         Object.entries(reconciled).forEach(([entityId, tables]) => {
-          const firstTable = tables[0];
-          if (firstTable) {
-            activeTableState[entityId] = firstTable.id;
-            selectedMetricState[buildMetricScopeKey(entityId, firstTable.id)] = firstTable.metrics[0]?.id ?? null;
+          const savedTableId = String(savedActiveTables[entityId] || "").trim();
+          const activeTable =
+            (savedTableId ? tables.find((table) => table.id === savedTableId) : null) ?? tables[0] ?? null;
+          if (activeTable) {
+            activeTableState[entityId] = activeTable.id;
+            selectedMetricState[buildMetricScopeKey(entityId, activeTable.id)] = activeTable.metrics[0]?.id ?? null;
           }
         });
         setActiveTableIdByEntityId(activeTableState);
@@ -2726,6 +2779,12 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
       persistMetricTablesCache(metricStorageKey, metricTablesByEntityId);
     }
   }, [loading, metricStorageKey, metricTablesByEntityId]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (Object.keys(activeTableIdByEntityId).length === 0) return;
+    persistActiveMetricTableIds(metricStorageKey, activeTableIdByEntityId);
+  }, [activeTableIdByEntityId, loading, metricStorageKey]);
 
   useEffect(() => {
     if (!selectedEntityIds.includes(activeEntityId)) {
@@ -2944,6 +3003,9 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
     setMetricTableCatalog(catalog);
     const fromDb = dbSnapshotToMetricTablesByEntityId(snapResp, orgTree);
     setMetricTablesByEntityId((prev) => {
+      if (hasMetricTables(fromDb)) {
+        return cleanupMetricTablesMap(reconcileMetricTableMap({}, orgTree, fromDb, catalog));
+      }
       const merged = mergeMetricTablesByEntityIdPreferRicher(
         mergeMetricTablesByEntityIdPreferRicher(prev, fromDb, { preferSecondaryOnTie: true }),
         bootstrapTableSeedByEntityId
@@ -3024,8 +3086,8 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
     const formulaImport = viewMode === "formula";
     if (!confirm(
       formulaImport
-        ? "确认从 Excel 导入取数公式吗？\n\n· 工作表名：机构及产品代码 + 指标表名称（如 AA业务状况表）\n· 表头须含：科目层级、科目性质、科目代码、科目名称\n· 公式列：「实际月公式」「预测月公式」「年预算公式」「年预测公式」（或兼容旧列「取数公式」）\n· 可选列：「公式说明」「录入粒度」「数值类型」「允许手工录入」「横向汇总」「纵向汇总」「逻辑码」\n· 支持 Excel 原生公式（如 =E3+E10），将自动转换为系统公式\n· 未出现在 Excel 中的指标表不会被修改\n\n导入后请点击「保存刷新」写入数据库。"
-        : "确认导入 Excel 吗？\n\n· 工作表名：机构及产品代码 + 指标表名称（如 AA业务状况表）\n· 表头须含：科目层级、科目性质、科目代码、科目名称（可选：取数公式）\n· 可选列：「数值类型」「允许手工录入」「录入粒度」「横向汇总」「纵向汇总」「逻辑码」\n· 取数公式列可写系统文本，或 Excel 原生公式（=E3+E10 等）\n· 将覆盖对应机构/产品下该指标表的科目树\n\n导入后请点击「保存刷新」写入数据库。"
+        ? "确认从 Excel 导入取数公式吗？\n\n· 工作表名：机构及产品代码 + 指标表名称（如 AA业务状况表）\n· 表头须含：科目层级、科目性质、科目代码、科目名称\n· 公式列：「实际月公式」「预测月公式」「年预算公式」「年预测公式」（或兼容旧列「取数公式」）\n· 可选列：「公式说明」「录入粒度」「数值类型」「允许手工录入」「横向汇总」「纵向汇总」「规则」\n· 「科目层级※仅展示」「逻辑码※仅展示」列导入时由系统按科目代码重算，可忽略 Excel 内容\n· 支持 Excel 原生公式（如 =H3+H6），将自动转换为系统公式\n· 未出现在 Excel 中的指标表不会被修改\n\n导入后请点击「保存刷新」写入数据库。"
+        : "确认导入 Excel 吗？\n\n· 工作表名：机构及产品代码 + 指标表名称（如 AA业务状况表）\n· 表头须含：科目层级、科目性质、科目代码、科目名称（可选：取数公式）\n· 可选列：「数值类型」「允许手工录入」「录入粒度」「横向汇总」「纵向汇总」「规则」\n· 「科目层级※仅展示」「逻辑码※仅展示」列导入时由系统重算\n· 取数公式列可写系统文本，或 Excel 原生公式（=H3+H6 等）\n· 将覆盖对应机构/产品下该指标表的科目树\n\n导入后请点击「保存刷新」写入数据库。"
     )) {
       return;
     }
@@ -3186,6 +3248,22 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
     }
   };
 
+  const handleDownloadImportTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      await downloadMetricImportTemplate();
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      alert(
+        detail.includes("未登录")
+          ? `模板下载失败：${detail}\n\n请先登录系统后再下载。`
+          : `模板下载失败：${detail}\n\n若刚更新过后端代码，请重启 API 服务后再试。`
+      );
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
   const handleExportReport = async () => {
     if (selectedEntities.length === 0) {
       alert("请先勾选至少一个机构或产品。");
@@ -3250,9 +3328,12 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
         .filter((x): x is { entity_code: string; entity_name: string; tables: Array<{ id: string; name: string; metrics: MetricNode[] }> } => Boolean(x));
 
       const resp = await (saveRefreshOrgProductMetrics(entities) as unknown as Promise<MetricSaveRefreshResponse>);
+      persistMetricTablesCache(metricStorageKey, metricTablesByEntityId);
       window.dispatchEvent(new Event("org-product-metrics-saved"));
+      const savedEntities = Number((resp as { saved_entities?: number }).saved_entities ?? 0);
+      const savedTables = Number((resp as { saved_tables?: number }).saved_tables ?? 0);
       alert(
-        `保存成功：${resp.saved_entities} 个对象，${resp.saved_tables} 张指标表。机构及产品指标体系已作为唯一主键体系保存。`
+        `保存成功：${savedEntities} 个对象，${savedTables} 张指标表。整棵树已写入数据库；刷新页面后将从数据库恢复相同指标树。`
       );
     } catch (e) {
       alert(e instanceof Error ? `保存失败：${e.message}` : "保存失败");
@@ -3670,6 +3751,16 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
               <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
                 <button
                   type="button"
+                  onClick={handleDownloadImportTemplate}
+                  className={`${neutralActionClass} whitespace-nowrap px-2.5 py-1`}
+                  disabled={downloadingTemplate}
+                  title="下载 Excel 导入模板（v04 表头、示例公式与填写说明）"
+                >
+                  <Download className="h-3.5 w-3.5 shrink-0" />
+                  <span>{downloadingTemplate ? "下载中..." : "导入模板"}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={triggerImportReportFilePicker}
                   className={`${neutralActionClass} whitespace-nowrap px-2.5 py-1`}
                   disabled={importing}
@@ -3709,6 +3800,16 @@ export function OrgProductMetricContent({ initialView = "metric" as MetricViewMo
               </div>
             ) : (
               <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleDownloadImportTemplate}
+                  className={`${neutralActionClass} whitespace-nowrap px-2.5 py-1`}
+                  disabled={downloadingTemplate}
+                  title="下载 Excel 导入模板（v04 表头、示例公式与填写说明）"
+                >
+                  <Download className="h-3.5 w-3.5 shrink-0" />
+                  <span>{downloadingTemplate ? "下载中..." : "导入模板"}</span>
+                </button>
                 <button
                   type="button"
                   onClick={triggerImportReportFilePicker}

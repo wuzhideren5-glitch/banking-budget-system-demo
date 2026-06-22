@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost, apiPostBlob, apiPostForm } from "@/lib/shared/api";
+import { apiGet, apiPatch, apiPost, apiPostBlob, apiPostForm, downloadFile } from "@/lib/shared/api";
 
 export type OrgProductMetricSnapshotDto = {
   entities: unknown[];
@@ -73,6 +73,10 @@ export function saveRefreshOrgProductMetrics(entities: unknown): Promise<MetricS
 
 export function importMetricReport(formData: FormData): Promise<unknown> {
   return apiPostForm("/api/org-product-metrics/import-report", formData);
+}
+
+export function downloadMetricImportTemplate(): Promise<void> {
+  return downloadFile("/api/org-product-metrics/import-template", "机构及产品指标导入模板.xlsx");
 }
 
 export function exportMetricReport(sheets: unknown): Promise<{ blob: Blob; filename: string | null }> {

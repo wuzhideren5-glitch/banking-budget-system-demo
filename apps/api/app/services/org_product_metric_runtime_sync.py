@@ -63,8 +63,10 @@ class _RuntimeMetricRef:
     annual_agg_rule: str = ""
     budget_formula: str = ""
     actual_formula: str = ""
+    formula_config_json: str = ""
 
 
+_ORG_PRODUCT_FORMULA_CONFIG_KEY = "org_product_metric_formulas"
 _VALID_ANNUAL_AGG_RULES = frozenset({"SUM", "AVG", "LAST", "WGT", "CALC"})
 
 
@@ -80,7 +82,52 @@ def _metric_budget_formula(node: dict[str, Any]) -> str:
 
 
 def _metric_actual_formula(node: dict[str, Any]) -> str:
-    return _normalize_text(node.get("formula_actual")) or _normalize_text(node.get("formula_forecast"))
+    return _normalize_text(node.get("formula_actual"))
+
+
+def _formula_calc_mode(*, budget_formula: str, actual_formula: str) -> int:
+    mode = 0
+    if _normalize_text(budget_formula):
+        mode += 1
+    if _normalize_text(actual_formula):
+        mode += 2
+    return mode
+
+
+def _parse_org_product_formula_config(raw: Any) -> dict[str, str]:
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(str(raw))
+    except Exception:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    payload = parsed.get(_ORG_PRODUCT_FORMULA_CONFIG_KEY)
+    if not isinstance(payload, dict):
+        return {}
+    out: dict[str, str] = {}
+    for key in ("formula_forecast", "formula_forecast_annual", "formula_note"):
+        value = _normalize_text(payload.get(key))
+        if value:
+            out[key] = value
+    return out
+
+
+def _build_org_product_formula_config_json(node: dict[str, Any]) -> str:
+    payload: dict[str, str] = {}
+    forecast = _normalize_text(node.get("formula_forecast"))
+    forecast_annual = _normalize_text(node.get("formula_forecast_annual"))
+    formula_note = _normalize_text(node.get("formula_note"))
+    if forecast:
+        payload["formula_forecast"] = forecast
+    if forecast_annual:
+        payload["formula_forecast_annual"] = forecast_annual
+    if formula_note:
+        payload["formula_note"] = formula_note
+    if not payload:
+        return ""
+    return json.dumps({_ORG_PRODUCT_FORMULA_CONFIG_KEY: payload}, ensure_ascii=False)
 
 
 # ─── 编码归一化与辅助函数 ───
@@ -412,6 +459,7 @@ def normalize_org_product_metric_runtime_refs(
             annual_agg_rule=_normalize_annual_agg_rule(node.get("annual_agg_rule")),
             budget_formula=_metric_budget_formula(node),
             actual_formula=_metric_actual_formula(node),
+            formula_config_json=_build_org_product_formula_config_json(node),
         )
     return tuple(refs.values())
 
@@ -622,6 +670,10 @@ def sync_org_product_metric_runtime_refs(
     account_count = 0
     for ref in refs:
         if overwrite_existing_metadata:
+            formula_calc_mode = _formula_calc_mode(
+                budget_formula=ref.budget_formula,
+                actual_formula=ref.actual_formula,
+            )
             conn.execute(
                 """
                 UPDATE data_account_metric_node
@@ -632,6 +684,12 @@ def sync_org_product_metric_runtime_refs(
                     nature=?,
                     budget_formula=?,
                     actual_formula=?,
+                    formula_calc_mode=?,
+                    need_calc=?,
+                    budget_rule_config_json=CASE
+                      WHEN COALESCE(?, '') <> '' THEN ?
+                      ELSE budget_rule_config_json
+                    END,
                     annual_agg_rule=?,
                     remark=COALESCE(remark, ?),
                     updated_at=CURRENT_TIMESTAMP
@@ -644,12 +702,20 @@ def sync_org_product_metric_runtime_refs(
                     ref.nature,
                     ref.budget_formula,
                     ref.actual_formula,
+                    formula_calc_mode,
+                    1 if formula_calc_mode > 0 else 0,
+                    ref.formula_config_json,
+                    ref.formula_config_json,
                     ref.annual_agg_rule,
                     f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
                     ref.code,
                 ),
             )
         else:
+            formula_calc_mode = _formula_calc_mode(
+                budget_formula=ref.budget_formula,
+                actual_formula=ref.actual_formula,
+            )
             conn.execute(
                 """
                 UPDATE data_account_metric_node
@@ -673,6 +739,18 @@ def sync_org_product_metric_runtime_refs(
                       WHEN COALESCE(?, '') <> '' THEN ?
                       ELSE actual_formula
                     END,
+                    formula_calc_mode=CASE
+                      WHEN COALESCE(?, '') <> '' OR COALESCE(?, '') <> '' THEN ?
+                      ELSE formula_calc_mode
+                    END,
+                    need_calc=CASE
+                      WHEN COALESCE(?, '') <> '' OR COALESCE(?, '') <> '' THEN 1
+                      ELSE need_calc
+                    END,
+                    budget_rule_config_json=CASE
+                      WHEN COALESCE(?, '') <> '' THEN ?
+                      ELSE budget_rule_config_json
+                    END,
                     annual_agg_rule=CASE
                       WHEN COALESCE(?, '') <> '' THEN ?
                       ELSE annual_agg_rule
@@ -691,6 +769,13 @@ def sync_org_product_metric_runtime_refs(
                     ref.budget_formula,
                     ref.actual_formula,
                     ref.actual_formula,
+                    ref.budget_formula,
+                    ref.actual_formula,
+                    formula_calc_mode,
+                    ref.budget_formula,
+                    ref.actual_formula,
+                    ref.formula_config_json,
+                    ref.formula_config_json,
                     ref.annual_agg_rule,
                     ref.annual_agg_rule,
                     f"来源：机构及产品指标主表同步；{entity_code}/{table_name}/{ref.source_code or ref.code}",
