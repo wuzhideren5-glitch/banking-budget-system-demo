@@ -162,6 +162,28 @@ def _connection_params() -> dict:
     }
 
 
+def _ensure_intelligent_budget_tasks(conn: pymysql.Connection) -> None:
+    """Create the intelligent budget simulation task store during DB bootstrap."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS intelligent_budget_tasks (
+                task_id VARCHAR(255) PRIMARY KEY,
+                target_text VARCHAR(255) NOT NULL,
+                parsed_target LONGTEXT NOT NULL,
+                status VARCHAR(255) NOT NULL,
+                stage VARCHAR(255) NOT NULL,
+                step_summary LONGTEXT,
+                baseline_solution LONGTEXT,
+                solutions LONGTEXT NOT NULL,
+                negotiation_message LONGTEXT,
+                negotiation_suggestions LONGTEXT,
+                created_at VARCHAR(255) NOT NULL DEFAULT (NOW())
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        )
+
+
 def _init_common_tables(conn: pymysql.Connection, calendar_year: int) -> None:
     _executescript(conn, COMMON_SCHEMA)
     ensure_department_expense_master_schema_sync(conn)
@@ -178,6 +200,7 @@ def _init_common_tables(conn: pymysql.Connection, calendar_year: int) -> None:
     validate_generated_file_paths(conn, settings.data_dir)
     seed_periods(conn, calendar_year)
     ensure_runtime_metric_identity_tables(conn)
+    _ensure_intelligent_budget_tasks(conn)
     normalize_org_product_metric_mapping_statuses(conn)
     sync_existing_org_product_metric_tables(conn)
     seed_default_smart_ppt(conn)
@@ -284,6 +307,7 @@ def ensure_databases() -> None:
             ensure_smart_report_schema_sync(conn)
             validate_generated_file_paths(conn, settings.data_dir)
             ensure_runtime_metric_identity_tables(conn)
+            _ensure_intelligent_budget_tasks(conn)
             normalize_org_product_metric_mapping_statuses(conn)
             sync_existing_org_product_metric_tables(conn)
             seed_periods(conn, settings.budget_year)

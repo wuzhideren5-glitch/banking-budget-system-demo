@@ -577,6 +577,43 @@ def _ensure_org_product_output_snapshot_table(conn: sqlite3.Connection) -> None:
         ON org_product_output_snapshot_v1(entity_code, year)
         """
     )
+    _ensure_payload_json_longtext_column(conn, "org_product_output_snapshot_v1")
+
+
+_ORG_PRODUCT_PAYLOAD_JSON_TABLES = (
+    "org_product_tree_snapshot",
+    "org_product_data_entry_snapshot",
+    "org_product_data_entry_snapshot_v2",
+    "org_product_data_entry_draft",
+    "org_product_output_snapshot_v1",
+    "org_product_metric_table_payload",
+)
+
+
+def _ensure_payload_json_longtext_column(conn: sqlite3.Connection, table_name: str) -> None:
+    """MySQL migration: legacy TEXT/VARCHAR(255) payload columns cannot store full output trees."""
+    try:
+        row = conn.execute(
+            """
+            SELECT DATA_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'payload_json'
+            """,
+            (table_name,),
+        ).fetchone()
+    except Exception:
+        return
+    if not row:
+        return
+    data_type = str(row[0] if not isinstance(row, dict) else row.get("DATA_TYPE") or "").lower()
+    if data_type == "longtext":
+        return
+    conn.execute(f"ALTER TABLE {table_name} MODIFY payload_json LONGTEXT NOT NULL")
+
+
+def _upgrade_org_product_payload_json_columns(conn: sqlite3.Connection) -> None:
+    for table_name in _ORG_PRODUCT_PAYLOAD_JSON_TABLES:
+        _ensure_payload_json_longtext_column(conn, table_name)
 
 
 def _norm_text(value: Any) -> str:
@@ -1144,6 +1181,7 @@ def ensure_org_product_schema(conn: sqlite3.Connection) -> None:
     _ensure_data_entry_snapshot_table_v2(conn)
     _ensure_data_entry_draft_table(conn)
     _ensure_org_product_output_snapshot_table(conn)
+    _upgrade_org_product_payload_json_columns(conn)
 
 
 

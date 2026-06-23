@@ -442,6 +442,10 @@ class SyncDatabase:
                 cur.execute(f"ALTER TABLE intelligent_budget_tasks MODIFY `{column_name}` LONGTEXT")
             cur.execute("ALTER TABLE org_product_data_entry_snapshot MODIFY payload_json LONGTEXT")
             cur.execute("ALTER TABLE org_product_data_entry_snapshot_v2 MODIFY payload_json LONGTEXT")
+            cur.execute("ALTER TABLE org_product_data_entry_draft MODIFY payload_json LONGTEXT")
+            cur.execute("ALTER TABLE org_product_output_snapshot_v1 MODIFY payload_json LONGTEXT")
+            cur.execute("ALTER TABLE org_product_tree_snapshot MODIFY payload_json LONGTEXT")
+            cur.execute("ALTER TABLE org_product_metric_table_payload MODIFY payload_json LONGTEXT")
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS compare_settings (
