@@ -73,6 +73,12 @@ def _db_has_saved_metric_entities(entities: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _metric_payload_has_nodes(metrics: list[Any] | None) -> bool:
+    if not isinstance(metrics, list):
+        return False
+    return any(metric is not None for metric in metrics)
+
+
 router = APIRouter()
 
 @router.get("/api/org-product-metrics/bootstrap")
@@ -378,11 +384,16 @@ async def save_org_product_metrics(payload: MetricSavePayload):
                     continue
                 if not entity.tables:
                     continue
-                saved_entities += 1
                 entity_code = entity.entity_code.strip()
                 entity_name = entity.entity_name.strip() or entity_code
+                entity_saved_tables = 0
                 for table in entity.tables:
                     table_name = (table.name or "").strip() or "业务状况表"
+                    # The frontend materializes empty catalog placeholders for every
+                    # entity/table. Bulk save must not let those placeholders overwrite
+                    # the last persisted tree after an Excel import.
+                    if not _metric_payload_has_nodes(table.metrics):
+                        continue
                     metrics = _sanitize_metric_nodes_for_save(entity_code, table.metrics)
                     sync_org_product_metric_runtime_refs(
                         conn,
@@ -399,7 +410,10 @@ async def save_org_product_metrics(payload: MetricSavePayload):
                         table_id=(table.id or "").strip(),
                         metrics=metrics,
                     )
-                    saved_tables += 1
+                    entity_saved_tables += 1
+                if entity_saved_tables > 0:
+                    saved_entities += 1
+                    saved_tables += entity_saved_tables
             conn.commit()
     except OrgProductMetricRuntimeSyncError as exc:
         raise HTTPException(status_code=400, detail=f"保存失败：{exc}") from exc

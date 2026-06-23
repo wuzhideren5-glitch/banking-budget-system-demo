@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
 import tempfile
@@ -8,10 +9,14 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
+from app.routers import org_product_metric_config
 from app.routers.org_product_helpers import (
     DataEntryMetricRowPayload,
     DataEntryMetricValuesPayload,
     MetricNodePayload,
+    MetricSaveEntityPayload,
+    MetricSavePayload,
+    MetricTablePayload,
     _append_org_product_output_export_sheet,
     _build_data_entry_export_workbook,
     _build_metric_rows,
@@ -1898,6 +1903,64 @@ class OrgProductMetricTablePayloadRoundTripTests(unittest.TestCase):
             payload = json.loads(rows[0]["payload_json"])
             self.assertEqual(payload["metrics"][0]["children"][0]["code"], "AA.90.01.03.01")
             self.assertEqual(payload["metrics"][0]["children"][0]["formula_forecast"], "=AA.90.01.03.02")
+
+    def test_save_refresh_skips_empty_catalog_placeholders(self) -> None:
+        nested_metrics = [
+            {
+                "id": "aa-root",
+                "levelLabel": "二级",
+                "nature": "收入",
+                "code": "AA.01",
+                "name": "营业收入",
+                "children": [],
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "common.db"
+            with sqlite3.connect(db_path) as conn:
+                persist_org_product_metric_table_payload(
+                    conn,
+                    entity_code="AA",
+                    entity_name="微众银行",
+                    table_name="业务状况表",
+                    table_id="table-业务状况表",
+                    metrics=nested_metrics,
+                )
+                conn.commit()
+
+            original_common_db_path = org_product_metric_config.common_db_path
+            org_product_metric_config.common_db_path = lambda: db_path
+            try:
+                response = asyncio.run(
+                    org_product_metric_config.save_org_product_metrics(
+                        MetricSavePayload(
+                            entities=[
+                                MetricSaveEntityPayload(
+                                    entity_code="AA",
+                                    entity_name="微众银行",
+                                    tables=[
+                                        MetricTablePayload(
+                                            id="table-业务状况表",
+                                            name="业务状况表",
+                                            metrics=[],
+                                        )
+                                    ],
+                                )
+                            ]
+                        )
+                    )
+                )
+            finally:
+                org_product_metric_config.common_db_path = original_common_db_path
+
+            self.assertEqual(response["saved_tables"], 0)
+            self.assertEqual(response["saved_entities"], 0)
+            with sqlite3.connect(db_path) as conn:
+                rows = load_org_product_metric_table_rows_from_runtime_tree(conn)
+            self.assertEqual(len(rows), 1)
+            payload = json.loads(rows[0]["payload_json"])
+            self.assertEqual(payload["metrics"][0]["code"], "AA.01")
+            self.assertEqual(payload["metrics"][0]["name"], "营业收入")
 
 
 if __name__ == "__main__":
