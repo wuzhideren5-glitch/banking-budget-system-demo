@@ -1,0 +1,1759 @@
+{
+  "timestamp": "20260623_163246",
+  "import": {
+    "saved": [
+      {
+        "entity_code": "B01",
+        "table_name": "业务状况表",
+        "sheet_name": "B01企业金融业务状况表",
+        "metrics_with_data": 92,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "B01",
+        "table_name": "业务支出评估",
+        "sheet_name": "B01企业金融业务支出评估",
+        "metrics_with_data": 21,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "业务状况表",
+        "sheet_name": "AA微众银行业务状况表",
+        "metrics_with_data": 62,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "业务支出评估",
+        "sheet_name": "AA微众银行业务支出评估",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "损益表",
+        "sheet_name": "AA微众银行损益表",
+        "metrics_with_data": 4,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "资产质量表",
+        "sheet_name": "AA微众银行资产质量表",
+        "metrics_with_data": 2,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "利息净收入表",
+        "sheet_name": "AA微众银行利息净收入表",
+        "metrics_with_data": 7,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A",
+        "table_name": "业务状况表",
+        "sheet_name": "A个金群业务状况表",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A",
+        "table_name": "业务支出评估",
+        "sheet_name": "A个金群业务支出评估",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A01",
+        "table_name": "业务状况表",
+        "sheet_name": "A01泛微粒贷业务状况表",
+        "metrics_with_data": 111,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A01",
+        "table_name": "业务支出评估",
+        "sheet_name": "A01泛微粒贷业务支出评估",
+        "metrics_with_data": 21,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A02",
+        "table_name": "业务状况表",
+        "sheet_name": "A02微账户业务状况表",
+        "metrics_with_data": 34,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A02",
+        "table_name": "业务支出评估",
+        "sheet_name": "A02微账户业务支出评估",
+        "metrics_with_data": 13,
+        "updated_at": "2026-06-23T16:32:47Z"
+      },
+      {
+        "entity_code": "A03",
+        "table_name": "业务状况表",
+        "sheet_name": "A03汽车金融业务状况表",
+        "metrics_with_data": 44,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "A03",
+        "table_name": "业务支出评估",
+        "sheet_name": "A03汽车金融业务支出评估",
+        "metrics_with_data": 16,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "A04",
+        "table_name": "业务状况表",
+        "sheet_name": "A04财富业务状况表",
+        "metrics_with_data": 44,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "A04",
+        "table_name": "业务支出评估",
+        "sheet_name": "A04财富业务支出评估",
+        "metrics_with_data": 16,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "A05",
+        "table_name": "业务状况表",
+        "sheet_name": "A05小鹅业务状况表",
+        "metrics_with_data": 40,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "A05",
+        "table_name": "业务支出评估",
+        "sheet_name": "A05小鹅业务支出评估",
+        "metrics_with_data": 16,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "B",
+        "table_name": "业务状况表",
+        "sheet_name": "B企金群业务状况表",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "B",
+        "table_name": "业务支出评估",
+        "sheet_name": "B企金群业务支出评估",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "B02",
+        "table_name": "业务状况表",
+        "sheet_name": "B02金融市场业务状况表",
+        "metrics_with_data": 69,
+        "updated_at": "2026-06-23T16:32:48Z"
+      },
+      {
+        "entity_code": "B02",
+        "table_name": "业务支出评估",
+        "sheet_name": "B02金融市场业务支出评估",
+        "metrics_with_data": 13,
+        "updated_at": "2026-06-23T16:32:48Z"
+      }
+    ],
+    "unmatched": [],
+    "saved_count": 23
+  },
+  "export": {
+    "entity_count": 43,
+    "path": "/Users/penghui/Downloads/kevinchen_20260507_新增预算预测驱动因素模块(2)/.scratch/org-product-import-export-compare/预测输出_全量_AA_2026_v1_after_import_20260623_163246.xlsx"
+  },
+  "output_compare": {
+    "actual_sheets": 43,
+    "standard_sheets": 43,
+    "total_diff_cells": 1835,
+    "p0_extreme_values": [
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "annual",
+        "actual": -2.92774498927457e+18,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m4",
+        "actual": -3.100049993824e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m5",
+        "actual": -3.2512499936696e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m6",
+        "actual": -3.406049993437999e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m7",
+        "actual": -3.4847999932064e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m8",
+        "actual": -3.328199993283601e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m9",
+        "actual": -3.175199993437999e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m10",
+        "actual": -3.100049992820399e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m11",
+        "actual": -3.0257999928976e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01",
+        "field": "m12",
+        "actual": -3.406049992666001e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "annual",
+        "actual": -2.92774499347133e+18,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m4",
+        "actual": -3.100049995048e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m5",
+        "actual": -3.2512499949242e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m6",
+        "actual": -3.4060499947385e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m7",
+        "actual": -3.4847999945528e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m8",
+        "actual": -3.3281999946147e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m9",
+        "actual": -3.1751999947385e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m10",
+        "actual": -3.1000499942433e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m11",
+        "actual": -3.0257999943052e+17,
+        "expected": 0.0
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "code": "A.01.02",
+        "field": "m12",
+        "actual": -3.4060499941195e+17,
+        "expected": 0.0
+      }
+    ],
+    "sheets": [
+      {
+        "sheet": "A个金群_业务支出评估",
+        "matched_sheet": "A个金群_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A个金群_业务状况表",
+        "matched_sheet": "A个金群_业务状况表",
+        "status": "diff",
+        "diff_metric_count": 68,
+        "top_diffs": [
+          {
+            "code": "A.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": -2.92774498927457e+18,
+                "expected": 0.0,
+                "delta": 2.92774498927457e+18
+              },
+              {
+                "field": "m1",
+                "actual": 1528100000.0,
+                "expected": 0.0,
+                "delta": 1528100000.0
+              },
+              {
+                "field": "m2",
+                "actual": 1418950000.0,
+                "expected": 0.0,
+                "delta": 1418950000.0
+              },
+              {
+                "field": "m3",
+                "actual": 1702740000.0,
+                "expected": 0.0,
+                "delta": 1702740000.0
+              },
+              {
+                "field": "m4",
+                "actual": -3.100049993824e+17,
+                "expected": 0.0,
+                "delta": 3.100049993824e+17
+              },
+              {
+                "field": "m5",
+                "actual": -3.2512499936696e+17,
+                "expected": 0.0,
+                "delta": 3.2512499936696e+17
+              },
+              {
+                "field": "m6",
+                "actual": -3.406049993437999e+17,
+                "expected": 0.0,
+                "delta": 3.406049993437999e+17
+              },
+              {
+                "field": "m7",
+                "actual": -3.4847999932064e+17,
+                "expected": 0.0,
+                "delta": 3.4847999932064e+17
+              },
+              {
+                "field": "m8",
+                "actual": -3.328199993283601e+17,
+                "expected": 0.0,
+                "delta": 3.328199993283601e+17
+              },
+              {
+                "field": "m9",
+                "actual": -3.175199993437999e+17,
+                "expected": 0.0,
+                "delta": 3.175199993437999e+17
+              },
+              {
+                "field": "m10",
+                "actual": -3.100049992820399e+17,
+                "expected": 0.0,
+                "delta": 3.100049992820399e+17
+              },
+              {
+                "field": "m11",
+                "actual": -3.0257999928976e+17,
+                "expected": 0.0,
+                "delta": 3.0257999928976e+17
+              },
+              {
+                "field": "m12",
+                "actual": -3.406049992666001e+17,
+                "expected": 0.0,
+                "delta": 3.406049992666001e+17
+              }
+            ]
+          },
+          {
+            "code": "A.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 2366760000.0,
+                "expected": 0.0,
+                "delta": 2366760000.0
+              },
+              {
+                "field": "m1",
+                "actual": 855400000.0,
+                "expected": 0.0,
+                "delta": 855400000.0
+              },
+              {
+                "field": "m2",
+                "actual": 794300000.0,
+                "expected": 0.0,
+                "delta": 794300000.0
+              },
+              {
+                "field": "m3",
+                "actual": 953160000.0,
+                "expected": 0.0,
+                "delta": 953160000.0
+              },
+              {
+                "field": "m4",
+                "actual": -24000000.0,
+                "expected": 0.0,
+                "delta": 24000000.0
+              },
+              {
+                "field": "m5",
+                "actual": -24600000.0,
+                "expected": 0.0,
+                "delta": 24600000.0
+              },
+              {
+                "field": "m6",
+                "actual": -25500000.0,
+                "expected": 0.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m7",
+                "actual": -26400000.0,
+                "expected": 0.0,
+                "delta": 26400000.0
+              },
+              {
+                "field": "m8",
+                "actual": -26100000.0,
+                "expected": 0.0,
+                "delta": 26100000.0
+              },
+              {
+                "field": "m9",
+                "actual": -25500000.0,
+                "expected": 0.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m10",
+                "actual": -27900000.0,
+                "expected": 0.0,
+                "delta": 27900000.0
+              },
+              {
+                "field": "m11",
+                "actual": -27600000.0,
+                "expected": 0.0,
+                "delta": 27600000.0
+              },
+              {
+                "field": "m12",
+                "actual": -28500000.0,
+                "expected": 0.0,
+                "delta": 28500000.0
+              }
+            ]
+          },
+          {
+            "code": "A.01.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 2439180000.0,
+                "expected": 0.0,
+                "delta": 2439180000.0
+              },
+              {
+                "field": "m1",
+                "actual": 879200000.0,
+                "expected": 0.0,
+                "delta": 879200000.0
+              },
+              {
+                "field": "m2",
+                "actual": 816400000.0,
+                "expected": 0.0,
+                "delta": 816400000.0
+              },
+              {
+                "field": "m3",
+                "actual": 979680000.0,
+                "expected": 0.0,
+                "delta": 979680000.0
+              },
+              {
+                "field": "m4",
+                "actual": -24000000.0,
+                "expected": 0.0,
+                "delta": 24000000.0
+              },
+              {
+                "field": "m5",
+                "actual": -24600000.0,
+                "expected": 0.0,
+                "delta": 24600000.0
+              },
+              {
+                "field": "m6",
+                "actual": -25500000.0,
+                "expected": 0.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m7",
+                "actual": -26400000.0,
+                "expected": 0.0,
+                "delta": 26400000.0
+              },
+              {
+                "field": "m8",
+                "actual": -26100000.0,
+                "expected": 0.0,
+                "delta": 26100000.0
+              },
+              {
+                "field": "m9",
+                "actual": -25500000.0,
+                "expected": 0.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m10",
+                "actual": -27900000.0,
+                "expected": 0.0,
+                "delta": 27900000.0
+              },
+              {
+                "field": "m11",
+                "actual": -27600000.0,
+                "expected": 0.0,
+                "delta": 27600000.0
+              },
+              {
+                "field": "m12",
+                "actual": -28500000.0,
+                "expected": 0.0,
+                "delta": 28500000.0
+              }
+            ]
+          },
+          {
+            "code": "A.14",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 4387800000.036238,
+                "expected": 0.0,
+                "delta": 4387800000.036238
+              },
+              {
+                "field": "m1",
+                "actual": 1638000000.0,
+                "expected": 0.0,
+                "delta": 1638000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 1521000000.0,
+                "expected": 0.0,
+                "delta": 1521000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 1825200000.0,
+                "expected": 0.0,
+                "delta": 1825200000.0
+              }
+            ]
+          },
+          {
+            "code": "A.15",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 2283030000.024007,
+                "expected": 0.0,
+                "delta": 2283030000.024007
+              },
+              {
+                "field": "m1",
+                "actual": 758800000.0,
+                "expected": 0.0,
+                "delta": 758800000.0
+              },
+              {
+                "field": "m2",
+                "actual": 704600000.0,
+                "expected": 0.0,
+                "delta": 704600000.0
+              },
+              {
+                "field": "m3",
+                "actual": 845520000.0,
+                "expected": 0.0,
+                "delta": 845520000.0
+              },
+              {
+                "field": "m4",
+                "actual": 24000000.0,
+                "expected": 0.0,
+                "delta": 24000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 24600000.0,
+                "expected": 0.0,
+                "delta": 24600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 25500000.0,
+                "expected": 0.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m7",
+                "actual": 26400000.0,
+                "expected": 0.0,
+                "delta": 26400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 26100000.0,
+                "expected": 0.0,
+                "delta": 26100000.0
+              },
+              {
+                "field": "m9",
+                "actual": 25500000.0,
+                "expected": 0.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m10",
+                "actual": 27900000.0,
+                "expected": 0.0,
+                "delta": 27900000.0
+              },
+              {
+                "field": "m11",
+                "actual": 27600000.0,
+                "expected": 0.0,
+                "delta": 27600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 28500000.0,
+                "expected": 0.0,
+                "delta": 28500000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sheet": "A01泛微粒贷_业务支出评估",
+        "matched_sheet": "A01泛微粒贷_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A01泛微粒贷_业务状况表",
+        "matched_sheet": "A01泛微粒贷_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A02微账户_业务支出评估",
+        "matched_sheet": "A02微账户_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A02微账户_业务状况表",
+        "matched_sheet": "A02微账户_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A03汽车金融_业务支出评估",
+        "matched_sheet": "A03汽车金融_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A03汽车金融_业务状况表",
+        "matched_sheet": "A03汽车金融_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A04财富_业务支出评估",
+        "matched_sheet": "A04财富_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A04财富_业务状况表",
+        "matched_sheet": "A04财富_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A05小鹅_业务支出评估",
+        "matched_sheet": "A05小鹅_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "A05小鹅_业务状况表",
+        "matched_sheet": "A05小鹅_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "AA微众银行_业务支出评估",
+        "matched_sheet": "AA微众银行_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "AA微众银行_业务状况表",
+        "matched_sheet": "AA微众银行_业务状况表",
+        "status": "diff",
+        "diff_metric_count": 35,
+        "top_diffs": [
+          {
+            "code": "AA.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": -8.100094498981262e+19,
+                "expected": 38000000000.0,
+                "delta": 8.100094502781262e+19
+              },
+              {
+                "field": "m1",
+                "actual": 726000000.0,
+                "expected": 2660000000.0,
+                "delta": 1934000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 507000000.0,
+                "expected": 2470000000.0,
+                "delta": 1963000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 840400000.0,
+                "expected": 2964000000.0,
+                "delta": 2123600000.0
+              },
+              {
+                "field": "m4",
+                "actual": -8.576804999175201e+18,
+                "expected": 3040000000.0,
+                "delta": 8.576805002215201e+18
+              },
+              {
+                "field": "m5",
+                "actual": -8.995124999154579e+18,
+                "expected": 3116000000.0,
+                "delta": 8.99512500227058e+18
+              },
+              {
+                "field": "m6",
+                "actual": -9.42340499912365e+18,
+                "expected": 3230000000.0,
+                "delta": 9.42340500235365e+18
+              },
+              {
+                "field": "m7",
+                "actual": -9.64127999909272e+18,
+                "expected": 3344000000.0,
+                "delta": 9.641280002436719e+18
+              },
+              {
+                "field": "m8",
+                "actual": -9.20801999910303e+18,
+                "expected": 3306000000.0,
+                "delta": 9.208020002409031e+18
+              },
+              {
+                "field": "m9",
+                "actual": -8.784719999123651e+18,
+                "expected": 3230000000.0,
+                "delta": 8.784720002353651e+18
+              },
+              {
+                "field": "m10",
+                "actual": -8.576804999041169e+18,
+                "expected": 3534000000.0,
+                "delta": 8.57680500257517e+18
+              },
+              {
+                "field": "m11",
+                "actual": -8.371379999051479e+18,
+                "expected": 3496000000.0,
+                "delta": 8.371380002547479e+18
+              },
+              {
+                "field": "m12",
+                "actual": -9.42340499902055e+18,
+                "expected": 3610000000.0,
+                "delta": 9.42340500263055e+18
+              }
+            ]
+          },
+          {
+            "code": "AA.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": -7.807320000045289e+19,
+                "expected": 21000000000.0,
+                "delta": 7.807320002145288e+19
+              },
+              {
+                "field": "m1",
+                "actual": -130100000.0,
+                "expected": 1470000000.0,
+                "delta": 1600100000.0
+              },
+              {
+                "field": "m2",
+                "actual": -287950000.0,
+                "expected": 1365000000.0,
+                "delta": 1652950000.0
+              },
+              {
+                "field": "m3",
+                "actual": -113540000.0,
+                "expected": 1638000000.0,
+                "delta": 1751540000.0
+              },
+              {
+                "field": "m4",
+                "actual": -8.266799999992e+18,
+                "expected": 1680000000.0,
+                "delta": 8.266800001672001e+18
+              },
+              {
+                "field": "m5",
+                "actual": -8.6699999999918e+18,
+                "expected": 1722000000.0,
+                "delta": 8.6700000017138e+18
+              },
+              {
+                "field": "m6",
+                "actual": -9.0827999999915e+18,
+                "expected": 1785000000.0,
+                "delta": 9.0828000017765e+18
+              },
+              {
+                "field": "m7",
+                "actual": -9.2927999999912e+18,
+                "expected": 1848000000.0,
+                "delta": 9.2928000018392e+18
+              },
+              {
+                "field": "m8",
+                "actual": -8.8751999999913e+18,
+                "expected": 1827000000.0,
+                "delta": 8.8752000018183e+18
+              },
+              {
+                "field": "m9",
+                "actual": -8.4671999999915e+18,
+                "expected": 1785000000.0,
+                "delta": 8.4672000017765e+18
+              },
+              {
+                "field": "m10",
+                "actual": -8.2667999999907e+18,
+                "expected": 1953000000.0,
+                "delta": 8.2668000019437e+18
+              },
+              {
+                "field": "m11",
+                "actual": -8.068799999990799e+18,
+                "expected": 1932000000.0,
+                "delta": 8.0688000019228e+18
+              },
+              {
+                "field": "m12",
+                "actual": -9.0827999999905e+18,
+                "expected": 1995000000.0,
+                "delta": 9.0828000019855e+18
+              }
+            ]
+          },
+          {
+            "code": "AA.14",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 5640240000.050393,
+                "expected": 37800000000.0,
+                "delta": 32159759999.949608
+              }
+            ]
+          },
+          {
+            "code": "AA.16",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 489900000.0228,
+                "expected": 16800000000.0,
+                "delta": 16310099999.9772
+              }
+            ]
+          },
+          {
+            "code": "AA.01.02",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": -2.92774499118974e+18,
+                "expected": 12000000000.0,
+                "delta": 2.92774500318974e+18
+              },
+              {
+                "field": "m1",
+                "actual": 728000000.0,
+                "expected": 840000000.0,
+                "delta": 112000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 676000000.0,
+                "expected": 780000000.0,
+                "delta": 104000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 811200000.0,
+                "expected": 936000000.0,
+                "delta": 124800000.0
+              },
+              {
+                "field": "m4",
+                "actual": -3.100049993296e+17,
+                "expected": 960000000.0,
+                "delta": 3.100050002896e+17
+              },
+              {
+                "field": "m5",
+                "actual": -3.251249993128399e+17,
+                "expected": 984000000.0,
+                "delta": 3.251250002968399e+17
+              },
+              {
+                "field": "m6",
+                "actual": -3.406049992877e+17,
+                "expected": 1020000000.0,
+                "delta": 3.406050003077e+17
+              },
+              {
+                "field": "m7",
+                "actual": -3.4847999926256e+17,
+                "expected": 1056000000.0,
+                "delta": 3.4848000031856e+17
+              },
+              {
+                "field": "m8",
+                "actual": -3.3281999927094e+17,
+                "expected": 1044000000.0,
+                "delta": 3.3282000031494e+17
+              },
+              {
+                "field": "m9",
+                "actual": -3.175199992877e+17,
+                "expected": 1020000000.0,
+                "delta": 3.175200003077e+17
+              },
+              {
+                "field": "m10",
+                "actual": -3.1000499922066e+17,
+                "expected": 1116000000.0,
+                "delta": 3.1000500033666e+17
+              },
+              {
+                "field": "m11",
+                "actual": -3.0257999922904e+17,
+                "expected": 1104000000.0,
+                "delta": 3.0258000033304e+17
+              },
+              {
+                "field": "m12",
+                "actual": -3.406049992039e+17,
+                "expected": 1140000000.0,
+                "delta": 3.406050003439e+17
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sheet": "AA微众银行_利息净收入表",
+        "matched_sheet": "AA微众银行_利息净收入表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "AA微众银行_损益表",
+        "matched_sheet": "AA微众银行_损益表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "AA微众银行_资产负债表（余额）",
+        "status": "missing_sheet",
+        "diff_count": 0
+      },
+      {
+        "sheet": "AA微众银行_资产负债表（日均）",
+        "status": "missing_sheet",
+        "diff_count": 0
+      },
+      {
+        "sheet": "AA微众银行_资产质量表",
+        "matched_sheet": "AA微众银行_资产质量表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "B企金群_业务支出评估",
+        "matched_sheet": "B企金群_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "B企金群_业务状况表",
+        "matched_sheet": "B企金群_业务状况表",
+        "status": "diff",
+        "diff_metric_count": 61,
+        "top_diffs": [
+          {
+            "code": "B.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": -7.807320000053805e+19,
+                "expected": 0.0,
+                "delta": 7.807320000053805e+19
+              },
+              {
+                "field": "m1",
+                "actual": -802100000.0,
+                "expected": 0.0,
+                "delta": 802100000.0
+              },
+              {
+                "field": "m2",
+                "actual": -911950000.0,
+                "expected": 0.0,
+                "delta": 911950000.0
+              },
+              {
+                "field": "m3",
+                "actual": -862340000.0,
+                "expected": 0.0,
+                "delta": 862340000.0
+              },
+              {
+                "field": "m4",
+                "actual": -8.266799999792801e+18,
+                "expected": 0.0,
+                "delta": 8.266799999792801e+18
+              },
+              {
+                "field": "m5",
+                "actual": -8.669999999787619e+18,
+                "expected": 0.0,
+                "delta": 8.669999999787619e+18
+              },
+              {
+                "field": "m6",
+                "actual": -9.08279999977985e+18,
+                "expected": 0.0,
+                "delta": 9.08279999977985e+18
+              },
+              {
+                "field": "m7",
+                "actual": -9.29279999977208e+18,
+                "expected": 0.0,
+                "delta": 9.29279999977208e+18
+              },
+              {
+                "field": "m8",
+                "actual": -8.87519999977467e+18,
+                "expected": 0.0,
+                "delta": 8.87519999977467e+18
+              },
+              {
+                "field": "m9",
+                "actual": -8.46719999977985e+18,
+                "expected": 0.0,
+                "delta": 8.46719999977985e+18
+              },
+              {
+                "field": "m10",
+                "actual": -8.26679999975913e+18,
+                "expected": 0.0,
+                "delta": 8.26679999975913e+18
+              },
+              {
+                "field": "m11",
+                "actual": -8.068799999761719e+18,
+                "expected": 0.0,
+                "delta": 8.068799999761719e+18
+              },
+              {
+                "field": "m12",
+                "actual": -9.08279999975395e+18,
+                "expected": 0.0,
+                "delta": 9.08279999975395e+18
+              }
+            ]
+          },
+          {
+            "code": "B.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": -7.807320000281965e+19,
+                "expected": 0.0,
+                "delta": 7.807320000281965e+19
+              },
+              {
+                "field": "m1",
+                "actual": -985500000.0,
+                "expected": 0.0,
+                "delta": 985500000.0
+              },
+              {
+                "field": "m2",
+                "actual": -1082250000.0,
+                "expected": 0.0,
+                "delta": 1082250000.0
+              },
+              {
+                "field": "m3",
+                "actual": -1066700000.0,
+                "expected": 0.0,
+                "delta": 1066700000.0
+              },
+              {
+                "field": "m4",
+                "actual": -8.266799999968e+18,
+                "expected": 0.0,
+                "delta": 8.266799999968e+18
+              },
+              {
+                "field": "m5",
+                "actual": -8.6699999999672e+18,
+                "expected": 0.0,
+                "delta": 8.6699999999672e+18
+              },
+              {
+                "field": "m6",
+                "actual": -9.082799999966e+18,
+                "expected": 0.0,
+                "delta": 9.082799999966e+18
+              },
+              {
+                "field": "m7",
+                "actual": -9.2927999999648e+18,
+                "expected": 0.0,
+                "delta": 9.2927999999648e+18
+              },
+              {
+                "field": "m8",
+                "actual": -8.8751999999652e+18,
+                "expected": 0.0,
+                "delta": 8.8751999999652e+18
+              },
+              {
+                "field": "m9",
+                "actual": -8.467199999966e+18,
+                "expected": 0.0,
+                "delta": 8.467199999966e+18
+              },
+              {
+                "field": "m10",
+                "actual": -8.2667999999628e+18,
+                "expected": 0.0,
+                "delta": 8.2667999999628e+18
+              },
+              {
+                "field": "m11",
+                "actual": -8.0687999999632e+18,
+                "expected": 0.0,
+                "delta": 8.0687999999632e+18
+              },
+              {
+                "field": "m12",
+                "actual": -9.082799999962e+18,
+                "expected": 0.0,
+                "delta": 9.082799999962e+18
+              }
+            ]
+          },
+          {
+            "code": "B.14",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 1252440000.014156,
+                "expected": 0.0,
+                "delta": 1252440000.014156
+              },
+              {
+                "field": "m1",
+                "actual": 612500000.0,
+                "expected": 0.0,
+                "delta": 612500000.0
+              },
+              {
+                "field": "m2",
+                "actual": 568750000.0,
+                "expected": 0.0,
+                "delta": 568750000.0
+              },
+              {
+                "field": "m3",
+                "actual": 682500000.0,
+                "expected": 0.0,
+                "delta": 682500000.0
+              }
+            ]
+          },
+          {
+            "code": "B.16",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 126000000.0,
+                "expected": 0.0,
+                "delta": 126000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 117000000.0,
+                "expected": 0.0,
+                "delta": 117000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 140400000.0,
+                "expected": 0.0,
+                "delta": 140400000.0
+              }
+            ]
+          },
+          {
+            "code": "B.01.02",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "annual",
+                "actual": 2281590000.0,
+                "expected": 0.0,
+                "delta": 2281590000.0
+              },
+              {
+                "field": "m1",
+                "actual": 183400000.0,
+                "expected": 0.0,
+                "delta": 183400000.0
+              },
+              {
+                "field": "m2",
+                "actual": 170300000.0,
+                "expected": 0.0,
+                "delta": 170300000.0
+              },
+              {
+                "field": "m3",
+                "actual": 204360000.0,
+                "expected": 0.0,
+                "delta": 204360000.0
+              },
+              {
+                "field": "m4",
+                "actual": 175200000.0,
+                "expected": 0.0,
+                "delta": 175200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 179580000.0,
+                "expected": 0.0,
+                "delta": 179580000.0
+              },
+              {
+                "field": "m6",
+                "actual": 186150000.0,
+                "expected": 0.0,
+                "delta": 186150000.0
+              },
+              {
+                "field": "m7",
+                "actual": 192720000.0,
+                "expected": 0.0,
+                "delta": 192720000.0
+              },
+              {
+                "field": "m8",
+                "actual": 190530000.0,
+                "expected": 0.0,
+                "delta": 190530000.0
+              },
+              {
+                "field": "m9",
+                "actual": 186150000.0,
+                "expected": 0.0,
+                "delta": 186150000.0
+              },
+              {
+                "field": "m10",
+                "actual": 203670000.0,
+                "expected": 0.0,
+                "delta": 203670000.0
+              },
+              {
+                "field": "m11",
+                "actual": 201480000.0,
+                "expected": 0.0,
+                "delta": 201480000.0
+              },
+              {
+                "field": "m12",
+                "actual": 208050000.0,
+                "expected": 0.0,
+                "delta": 208050000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sheet": "B01企业金融_业务支出评估",
+        "matched_sheet": "B01企业金融_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "B01企业金融_业务状况表",
+        "matched_sheet": "B01企业金融_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "B02金融市场_业务支出评估",
+        "matched_sheet": "B02金融市场_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "B02金融市场_业务状况表",
+        "matched_sheet": "B02金融市场_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "C数字金融_业务支出评估",
+        "matched_sheet": "C数字金融_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "C数字金融_业务状况表",
+        "matched_sheet": "C数字金融_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "C01国内业务_业务支出评估",
+        "matched_sheet": "C01国内业务_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "C01国内业务_业务状况表",
+        "matched_sheet": "C01国内业务_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "C02国内研发_业务支出评估",
+        "matched_sheet": "C02国内研发_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "C02国内研发_业务状况表",
+        "matched_sheet": "C02国内研发_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "D国际业务_业务支出评估",
+        "matched_sheet": "D国际业务_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "D国际业务_业务状况表",
+        "matched_sheet": "D国际业务_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "D01国际业务_业务支出评估",
+        "matched_sheet": "D01国际业务_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "D01国际业务_业务状况表",
+        "matched_sheet": "D01国际业务_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "E小鹅导流_业务支出评估",
+        "matched_sheet": "E小鹅导流_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "E小鹅导流_业务状况表",
+        "matched_sheet": "E小鹅导流_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "E01小鹅导流_业务支出评估",
+        "matched_sheet": "E01小鹅导流_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "E01小鹅导流_业务状况表",
+        "matched_sheet": "E01小鹅导流_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "F司库及其他_业务支出评估",
+        "matched_sheet": "F司库及其他_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "F司库及其他_业务状况表",
+        "matched_sheet": "F司库及其他_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "F01司库及其他_业务支出评估",
+        "matched_sheet": "F01司库及其他_业务支出评估",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "sheet": "F01司库及其他_业务状况表",
+        "matched_sheet": "F01司库及其他_业务状况表",
+        "status": "ok",
+        "diff_metric_count": 0,
+        "top_diffs": []
+      }
+    ]
+  },
+  "entry_coverage_compare": {
+    "sheets": [
+      {
+        "sheet": "B01企业金融业务状况表",
+        "entity_code": "B01",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 174,
+        "imported_metrics_with_values": 92,
+        "in_db": true
+      },
+      {
+        "sheet": "B01企业金融业务支出评估",
+        "entity_code": "B01",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 21,
+        "imported_metrics_with_values": 21,
+        "in_db": true
+      },
+      {
+        "sheet": "AA微众银行业务状况表",
+        "entity_code": "AA",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 90,
+        "imported_metrics_with_values": 62,
+        "in_db": true
+      },
+      {
+        "sheet": "AA微众银行业务支出评估",
+        "entity_code": "AA",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 0,
+        "imported_metrics_with_values": 0,
+        "in_db": true
+      },
+      {
+        "sheet": "AA微众银行损益表",
+        "entity_code": "AA",
+        "table_name": "损益表",
+        "std_metrics_with_values": 5,
+        "imported_metrics_with_values": 4,
+        "in_db": true
+      },
+      {
+        "sheet": "AA微众银行资产质量表",
+        "entity_code": "AA",
+        "table_name": "资产质量表",
+        "std_metrics_with_values": 12,
+        "imported_metrics_with_values": 2,
+        "in_db": true
+      },
+      {
+        "sheet": "AA微众银行利息净收入表",
+        "entity_code": "AA",
+        "table_name": "利息净收入表",
+        "std_metrics_with_values": 23,
+        "imported_metrics_with_values": 7,
+        "in_db": true
+      },
+      {
+        "sheet": "A个金群业务状况表",
+        "entity_code": "A",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 0,
+        "imported_metrics_with_values": 0,
+        "in_db": true
+      },
+      {
+        "sheet": "A个金群业务支出评估",
+        "entity_code": "A",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 0,
+        "imported_metrics_with_values": 0,
+        "in_db": true
+      },
+      {
+        "sheet": "A01泛微粒贷业务状况表",
+        "entity_code": "A01",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 184,
+        "imported_metrics_with_values": 111,
+        "in_db": true
+      },
+      {
+        "sheet": "A01泛微粒贷业务支出评估",
+        "entity_code": "A01",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 21,
+        "imported_metrics_with_values": 21,
+        "in_db": true
+      },
+      {
+        "sheet": "A02微账户业务状况表",
+        "entity_code": "A02",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 112,
+        "imported_metrics_with_values": 34,
+        "in_db": true
+      },
+      {
+        "sheet": "A02微账户业务支出评估",
+        "entity_code": "A02",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 13,
+        "imported_metrics_with_values": 13,
+        "in_db": true
+      },
+      {
+        "sheet": "A03汽车金融业务状况表",
+        "entity_code": "A03",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 88,
+        "imported_metrics_with_values": 44,
+        "in_db": true
+      },
+      {
+        "sheet": "A03汽车金融业务支出评估",
+        "entity_code": "A03",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 16,
+        "imported_metrics_with_values": 16,
+        "in_db": true
+      },
+      {
+        "sheet": "A04财富业务状况表",
+        "entity_code": "A04",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 103,
+        "imported_metrics_with_values": 44,
+        "in_db": true
+      },
+      {
+        "sheet": "A04财富业务支出评估",
+        "entity_code": "A04",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 16,
+        "imported_metrics_with_values": 16,
+        "in_db": true
+      },
+      {
+        "sheet": "A05小鹅业务状况表",
+        "entity_code": "A05",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 72,
+        "imported_metrics_with_values": 40,
+        "in_db": true
+      },
+      {
+        "sheet": "A05小鹅业务支出评估",
+        "entity_code": "A05",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 16,
+        "imported_metrics_with_values": 16,
+        "in_db": true
+      },
+      {
+        "sheet": "B企金群业务状况表",
+        "entity_code": "B",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 0,
+        "imported_metrics_with_values": 0,
+        "in_db": true
+      },
+      {
+        "sheet": "B企金群业务支出评估",
+        "entity_code": "B",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 0,
+        "imported_metrics_with_values": 0,
+        "in_db": true
+      },
+      {
+        "sheet": "B02金融市场业务状况表",
+        "entity_code": "B02",
+        "table_name": "业务状况表",
+        "std_metrics_with_values": 210,
+        "imported_metrics_with_values": 69,
+        "in_db": true
+      },
+      {
+        "sheet": "B02金融市场业务支出评估",
+        "entity_code": "B02",
+        "table_name": "业务支出评估",
+        "std_metrics_with_values": 13,
+        "imported_metrics_with_values": 13,
+        "in_db": true
+      }
+    ]
+  }
+}

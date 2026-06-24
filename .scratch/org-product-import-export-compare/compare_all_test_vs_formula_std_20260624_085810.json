@@ -1,0 +1,6393 @@
+{
+  "timestamp": "20260624_085810",
+  "import_file": "/Users/penghui/Downloads/kevinchen_20260507_新增预算预测驱动因素模块(2)/docs/机构产品数据录入_2026_测试数据-全部.xlsx",
+  "standard_file": "/Users/penghui/Downloads/kevinchen_20260507_新增预算预测驱动因素模块(2)/docs/机构产品数据录入_2026_完整版(含公式).xlsx",
+  "import": {
+    "saved": [
+      {
+        "entity_code": "B01",
+        "table_name": "业务状况表",
+        "sheet_name": "B01企业金融业务状况表",
+        "metrics_with_data": 92,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "B01",
+        "table_name": "业务支出评估",
+        "sheet_name": "B01企业金融业务支出评估",
+        "metrics_with_data": 21,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "业务状况表",
+        "sheet_name": "AA微众银行业务状况表",
+        "metrics_with_data": 62,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "业务支出评估",
+        "sheet_name": "AA微众银行业务支出评估",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "损益表",
+        "sheet_name": "AA微众银行损益表",
+        "metrics_with_data": 4,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "资产质量表",
+        "sheet_name": "AA微众银行资产质量表",
+        "metrics_with_data": 2,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "AA",
+        "table_name": "利息净收入表",
+        "sheet_name": "AA微众银行利息净收入表",
+        "metrics_with_data": 7,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A",
+        "table_name": "业务状况表",
+        "sheet_name": "A个金群业务状况表",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A",
+        "table_name": "业务支出评估",
+        "sheet_name": "A个金群业务支出评估",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A01",
+        "table_name": "业务状况表",
+        "sheet_name": "A01泛微粒贷业务状况表",
+        "metrics_with_data": 111,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A01",
+        "table_name": "业务支出评估",
+        "sheet_name": "A01泛微粒贷业务支出评估",
+        "metrics_with_data": 21,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A02",
+        "table_name": "业务状况表",
+        "sheet_name": "A02微账户业务状况表",
+        "metrics_with_data": 34,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A02",
+        "table_name": "业务支出评估",
+        "sheet_name": "A02微账户业务支出评估",
+        "metrics_with_data": 13,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A03",
+        "table_name": "业务状况表",
+        "sheet_name": "A03汽车金融业务状况表",
+        "metrics_with_data": 44,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A03",
+        "table_name": "业务支出评估",
+        "sheet_name": "A03汽车金融业务支出评估",
+        "metrics_with_data": 16,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A04",
+        "table_name": "业务状况表",
+        "sheet_name": "A04财富业务状况表",
+        "metrics_with_data": 44,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A04",
+        "table_name": "业务支出评估",
+        "sheet_name": "A04财富业务支出评估",
+        "metrics_with_data": 16,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A05",
+        "table_name": "业务状况表",
+        "sheet_name": "A05小鹅业务状况表",
+        "metrics_with_data": 40,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "A05",
+        "table_name": "业务支出评估",
+        "sheet_name": "A05小鹅业务支出评估",
+        "metrics_with_data": 16,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "B",
+        "table_name": "业务状况表",
+        "sheet_name": "B企金群业务状况表",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "B",
+        "table_name": "业务支出评估",
+        "sheet_name": "B企金群业务支出评估",
+        "metrics_with_data": 0,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "B02",
+        "table_name": "业务状况表",
+        "sheet_name": "B02金融市场业务状况表",
+        "metrics_with_data": 69,
+        "updated_at": "2026-06-24T08:58:11Z"
+      },
+      {
+        "entity_code": "B02",
+        "table_name": "业务支出评估",
+        "sheet_name": "B02金融市场业务支出评估",
+        "metrics_with_data": 13,
+        "updated_at": "2026-06-24T08:58:11Z"
+      }
+    ],
+    "unmatched": [],
+    "saved_count": 23
+  },
+  "export": {
+    "entity_count": 43,
+    "path": "/Users/penghui/Downloads/kevinchen_20260507_新增预算预测驱动因素模块(2)/.scratch/org-product-import-export-compare/预测输出_全量_AA_2026_v1_全部测试数据_20260624_085810.xlsx"
+  },
+  "compare": {
+    "actual_output_sheets": 43,
+    "standard_entry_sheets": 23,
+    "total_diff_cells": 1059,
+    "perfect_sheets": [
+      "AA微众银行资产质量表",
+      "AA微众银行利息净收入表"
+    ],
+    "p0_extreme_values": [],
+    "sheets": [
+      {
+        "entry_sheet": "B01企业金融业务状况表",
+        "output_sheet": "B01企业金融_业务状况表",
+        "status": "diff",
+        "compared_metrics": 84,
+        "matched_metrics": 79,
+        "diff_metric_count": 5,
+        "top_diffs": [
+          {
+            "code": "B01.18.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 59500000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 55250000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 66300000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "B01.90",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 126000000.0,
+                "expected": 133700000.0,
+                "delta": 7700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 117000000.0,
+                "expected": 124150000.0,
+                "delta": 7150000.0
+              },
+              {
+                "field": "m3",
+                "actual": 140400000.0,
+                "expected": 148980000.0,
+                "delta": 8580000.0
+              },
+              {
+                "field": "m4",
+                "actual": 144000000.0,
+                "expected": 152800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 147600000.0,
+                "expected": 156620000.0,
+                "delta": 9020000.0
+              },
+              {
+                "field": "m6",
+                "actual": 153000000.0,
+                "expected": 162350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m7",
+                "actual": 158400000.0,
+                "expected": 168080000.0,
+                "delta": 9680000.0
+              },
+              {
+                "field": "m8",
+                "actual": 156600000.0,
+                "expected": 166170000.0,
+                "delta": 9570000.0
+              },
+              {
+                "field": "m9",
+                "actual": 153000000.0,
+                "expected": 162350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m10",
+                "actual": 167400000.0,
+                "expected": 177630000.0,
+                "delta": 10230000.0
+              },
+              {
+                "field": "m11",
+                "actual": 165600000.0,
+                "expected": 175720000.0,
+                "delta": 10120000.0
+              },
+              {
+                "field": "m12",
+                "actual": 171000000.0,
+                "expected": 181450000.0,
+                "delta": 10450000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.90.02",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 37800000.0,
+                "expected": 45500000.0,
+                "delta": 7700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 35100000.0,
+                "expected": 42250000.0,
+                "delta": 7150000.0
+              },
+              {
+                "field": "m3",
+                "actual": 42120000.0,
+                "expected": 50700000.0,
+                "delta": 8580000.0
+              },
+              {
+                "field": "m4",
+                "actual": 43200000.0,
+                "expected": 52000000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 44280000.0,
+                "expected": 53300000.0,
+                "delta": 9020000.0
+              },
+              {
+                "field": "m6",
+                "actual": 45900000.0,
+                "expected": 55250000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m7",
+                "actual": 47520000.0,
+                "expected": 57200000.0,
+                "delta": 9680000.0
+              },
+              {
+                "field": "m8",
+                "actual": 46980000.0,
+                "expected": 56550000.0,
+                "delta": 9570000.0
+              },
+              {
+                "field": "m9",
+                "actual": 45900000.0,
+                "expected": 55250000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m10",
+                "actual": 50220000.0,
+                "expected": 60450000.0,
+                "delta": 10230000.0
+              },
+              {
+                "field": "m11",
+                "actual": 49680000.0,
+                "expected": 59800000.0,
+                "delta": 10120000.0
+              },
+              {
+                "field": "m12",
+                "actual": 51300000.0,
+                "expected": 61750000.0,
+                "delta": 10450000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.90.02.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 9100000.0,
+                "expected": 10500000.0,
+                "delta": 1400000.0
+              },
+              {
+                "field": "m2",
+                "actual": 8450000.0,
+                "expected": 9750000.0,
+                "delta": 1300000.0
+              },
+              {
+                "field": "m3",
+                "actual": 10140000.0,
+                "expected": 11700000.0,
+                "delta": 1560000.0
+              },
+              {
+                "field": "m4",
+                "actual": 10400000.0,
+                "expected": 12000000.0,
+                "delta": 1600000.0
+              },
+              {
+                "field": "m5",
+                "actual": 10660000.0,
+                "expected": 12300000.0,
+                "delta": 1640000.0
+              },
+              {
+                "field": "m6",
+                "actual": 11050000.0,
+                "expected": 12750000.0,
+                "delta": 1700000.0
+              },
+              {
+                "field": "m7",
+                "actual": 11440000.0,
+                "expected": 13200000.0,
+                "delta": 1760000.0
+              },
+              {
+                "field": "m8",
+                "actual": 11310000.0,
+                "expected": 13050000.0,
+                "delta": 1740000.0
+              },
+              {
+                "field": "m9",
+                "actual": 11050000.0,
+                "expected": 12750000.0,
+                "delta": 1700000.0
+              },
+              {
+                "field": "m10",
+                "actual": 12090000.0,
+                "expected": 13950000.0,
+                "delta": 1860000.0
+              },
+              {
+                "field": "m11",
+                "actual": 11960000.0,
+                "expected": 13800000.0,
+                "delta": 1840000.0
+              },
+              {
+                "field": "m12",
+                "actual": 12350000.0,
+                "expected": 14250000.0,
+                "delta": 1900000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.90.02.03.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 4900000.0,
+                "expected": 5600000.0,
+                "delta": 700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 4550000.0,
+                "expected": 5200000.0,
+                "delta": 650000.0
+              },
+              {
+                "field": "m3",
+                "actual": 5460000.0,
+                "expected": 6240000.0,
+                "delta": 780000.0
+              },
+              {
+                "field": "m4",
+                "actual": 5600000.0,
+                "expected": 6400000.0,
+                "delta": 800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 5740000.0,
+                "expected": 6560000.0,
+                "delta": 820000.0
+              },
+              {
+                "field": "m6",
+                "actual": 5950000.0,
+                "expected": 6800000.0,
+                "delta": 850000.0
+              },
+              {
+                "field": "m7",
+                "actual": 6160000.0,
+                "expected": 7040000.0,
+                "delta": 880000.0
+              },
+              {
+                "field": "m8",
+                "actual": 6090000.0,
+                "expected": 6960000.0,
+                "delta": 870000.0
+              },
+              {
+                "field": "m9",
+                "actual": 5950000.0,
+                "expected": 6800000.0,
+                "delta": 850000.0
+              },
+              {
+                "field": "m10",
+                "actual": 6510000.0,
+                "expected": 7440000.0,
+                "delta": 930000.0
+              },
+              {
+                "field": "m11",
+                "actual": 6440000.0,
+                "expected": 7360000.0,
+                "delta": 920000.0
+              },
+              {
+                "field": "m12",
+                "actual": 6650000.0,
+                "expected": 7600000.0,
+                "delta": 950000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "B01企业金融业务支出评估",
+        "output_sheet": "B01企业金融_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 26,
+        "matched_metrics": 18,
+        "diff_metric_count": 8,
+        "top_diffs": [
+          {
+            "code": "B01.91",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 45803400000.0,
+                "delta": 45803400000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 44370300000.0,
+                "delta": 44370300000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 50692360000.0,
+                "delta": 50692360000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 51749600000.0,
+                "delta": 51749600000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 53026840000.0,
+                "delta": 53026840000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 54722700000.0,
+                "delta": 54722700000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 56198560000.0,
+                "delta": 56198560000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 55339940000.0,
+                "delta": 55339940000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 54062700000.0,
+                "delta": 54062700000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 57191660000.0,
+                "delta": 57191660000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 56553040000.0,
+                "delta": 56553040000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 58908900000.0,
+                "delta": 58908900000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 45803400000.0,
+                "delta": 45803400000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 44370300000.0,
+                "delta": 44370300000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 50692360000.0,
+                "delta": 50692360000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 51749600000.0,
+                "delta": 51749600000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 53026840000.0,
+                "delta": 53026840000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 54722700000.0,
+                "delta": 54722700000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 56198560000.0,
+                "delta": 56198560000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 55339940000.0,
+                "delta": 55339940000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 54062700000.0,
+                "delta": 54062700000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 57191660000.0,
+                "delta": 57191660000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 56553040000.0,
+                "delta": 56553040000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 58908900000.0,
+                "delta": 58908900000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 50400000.0,
+                "delta": 50400000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 46800000.0,
+                "delta": 46800000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 56160000.0,
+                "delta": 56160000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 57600000.0,
+                "delta": 57600000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 59040000.0,
+                "delta": 59040000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 61200000.0,
+                "delta": 61200000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 63360000.0,
+                "delta": 63360000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 62640000.0,
+                "delta": 62640000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 61200000.0,
+                "delta": 61200000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 66960000.0,
+                "delta": 66960000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 66240000.0,
+                "delta": 66240000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 68400000.0,
+                "delta": 68400000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01.02",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 45690000000.0,
+                "delta": 45690000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 44265000000.0,
+                "delta": 44265000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 50566000000.0,
+                "delta": 50566000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 51620000000.0,
+                "delta": 51620000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 52894000000.0,
+                "delta": 52894000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 54585000000.0,
+                "delta": 54585000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 56056000000.0,
+                "delta": 56056000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 55199000000.0,
+                "delta": 55199000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 53925000000.0,
+                "delta": 53925000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 57041000000.0,
+                "delta": 57041000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 56404000000.0,
+                "delta": 56404000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 58755000000.0,
+                "delta": 58755000000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01.02.101",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 6000000000.0,
+                "delta": 6000000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 6240000000.0,
+                "delta": 6240000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 6560000000.0,
+                "delta": 6560000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 6640000000.0,
+                "delta": 6640000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 6800000000.0,
+                "delta": 6800000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 6960000000.0,
+                "delta": 6960000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 7040000000.0,
+                "delta": 7040000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 6880000000.0,
+                "delta": 6880000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 6720000000.0,
+                "delta": 6720000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 6640000000.0,
+                "delta": 6640000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 6560000000.0,
+                "delta": 6560000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 6960000000.0,
+                "delta": 6960000000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01.02.102",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 4500000000.0,
+                "delta": 4500000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 4680000000.0,
+                "delta": 4680000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 4920000000.0,
+                "delta": 4920000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 4980000000.0,
+                "delta": 4980000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 5100000000.0,
+                "delta": 5100000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 5220000000.0,
+                "delta": 5220000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 5280000000.0,
+                "delta": 5280000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 5160000000.0,
+                "delta": 5160000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 5040000000.0,
+                "delta": 5040000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 4980000000.0,
+                "delta": 4980000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 4920000000.0,
+                "delta": 4920000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 5220000000.0,
+                "delta": 5220000000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01.02.103",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 6000000000.0,
+                "delta": 6000000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 6240000000.0,
+                "delta": 6240000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 6560000000.0,
+                "delta": 6560000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 6640000000.0,
+                "delta": 6640000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 6800000000.0,
+                "delta": 6800000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 6960000000.0,
+                "delta": 6960000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 7040000000.0,
+                "delta": 7040000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 6880000000.0,
+                "delta": 6880000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 6720000000.0,
+                "delta": 6720000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 6640000000.0,
+                "delta": 6640000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 6560000000.0,
+                "delta": 6560000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 6960000000.0,
+                "delta": 6960000000.0
+              }
+            ]
+          },
+          {
+            "code": "B01.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 63000000.0,
+                "delta": 63000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 58500000.0,
+                "delta": 58500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 70200000.0,
+                "delta": 70200000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 72000000.0,
+                "delta": 72000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 73800000.0,
+                "delta": 73800000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 76500000.0,
+                "delta": 76500000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 79200000.0,
+                "delta": 79200000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 78300000.0,
+                "delta": 78300000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 76500000.0,
+                "delta": 76500000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 83700000.0,
+                "delta": 83700000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 82800000.0,
+                "delta": 82800000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 85500000.0,
+                "delta": 85500000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "AA微众银行业务状况表",
+        "output_sheet": "AA微众银行_业务状况表",
+        "status": "diff",
+        "compared_metrics": 85,
+        "matched_metrics": 73,
+        "diff_metric_count": 12,
+        "top_diffs": [
+          {
+            "code": "AA.02",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 971600000.0,
+                "expected": 840000000.0,
+                "delta": 131600000.0
+              },
+              {
+                "field": "m2",
+                "actual": 902200000.0,
+                "expected": 780000000.0,
+                "delta": 122200000.0
+              },
+              {
+                "field": "m3",
+                "actual": 1082640000.0,
+                "expected": 936000000.0,
+                "delta": 146640000.0
+              },
+              {
+                "field": "m4",
+                "actual": 1110400000.0,
+                "expected": 960000000.0,
+                "delta": 150400000.0
+              },
+              {
+                "field": "m5",
+                "actual": 1138160000.0,
+                "expected": 984000000.0,
+                "delta": 154160000.0
+              },
+              {
+                "field": "m6",
+                "actual": 1179800000.0,
+                "expected": 1020000000.0,
+                "delta": 159800000.0
+              },
+              {
+                "field": "m7",
+                "actual": 1221440000.0,
+                "expected": 1056000000.0,
+                "delta": 165440000.0
+              },
+              {
+                "field": "m8",
+                "actual": 1207560000.0,
+                "expected": 1044000000.0,
+                "delta": 163560000.0
+              },
+              {
+                "field": "m9",
+                "actual": 1179800000.0,
+                "expected": 1020000000.0,
+                "delta": 159800000.0
+              },
+              {
+                "field": "m10",
+                "actual": 1290840000.0,
+                "expected": 1116000000.0,
+                "delta": 174840000.0
+              },
+              {
+                "field": "m11",
+                "actual": 1276960000.0,
+                "expected": 1104000000.0,
+                "delta": 172960000.0
+              },
+              {
+                "field": "m12",
+                "actual": 1318600000.0,
+                "expected": 1140000000.0,
+                "delta": 178600000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.05",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 483000000.0,
+                "expected": 420000000.0,
+                "delta": 63000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 448500000.0,
+                "expected": 390000000.0,
+                "delta": 58500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 538200000.0,
+                "expected": 468000000.0,
+                "delta": 70200000.0
+              },
+              {
+                "field": "m4",
+                "actual": 552000000.0,
+                "expected": 480000000.0,
+                "delta": 72000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 565800000.0,
+                "expected": 492000000.0,
+                "delta": 73800000.0
+              },
+              {
+                "field": "m6",
+                "actual": 586500000.0,
+                "expected": 510000000.0,
+                "delta": 76500000.0
+              },
+              {
+                "field": "m7",
+                "actual": 607200000.0,
+                "expected": 528000000.0,
+                "delta": 79200000.0
+              },
+              {
+                "field": "m8",
+                "actual": 600300000.0,
+                "expected": 522000000.0,
+                "delta": 78300000.0
+              },
+              {
+                "field": "m9",
+                "actual": 586500000.0,
+                "expected": 510000000.0,
+                "delta": 76500000.0
+              },
+              {
+                "field": "m10",
+                "actual": 641700000.0,
+                "expected": 558000000.0,
+                "delta": 83700000.0
+              },
+              {
+                "field": "m11",
+                "actual": 634800000.0,
+                "expected": 552000000.0,
+                "delta": 82800000.0
+              },
+              {
+                "field": "m12",
+                "actual": 655500000.0,
+                "expected": 570000000.0,
+                "delta": 85500000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.05.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 189000000.0,
+                "expected": 210000000.0,
+                "delta": 21000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 175500000.0,
+                "expected": 195000000.0,
+                "delta": 19500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 210600000.0,
+                "expected": 234000000.0,
+                "delta": 23400000.0
+              },
+              {
+                "field": "m4",
+                "actual": 216000000.0,
+                "expected": 240000000.0,
+                "delta": 24000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 221400000.0,
+                "expected": 246000000.0,
+                "delta": 24600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 229500000.0,
+                "expected": 255000000.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m7",
+                "actual": 237600000.0,
+                "expected": 264000000.0,
+                "delta": 26400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 234900000.0,
+                "expected": 261000000.0,
+                "delta": 26100000.0
+              },
+              {
+                "field": "m9",
+                "actual": 229500000.0,
+                "expected": 255000000.0,
+                "delta": 25500000.0
+              },
+              {
+                "field": "m10",
+                "actual": 251100000.0,
+                "expected": 279000000.0,
+                "delta": 27900000.0
+              },
+              {
+                "field": "m11",
+                "actual": 248400000.0,
+                "expected": 276000000.0,
+                "delta": 27600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 256500000.0,
+                "expected": 285000000.0,
+                "delta": 28500000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.10",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 26250000000.0,
+                "delta": 26250000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 27300000000.0,
+                "delta": 27300000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 28700000000.0,
+                "delta": 28700000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 29050000000.0,
+                "delta": 29050000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 29750000000.0,
+                "delta": 29750000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 30450000000.0,
+                "delta": 30450000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 30800000000.0,
+                "delta": 30800000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 30100000000.0,
+                "delta": 30100000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 29400000000.0,
+                "delta": 29400000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 29050000000.0,
+                "delta": 29050000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 28700000000.0,
+                "delta": 28700000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 30450000000.0,
+                "delta": 30450000000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.10.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 18375000000.0,
+                "delta": 18375000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 19110000000.0,
+                "delta": 19110000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 20090000000.0,
+                "delta": 20090000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 20335000000.0,
+                "delta": 20335000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 20825000000.0,
+                "delta": 20825000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 21315000000.0,
+                "delta": 21315000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 21560000000.0,
+                "delta": 21560000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 21070000000.0,
+                "delta": 21070000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 20580000000.0,
+                "delta": 20580000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 20335000000.0,
+                "delta": 20335000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 20090000000.0,
+                "delta": 20090000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 21315000000.0,
+                "delta": 21315000000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.12",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 37500000000.0,
+                "delta": 37500000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 39000000000.0,
+                "delta": 39000000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 41000000000.0,
+                "delta": 41000000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 41500000000.0,
+                "delta": 41500000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 42500000000.0,
+                "delta": 42500000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 43500000000.0,
+                "delta": 43500000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 44000000000.0,
+                "delta": 44000000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 43000000000.0,
+                "delta": 43000000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 42000000000.0,
+                "delta": 42000000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 41500000000.0,
+                "delta": 41500000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 41000000000.0,
+                "delta": 41000000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 43500000000.0,
+                "delta": 43500000000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.47",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 857500000.0,
+                "expected": 171500000.0,
+                "delta": 686000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 796250000.0,
+                "expected": 159250000.0,
+                "delta": 637000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 955500000.0,
+                "expected": 191100000.0,
+                "delta": 764400000.0
+              },
+              {
+                "field": "m4",
+                "actual": 980000000.0,
+                "expected": 196000000.0,
+                "delta": 784000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 1004500000.0,
+                "expected": 200900000.0,
+                "delta": 803600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 1041250000.0,
+                "expected": 208250000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 1078000000.0,
+                "expected": 215600000.0,
+                "delta": 862400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 1065750000.0,
+                "expected": 213150000.0,
+                "delta": 852600000.0
+              },
+              {
+                "field": "m9",
+                "actual": 1041250000.0,
+                "expected": 208250000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 1139250000.0,
+                "expected": 227850000.0,
+                "delta": 911400000.0
+              },
+              {
+                "field": "m11",
+                "actual": 1127000000.0,
+                "expected": 225400000.0,
+                "delta": 901600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 1163750000.0,
+                "expected": 232750000.0,
+                "delta": 931000000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.47.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 808500000.0,
+                "expected": 122500000.0,
+                "delta": 686000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 750750000.0,
+                "expected": 113750000.0,
+                "delta": 637000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 900900000.0,
+                "expected": 136500000.0,
+                "delta": 764400000.0
+              },
+              {
+                "field": "m4",
+                "actual": 924000000.0,
+                "expected": 140000000.0,
+                "delta": 784000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 947100000.0,
+                "expected": 143500000.0,
+                "delta": 803600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 981750000.0,
+                "expected": 148750000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 1016400000.0,
+                "expected": 154000000.0,
+                "delta": 862400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 1004850000.0,
+                "expected": 152250000.0,
+                "delta": 852600000.0
+              },
+              {
+                "field": "m9",
+                "actual": 981750000.0,
+                "expected": 148750000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 1074150000.0,
+                "expected": 162750000.0,
+                "delta": 911400000.0
+              },
+              {
+                "field": "m11",
+                "actual": 1062600000.0,
+                "expected": 161000000.0,
+                "delta": 901600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 1097250000.0,
+                "expected": 166250000.0,
+                "delta": 931000000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "AA微众银行业务支出评估",
+        "output_sheet": "AA微众银行_业务支出评估",
+        "status": "ok",
+        "compared_metrics": 0,
+        "matched_metrics": 0,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "AA微众银行损益表",
+        "output_sheet": "AA微众银行_损益表",
+        "status": "diff",
+        "compared_metrics": 5,
+        "matched_metrics": 3,
+        "diff_metric_count": 2,
+        "top_diffs": [
+          {
+            "code": "AA.47",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 171500000.0,
+                "delta": 171500000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 159250000.0,
+                "delta": 159250000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 191100000.0,
+                "delta": 191100000.0
+              },
+              {
+                "field": "m4",
+                "actual": 980000000.0,
+                "expected": 196000000.0,
+                "delta": 784000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 1004500000.0,
+                "expected": 200900000.0,
+                "delta": 803600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 1041250000.0,
+                "expected": 208250000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 1078000000.0,
+                "expected": 215600000.0,
+                "delta": 862400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 1065750000.0,
+                "expected": 213150000.0,
+                "delta": 852600000.0
+              },
+              {
+                "field": "m9",
+                "actual": 1041250000.0,
+                "expected": 208250000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 1139250000.0,
+                "expected": 227850000.0,
+                "delta": 911400000.0
+              },
+              {
+                "field": "m11",
+                "actual": 1127000000.0,
+                "expected": 225400000.0,
+                "delta": 901600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 1163750000.0,
+                "expected": 232750000.0,
+                "delta": 931000000.0
+              }
+            ]
+          },
+          {
+            "code": "AA.47.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 808500000.0,
+                "expected": 122500000.0,
+                "delta": 686000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 750750000.0,
+                "expected": 113750000.0,
+                "delta": 637000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 900900000.0,
+                "expected": 136500000.0,
+                "delta": 764400000.0
+              },
+              {
+                "field": "m4",
+                "actual": 924000000.0,
+                "expected": 140000000.0,
+                "delta": 784000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 947100000.0,
+                "expected": 143500000.0,
+                "delta": 803600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 981750000.0,
+                "expected": 148750000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 1016400000.0,
+                "expected": 154000000.0,
+                "delta": 862400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 1004850000.0,
+                "expected": 152250000.0,
+                "delta": 852600000.0
+              },
+              {
+                "field": "m9",
+                "actual": 981750000.0,
+                "expected": 148750000.0,
+                "delta": 833000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 1074150000.0,
+                "expected": 162750000.0,
+                "delta": 911400000.0
+              },
+              {
+                "field": "m11",
+                "actual": 1062600000.0,
+                "expected": 161000000.0,
+                "delta": 901600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 1097250000.0,
+                "expected": 166250000.0,
+                "delta": 931000000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "AA微众银行资产质量表",
+        "output_sheet": "AA微众银行_资产质量表",
+        "status": "ok",
+        "compared_metrics": 1,
+        "matched_metrics": 1,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "AA微众银行利息净收入表",
+        "output_sheet": "AA微众银行_利息净收入表",
+        "status": "ok",
+        "compared_metrics": 7,
+        "matched_metrics": 7,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "A个金群业务状况表",
+        "output_sheet": "A个金群_业务状况表",
+        "status": "ok",
+        "compared_metrics": 0,
+        "matched_metrics": 0,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "A个金群业务支出评估",
+        "output_sheet": "A个金群_业务支出评估",
+        "status": "ok",
+        "compared_metrics": 0,
+        "matched_metrics": 0,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "A01泛微粒贷业务状况表",
+        "output_sheet": "A01泛微粒贷_业务状况表",
+        "status": "diff",
+        "compared_metrics": 116,
+        "matched_metrics": 99,
+        "diff_metric_count": 17,
+        "top_diffs": [
+          {
+            "code": "A01.10",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 18375000000.0,
+                "expected": 11943750000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 19110000000.0,
+                "expected": 12421500000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 20090000000.0,
+                "expected": 13058500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 20335000000.0,
+                "expected": 13217750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 20825000000.0,
+                "expected": 13536250000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 21315000000.0,
+                "expected": 13854750000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 21560000000.0,
+                "expected": 14014000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 21070000000.0,
+                "expected": 13695500000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 20580000000.0,
+                "expected": 13377000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 20335000000.0,
+                "expected": 13217750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 20090000000.0,
+                "expected": 13058500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 21315000000.0,
+                "expected": 13854750000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.10.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 14700000000.0,
+                "expected": 8268750000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 15288000000.0,
+                "expected": 8599500000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 16660000000.0,
+                "expected": 9371250000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 17248000000.0,
+                "expected": 9702000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 16856000000.0,
+                "expected": 9481500000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 16464000000.0,
+                "expected": 9261000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.10.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 14700000000.0,
+                "expected": 8268750000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 15288000000.0,
+                "expected": 8599500000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 16660000000.0,
+                "expected": 9371250000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 17248000000.0,
+                "expected": 9702000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 16856000000.0,
+                "expected": 9481500000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 16464000000.0,
+                "expected": 9261000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.10.01.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 10106250000.0,
+                "expected": 3675000000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 10510500000.0,
+                "expected": 3822000000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 11049500000.0,
+                "expected": 4018000000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 11184250000.0,
+                "expected": 4067000000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 11453750000.0,
+                "expected": 4165000000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 11723250000.0,
+                "expected": 4263000000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 11858000000.0,
+                "expected": 4312000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 11588500000.0,
+                "expected": 4214000000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 11319000000.0,
+                "expected": 4116000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 11184250000.0,
+                "expected": 4067000000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 11049500000.0,
+                "expected": 4018000000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 11723250000.0,
+                "expected": 4263000000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.11",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 18375000000.0,
+                "expected": 11943750000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 19110000000.0,
+                "expected": 12421500000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 20090000000.0,
+                "expected": 13058500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 20335000000.0,
+                "expected": 13217750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 20825000000.0,
+                "expected": 13536250000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 21315000000.0,
+                "expected": 13854750000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 21560000000.0,
+                "expected": 14014000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 21070000000.0,
+                "expected": 13695500000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 20580000000.0,
+                "expected": 13377000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 20335000000.0,
+                "expected": 13217750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 20090000000.0,
+                "expected": 13058500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 21315000000.0,
+                "expected": 13854750000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.11.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 14700000000.0,
+                "expected": 8268750000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 15288000000.0,
+                "expected": 8599500000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 16660000000.0,
+                "expected": 9371250000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 17248000000.0,
+                "expected": 9702000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 16856000000.0,
+                "expected": 9481500000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 16464000000.0,
+                "expected": 9261000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.11.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 14700000000.0,
+                "expected": 8268750000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 15288000000.0,
+                "expected": 8599500000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 16660000000.0,
+                "expected": 9371250000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 17248000000.0,
+                "expected": 9702000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 16856000000.0,
+                "expected": 9481500000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 16464000000.0,
+                "expected": 9261000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 16268000000.0,
+                "expected": 9150750000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 16072000000.0,
+                "expected": 9040500000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 17052000000.0,
+                "expected": 9591750000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.11.01.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 10106250000.0,
+                "expected": 3675000000.0,
+                "delta": 6431250000.0
+              },
+              {
+                "field": "m2",
+                "actual": 10510500000.0,
+                "expected": 3822000000.0,
+                "delta": 6688500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 11049500000.0,
+                "expected": 4018000000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m4",
+                "actual": 11184250000.0,
+                "expected": 4067000000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m5",
+                "actual": 11453750000.0,
+                "expected": 4165000000.0,
+                "delta": 7288750000.0
+              },
+              {
+                "field": "m6",
+                "actual": 11723250000.0,
+                "expected": 4263000000.0,
+                "delta": 7460250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 11858000000.0,
+                "expected": 4312000000.0,
+                "delta": 7546000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 11588500000.0,
+                "expected": 4214000000.0,
+                "delta": 7374500000.0
+              },
+              {
+                "field": "m9",
+                "actual": 11319000000.0,
+                "expected": 4116000000.0,
+                "delta": 7203000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 11184250000.0,
+                "expected": 4067000000.0,
+                "delta": 7117250000.0
+              },
+              {
+                "field": "m11",
+                "actual": 11049500000.0,
+                "expected": 4018000000.0,
+                "delta": 7031500000.0
+              },
+              {
+                "field": "m12",
+                "actual": 11723250000.0,
+                "expected": 4263000000.0,
+                "delta": 7460250000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A01泛微粒贷业务支出评估",
+        "output_sheet": "A01泛微粒贷_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 26,
+        "matched_metrics": 18,
+        "diff_metric_count": 8,
+        "top_diffs": [
+          {
+            "code": "A01.91",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 93110000000.0,
+                "delta": 93110000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 90220000000.0,
+                "delta": 90220000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 103044000000.0,
+                "delta": 103044000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 105190000000.0,
+                "delta": 105190000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 107786000000.0,
+                "delta": 107786000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 111230000000.0,
+                "delta": 111230000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 114224000000.0,
+                "delta": 114224000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 112476000000.0,
+                "delta": 112476000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 109880000000.0,
+                "delta": 109880000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 116214000000.0,
+                "delta": 116214000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 114916000000.0,
+                "delta": 114916000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 119710000000.0,
+                "delta": 119710000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 93110000000.0,
+                "delta": 93110000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 90220000000.0,
+                "delta": 90220000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 103044000000.0,
+                "delta": 103044000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 105190000000.0,
+                "delta": 105190000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 107786000000.0,
+                "delta": 107786000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 111230000000.0,
+                "delta": 111230000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 114224000000.0,
+                "delta": 114224000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 112476000000.0,
+                "delta": 112476000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 109880000000.0,
+                "delta": 109880000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 116214000000.0,
+                "delta": 116214000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 114916000000.0,
+                "delta": 114916000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 119710000000.0,
+                "delta": 119710000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 84000000.0,
+                "delta": 84000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 78000000.0,
+                "delta": 78000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 93600000.0,
+                "delta": 93600000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 96000000.0,
+                "delta": 96000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 98400000.0,
+                "delta": 98400000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 102000000.0,
+                "delta": 102000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 105600000.0,
+                "delta": 105600000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 104400000.0,
+                "delta": 104400000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 102000000.0,
+                "delta": 102000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 111600000.0,
+                "delta": 111600000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 110400000.0,
+                "delta": 110400000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 114000000.0,
+                "delta": 114000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01.02",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 92900000000.0,
+                "delta": 92900000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 90025000000.0,
+                "delta": 90025000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 102810000000.0,
+                "delta": 102810000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 104950000000.0,
+                "delta": 104950000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 107540000000.0,
+                "delta": 107540000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 110975000000.0,
+                "delta": 110975000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 113960000000.0,
+                "delta": 113960000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 112215000000.0,
+                "delta": 112215000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 109625000000.0,
+                "delta": 109625000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 115935000000.0,
+                "delta": 115935000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 114640000000.0,
+                "delta": 114640000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 119425000000.0,
+                "delta": 119425000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01.02.101",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 15000000000.0,
+                "delta": 15000000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 15600000000.0,
+                "delta": 15600000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 16400000000.0,
+                "delta": 16400000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 16600000000.0,
+                "delta": 16600000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 17000000000.0,
+                "delta": 17000000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 17400000000.0,
+                "delta": 17400000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 17600000000.0,
+                "delta": 17600000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 17200000000.0,
+                "delta": 17200000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 16800000000.0,
+                "delta": 16800000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 16600000000.0,
+                "delta": 16600000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 16400000000.0,
+                "delta": 16400000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 17400000000.0,
+                "delta": 17400000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01.02.102",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 3750000000.0,
+                "delta": 3750000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 3900000000.0,
+                "delta": 3900000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 4100000000.0,
+                "delta": 4100000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 4150000000.0,
+                "delta": 4150000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 4250000000.0,
+                "delta": 4250000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 4350000000.0,
+                "delta": 4350000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 4400000000.0,
+                "delta": 4400000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 4300000000.0,
+                "delta": 4300000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 4200000000.0,
+                "delta": 4200000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 4150000000.0,
+                "delta": 4150000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 4100000000.0,
+                "delta": 4100000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 4350000000.0,
+                "delta": 4350000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01.02.103",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 15000000000.0,
+                "delta": 15000000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 15600000000.0,
+                "delta": 15600000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 16400000000.0,
+                "delta": 16400000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 16600000000.0,
+                "delta": 16600000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 17000000000.0,
+                "delta": 17000000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 17400000000.0,
+                "delta": 17400000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 17600000000.0,
+                "delta": 17600000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 17200000000.0,
+                "delta": 17200000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 16800000000.0,
+                "delta": 16800000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 16600000000.0,
+                "delta": 16600000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 16400000000.0,
+                "delta": 16400000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 17400000000.0,
+                "delta": 17400000000.0
+              }
+            ]
+          },
+          {
+            "code": "A01.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 126000000.0,
+                "delta": 126000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 117000000.0,
+                "delta": 117000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 140400000.0,
+                "delta": 140400000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 144000000.0,
+                "delta": 144000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 147600000.0,
+                "delta": 147600000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 153000000.0,
+                "delta": 153000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 158400000.0,
+                "delta": 158400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 156600000.0,
+                "delta": 156600000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 153000000.0,
+                "delta": 153000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 167400000.0,
+                "delta": 167400000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 165600000.0,
+                "delta": 165600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 171000000.0,
+                "delta": 171000000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A02微账户业务状况表",
+        "output_sheet": "A02微账户_业务状况表",
+        "status": "diff",
+        "compared_metrics": 41,
+        "matched_metrics": 37,
+        "diff_metric_count": 4,
+        "top_diffs": [
+          {
+            "code": "A02.18.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A02.19.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 2800000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 2600000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 3120000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A02.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 4900000.0,
+                "delta": 4900000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 4550000.0,
+                "delta": 4550000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 5460000.0,
+                "delta": 5460000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 5600000.0,
+                "delta": 5600000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 5740000.0,
+                "delta": 5740000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 5950000.0,
+                "delta": 5950000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 6160000.0,
+                "delta": 6160000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 6090000.0,
+                "delta": 6090000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 5950000.0,
+                "delta": 5950000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 6510000.0,
+                "delta": 6510000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 6440000.0,
+                "delta": 6440000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 6650000.0,
+                "delta": 6650000.0
+              }
+            ]
+          },
+          {
+            "code": "A02.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 4200000.0,
+                "delta": 4200000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 3900000.0,
+                "delta": 3900000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 4680000.0,
+                "delta": 4680000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 4800000.0,
+                "delta": 4800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 4920000.0,
+                "delta": 4920000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 5100000.0,
+                "delta": 5100000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 5280000.0,
+                "delta": 5280000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 5220000.0,
+                "delta": 5220000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 5100000.0,
+                "delta": 5100000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 5580000.0,
+                "delta": 5580000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 5520000.0,
+                "delta": 5520000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 5700000.0,
+                "delta": 5700000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A02微账户业务支出评估",
+        "output_sheet": "A02微账户_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 15,
+        "matched_metrics": 13,
+        "diff_metric_count": 2,
+        "top_diffs": [
+          {
+            "code": "A02.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 4900000.0,
+                "delta": 4900000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 4550000.0,
+                "delta": 4550000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 5460000.0,
+                "delta": 5460000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 5600000.0,
+                "delta": 5600000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 5740000.0,
+                "delta": 5740000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 5950000.0,
+                "delta": 5950000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 6160000.0,
+                "delta": 6160000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 6090000.0,
+                "delta": 6090000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 5950000.0,
+                "delta": 5950000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 6510000.0,
+                "delta": 6510000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 6440000.0,
+                "delta": 6440000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 6650000.0,
+                "delta": 6650000.0
+              }
+            ]
+          },
+          {
+            "code": "A02.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 4200000.0,
+                "delta": 4200000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 3900000.0,
+                "delta": 3900000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 4680000.0,
+                "delta": 4680000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 4800000.0,
+                "delta": 4800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 4920000.0,
+                "delta": 4920000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 5100000.0,
+                "delta": 5100000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 5280000.0,
+                "delta": 5280000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 5220000.0,
+                "delta": 5220000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 5100000.0,
+                "delta": 5100000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 5580000.0,
+                "delta": 5580000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 5520000.0,
+                "delta": 5520000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 5700000.0,
+                "delta": 5700000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A03汽车金融业务状况表",
+        "output_sheet": "A03汽车金融_业务状况表",
+        "status": "diff",
+        "compared_metrics": 45,
+        "matched_metrics": 38,
+        "diff_metric_count": 7,
+        "top_diffs": [
+          {
+            "code": "A03.18.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": -25200000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": -23400000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": -28080000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A03.19.12",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 425000000.0,
+                "delta": 425000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 440000000.0,
+                "delta": 440000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 430000000.0,
+                "delta": 430000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 420000000.0,
+                "delta": 420000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              }
+            ]
+          },
+          {
+            "code": "A03.19.12.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 375000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 390000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 410000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m4",
+                "actual": 418123740.0,
+                "expected": 415000000.0,
+                "delta": 3123740.0
+              },
+              {
+                "field": "m5",
+                "actual": 428414330.0,
+                "expected": 425000000.0,
+                "delta": 3414330.0
+              },
+              {
+                "field": "m6",
+                "actual": 441683570.0,
+                "expected": 435000000.0,
+                "delta": 6683570.0
+              },
+              {
+                "field": "m7",
+                "actual": 452786370.0,
+                "expected": 440000000.0,
+                "delta": 12786370.0
+              },
+              {
+                "field": "m8",
+                "actual": 445474430.0,
+                "expected": 430000000.0,
+                "delta": 15474430.0
+              },
+              {
+                "field": "m9",
+                "actual": 435183840.0,
+                "expected": 420000000.0,
+                "delta": 15183840.0
+              },
+              {
+                "field": "m10",
+                "actual": 456846190.0,
+                "expected": 415000000.0,
+                "delta": 41846190.0
+              },
+              {
+                "field": "m11",
+                "actual": 451700690.0,
+                "expected": 410000000.0,
+                "delta": 41700690.0
+              },
+              {
+                "field": "m12",
+                "actual": 471470070.0,
+                "expected": 435000000.0,
+                "delta": 36470070.0
+              }
+            ]
+          },
+          {
+            "code": "A03.19.12.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.25,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 0.25,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 0.25,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A03.19.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": -7000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": -6500000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": -7800000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A03.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 7000000.0,
+                "delta": 7000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 6500000.0,
+                "delta": 6500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 7800000.0,
+                "delta": 7800000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 8000000.0,
+                "delta": 8000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 8200000.0,
+                "delta": 8200000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 8500000.0,
+                "delta": 8500000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 8800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 8700000.0,
+                "delta": 8700000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 8500000.0,
+                "delta": 8500000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 9300000.0,
+                "delta": 9300000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 9200000.0,
+                "delta": 9200000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 9500000.0,
+                "delta": 9500000.0
+              }
+            ]
+          },
+          {
+            "code": "A03.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 6300000.0,
+                "delta": 6300000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 5850000.0,
+                "delta": 5850000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 7020000.0,
+                "delta": 7020000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 7200000.0,
+                "delta": 7200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 7380000.0,
+                "delta": 7380000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 7920000.0,
+                "delta": 7920000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 7830000.0,
+                "delta": 7830000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 8370000.0,
+                "delta": 8370000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 8280000.0,
+                "delta": 8280000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 8550000.0,
+                "delta": 8550000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A03汽车金融业务支出评估",
+        "output_sheet": "A03汽车金融_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 18,
+        "matched_metrics": 13,
+        "diff_metric_count": 5,
+        "top_diffs": [
+          {
+            "code": "A03.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 7000000.0,
+                "delta": 7000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 6500000.0,
+                "delta": 6500000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 7800000.0,
+                "delta": 7800000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 8000000.0,
+                "delta": 8000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 8200000.0,
+                "delta": 8200000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 8500000.0,
+                "delta": 8500000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 8800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 8700000.0,
+                "delta": 8700000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 8500000.0,
+                "delta": 8500000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 9300000.0,
+                "delta": 9300000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 9200000.0,
+                "delta": 9200000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 9500000.0,
+                "delta": 9500000.0
+              }
+            ]
+          },
+          {
+            "code": "A03.91.01.02.101",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 1500000000.0,
+                "delta": 1500000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 1560000000.0,
+                "delta": 1560000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 1640000000.0,
+                "delta": 1640000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 1660000000.0,
+                "delta": 1660000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 1700000000.0,
+                "delta": 1700000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 1740000000.0,
+                "delta": 1740000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 1760000000.0,
+                "delta": 1760000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 1720000000.0,
+                "delta": 1720000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 1680000000.0,
+                "delta": 1680000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 1660000000.0,
+                "delta": 1660000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 1640000000.0,
+                "delta": 1640000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 1740000000.0,
+                "delta": 1740000000.0
+              }
+            ]
+          },
+          {
+            "code": "A03.91.01.02.102",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 1500000000.0,
+                "delta": 1500000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 1560000000.0,
+                "delta": 1560000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 1640000000.0,
+                "delta": 1640000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 1660000000.0,
+                "delta": 1660000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 1700000000.0,
+                "delta": 1700000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 1740000000.0,
+                "delta": 1740000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 1760000000.0,
+                "delta": 1760000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 1720000000.0,
+                "delta": 1720000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 1680000000.0,
+                "delta": 1680000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 1660000000.0,
+                "delta": 1660000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 1640000000.0,
+                "delta": 1640000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 1740000000.0,
+                "delta": 1740000000.0
+              }
+            ]
+          },
+          {
+            "code": "A03.91.01.02.103",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 1500000000.0,
+                "delta": 1500000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 1560000000.0,
+                "delta": 1560000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 1640000000.0,
+                "delta": 1640000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 1660000000.0,
+                "delta": 1660000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 1700000000.0,
+                "delta": 1700000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 1740000000.0,
+                "delta": 1740000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 1760000000.0,
+                "delta": 1760000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 1720000000.0,
+                "delta": 1720000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 1680000000.0,
+                "delta": 1680000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 1660000000.0,
+                "delta": 1660000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 1640000000.0,
+                "delta": 1640000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 1740000000.0,
+                "delta": 1740000000.0
+              }
+            ]
+          },
+          {
+            "code": "A03.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 6300000.0,
+                "delta": 6300000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 5850000.0,
+                "delta": 5850000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 7020000.0,
+                "delta": 7020000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 7200000.0,
+                "delta": 7200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 7380000.0,
+                "delta": 7380000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 7920000.0,
+                "delta": 7920000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 7830000.0,
+                "delta": 7830000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 8370000.0,
+                "delta": 8370000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 8280000.0,
+                "delta": 8280000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 8550000.0,
+                "delta": 8550000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A04财富业务状况表",
+        "output_sheet": "A04财富_业务状况表",
+        "status": "diff",
+        "compared_metrics": 45,
+        "matched_metrics": 41,
+        "diff_metric_count": 4,
+        "top_diffs": [
+          {
+            "code": "A04.18.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A04.19.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": -5600000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": -5200000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": -6240000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A04.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 9100000.0,
+                "delta": 9100000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 8450000.0,
+                "delta": 8450000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 10140000.0,
+                "delta": 10140000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 10400000.0,
+                "delta": 10400000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 10660000.0,
+                "delta": 10660000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 11050000.0,
+                "delta": 11050000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 11440000.0,
+                "delta": 11440000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 11310000.0,
+                "delta": 11310000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 11050000.0,
+                "delta": 11050000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 12090000.0,
+                "delta": 12090000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 11960000.0,
+                "delta": 11960000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 12350000.0,
+                "delta": 12350000.0
+              }
+            ]
+          },
+          {
+            "code": "A04.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 7700000.0,
+                "delta": 7700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 7150000.0,
+                "delta": 7150000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 8580000.0,
+                "delta": 8580000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 8800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 9020000.0,
+                "delta": 9020000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 9680000.0,
+                "delta": 9680000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 9570000.0,
+                "delta": 9570000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 10230000.0,
+                "delta": 10230000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 10120000.0,
+                "delta": 10120000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 10450000.0,
+                "delta": 10450000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A04财富业务支出评估",
+        "output_sheet": "A04财富_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 18,
+        "matched_metrics": 13,
+        "diff_metric_count": 5,
+        "top_diffs": [
+          {
+            "code": "A04.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 9100000.0,
+                "delta": 9100000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 8450000.0,
+                "delta": 8450000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 10140000.0,
+                "delta": 10140000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 10400000.0,
+                "delta": 10400000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 10660000.0,
+                "delta": 10660000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 11050000.0,
+                "delta": 11050000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 11440000.0,
+                "delta": 11440000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 11310000.0,
+                "delta": 11310000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 11050000.0,
+                "delta": 11050000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 12090000.0,
+                "delta": 12090000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 11960000.0,
+                "delta": 11960000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 12350000.0,
+                "delta": 12350000.0
+              }
+            ]
+          },
+          {
+            "code": "A04.91.01.02.101",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 750000000.0,
+                "delta": 750000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 780000000.0,
+                "delta": 780000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 820000000.0,
+                "delta": 820000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 830000000.0,
+                "delta": 830000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 850000000.0,
+                "delta": 850000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 870000000.0,
+                "delta": 870000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 880000000.0,
+                "delta": 880000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 860000000.0,
+                "delta": 860000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 840000000.0,
+                "delta": 840000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 830000000.0,
+                "delta": 830000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 820000000.0,
+                "delta": 820000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 870000000.0,
+                "delta": 870000000.0
+              }
+            ]
+          },
+          {
+            "code": "A04.91.01.02.102",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 750000000.0,
+                "delta": 750000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 780000000.0,
+                "delta": 780000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 820000000.0,
+                "delta": 820000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 830000000.0,
+                "delta": 830000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 850000000.0,
+                "delta": 850000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 870000000.0,
+                "delta": 870000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 880000000.0,
+                "delta": 880000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 860000000.0,
+                "delta": 860000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 840000000.0,
+                "delta": 840000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 830000000.0,
+                "delta": 830000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 820000000.0,
+                "delta": 820000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 870000000.0,
+                "delta": 870000000.0
+              }
+            ]
+          },
+          {
+            "code": "A04.91.01.02.103",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 750000000.0,
+                "delta": 750000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 780000000.0,
+                "delta": 780000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 820000000.0,
+                "delta": 820000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 830000000.0,
+                "delta": 830000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 850000000.0,
+                "delta": 850000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 870000000.0,
+                "delta": 870000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 880000000.0,
+                "delta": 880000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 860000000.0,
+                "delta": 860000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 840000000.0,
+                "delta": 840000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 830000000.0,
+                "delta": 830000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 820000000.0,
+                "delta": 820000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 870000000.0,
+                "delta": 870000000.0
+              }
+            ]
+          },
+          {
+            "code": "A04.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 7700000.0,
+                "delta": 7700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 7150000.0,
+                "delta": 7150000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 8580000.0,
+                "delta": 8580000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 8800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 9020000.0,
+                "delta": 9020000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 9680000.0,
+                "delta": 9680000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 9570000.0,
+                "delta": 9570000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 10230000.0,
+                "delta": 10230000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 10120000.0,
+                "delta": 10120000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 10450000.0,
+                "delta": 10450000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A05小鹅业务状况表",
+        "output_sheet": "A05小鹅_业务状况表",
+        "status": "diff",
+        "compared_metrics": 40,
+        "matched_metrics": 33,
+        "diff_metric_count": 7,
+        "top_diffs": [
+          {
+            "code": "A05.18",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 11200000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 10400000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 12480000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m4",
+                "actual": 12731634.0,
+                "expected": 12800000.0,
+                "delta": 68366.0
+              },
+              {
+                "field": "m5",
+                "actual": 13045282.0,
+                "expected": 13120000.0,
+                "delta": 74718.0
+              },
+              {
+                "field": "m6",
+                "actual": 13453727.0,
+                "expected": 13600000.0,
+                "delta": 146273.0
+              },
+              {
+                "field": "m7",
+                "actual": 13800184.0,
+                "expected": 14080000.0,
+                "delta": 279816.0
+              },
+              {
+                "field": "m8",
+                "actual": 13581360.0,
+                "expected": 13920000.0,
+                "delta": 338640.0
+              },
+              {
+                "field": "m9",
+                "actual": 13267713.0,
+                "expected": 13600000.0,
+                "delta": 332287.0
+              },
+              {
+                "field": "m10",
+                "actual": 13964221.0,
+                "expected": 14880000.0,
+                "delta": 915779.0
+              },
+              {
+                "field": "m11",
+                "actual": 13807410.0,
+                "expected": 14720000.0,
+                "delta": 912590.0
+              },
+              {
+                "field": "m12",
+                "actual": 14401883.0,
+                "expected": 15200000.0,
+                "delta": 798117.0
+              }
+            ]
+          },
+          {
+            "code": "A05.18.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 11200000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 10400000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 12480000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A05.19.13",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 225000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 234000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 246000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m4",
+                "actual": 250960098.0,
+                "expected": 249000000.0,
+                "delta": 1960098.0
+              },
+              {
+                "field": "m5",
+                "actual": 257142570.0,
+                "expected": 255000000.0,
+                "delta": 2142570.0
+              },
+              {
+                "field": "m6",
+                "actual": 265193658.0,
+                "expected": 261000000.0,
+                "delta": 4193658.0
+              },
+              {
+                "field": "m7",
+                "actual": 272022864.0,
+                "expected": 264000000.0,
+                "delta": 8022864.0
+              },
+              {
+                "field": "m8",
+                "actual": 267709500.0,
+                "expected": 258000000.0,
+                "delta": 9709500.0
+              },
+              {
+                "field": "m9",
+                "actual": 261527028.0,
+                "expected": 252000000.0,
+                "delta": 9527028.0
+              },
+              {
+                "field": "m10",
+                "actual": 275256288.0,
+                "expected": 249000000.0,
+                "delta": 26256288.0
+              },
+              {
+                "field": "m11",
+                "actual": 272165298.0,
+                "expected": 246000000.0,
+                "delta": 26165298.0
+              },
+              {
+                "field": "m12",
+                "actual": 283883262.0,
+                "expected": 261000000.0,
+                "delta": 22883262.0
+              }
+            ]
+          },
+          {
+            "code": "A05.19.13.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.2,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 0.2,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 0.2,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A05.19.99",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": -227800000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": -236600000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": -249120000.0,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "A05.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 3500000.0,
+                "delta": 3500000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 3250000.0,
+                "delta": 3250000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 3900000.0,
+                "delta": 3900000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 4000000.0,
+                "delta": 4000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 4100000.0,
+                "delta": 4100000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 4250000.0,
+                "delta": 4250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 4400000.0,
+                "delta": 4400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 4350000.0,
+                "delta": 4350000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 4250000.0,
+                "delta": 4250000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 4650000.0,
+                "delta": 4650000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 4600000.0,
+                "delta": 4600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 4750000.0,
+                "delta": 4750000.0
+              }
+            ]
+          },
+          {
+            "code": "A05.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 2800000.0,
+                "delta": 2800000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 2600000.0,
+                "delta": 2600000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 3120000.0,
+                "delta": 3120000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 3200000.0,
+                "delta": 3200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 3280000.0,
+                "delta": 3280000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 3400000.0,
+                "delta": 3400000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 3520000.0,
+                "delta": 3520000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 3480000.0,
+                "delta": 3480000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 3400000.0,
+                "delta": 3400000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 3720000.0,
+                "delta": 3720000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 3680000.0,
+                "delta": 3680000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 3800000.0,
+                "delta": 3800000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "A05小鹅业务支出评估",
+        "output_sheet": "A05小鹅_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 18,
+        "matched_metrics": 13,
+        "diff_metric_count": 5,
+        "top_diffs": [
+          {
+            "code": "A05.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 3500000.0,
+                "delta": 3500000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 3250000.0,
+                "delta": 3250000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 3900000.0,
+                "delta": 3900000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 4000000.0,
+                "delta": 4000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 4100000.0,
+                "delta": 4100000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 4250000.0,
+                "delta": 4250000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 4400000.0,
+                "delta": 4400000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 4350000.0,
+                "delta": 4350000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 4250000.0,
+                "delta": 4250000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 4650000.0,
+                "delta": 4650000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 4600000.0,
+                "delta": 4600000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 4750000.0,
+                "delta": 4750000.0
+              }
+            ]
+          },
+          {
+            "code": "A05.91.01.02.101",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 375000000.0,
+                "delta": 375000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 390000000.0,
+                "delta": 390000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 425000000.0,
+                "delta": 425000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 440000000.0,
+                "delta": 440000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 430000000.0,
+                "delta": 430000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 420000000.0,
+                "delta": 420000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              }
+            ]
+          },
+          {
+            "code": "A05.91.01.02.102",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 375000000.0,
+                "delta": 375000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 390000000.0,
+                "delta": 390000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 425000000.0,
+                "delta": 425000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 440000000.0,
+                "delta": 440000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 430000000.0,
+                "delta": 430000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 420000000.0,
+                "delta": 420000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              }
+            ]
+          },
+          {
+            "code": "A05.91.01.02.103",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 375000000.0,
+                "delta": 375000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 390000000.0,
+                "delta": 390000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 425000000.0,
+                "delta": 425000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 440000000.0,
+                "delta": 440000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 430000000.0,
+                "delta": 430000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 420000000.0,
+                "delta": 420000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 415000000.0,
+                "delta": 415000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 410000000.0,
+                "delta": 410000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 435000000.0,
+                "delta": 435000000.0
+              }
+            ]
+          },
+          {
+            "code": "A05.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 2800000.0,
+                "delta": 2800000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 2600000.0,
+                "delta": 2600000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 3120000.0,
+                "delta": 3120000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 3200000.0,
+                "delta": 3200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 3280000.0,
+                "delta": 3280000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 3400000.0,
+                "delta": 3400000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 3520000.0,
+                "delta": 3520000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 3480000.0,
+                "delta": 3480000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 3400000.0,
+                "delta": 3400000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 3720000.0,
+                "delta": 3720000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 3680000.0,
+                "delta": 3680000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 3800000.0,
+                "delta": 3800000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "B企金群业务状况表",
+        "output_sheet": "B企金群_业务状况表",
+        "status": "ok",
+        "compared_metrics": 0,
+        "matched_metrics": 0,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "B企金群业务支出评估",
+        "output_sheet": "B企金群_业务支出评估",
+        "status": "ok",
+        "compared_metrics": 0,
+        "matched_metrics": 0,
+        "diff_metric_count": 0,
+        "top_diffs": []
+      },
+      {
+        "entry_sheet": "B02金融市场业务状况表",
+        "output_sheet": "B02金融市场_业务状况表",
+        "status": "diff",
+        "compared_metrics": 80,
+        "matched_metrics": 75,
+        "diff_metric_count": 5,
+        "top_diffs": [
+          {
+            "code": "B02.26",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 16200000000.0,
+                "delta": 16200000000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 16848000000.0,
+                "delta": 16848000000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 17712000000.0,
+                "delta": 17712000000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 17928000000.0,
+                "delta": 17928000000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 18360000000.0,
+                "delta": 18360000000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 18792000000.0,
+                "delta": 18792000000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 19008000000.0,
+                "delta": 19008000000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 18576000000.0,
+                "delta": 18576000000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 18144000000.0,
+                "delta": 18144000000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 17928000000.0,
+                "delta": 17928000000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 17712000000.0,
+                "delta": 17712000000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 18792000000.0,
+                "delta": 18792000000.0
+              }
+            ]
+          },
+          {
+            "code": "B02.15.03.12",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 1500000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 1560000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 1640000000.0,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m4",
+                "actual": 1666253120.0,
+                "expected": 1660000000.0,
+                "delta": 6253120.0
+              },
+              {
+                "field": "m5",
+                "actual": 1706834920.0,
+                "expected": 1700000000.0,
+                "delta": 6834920.0
+              },
+              {
+                "field": "m6",
+                "actual": 1753379760.0,
+                "expected": 1740000000.0,
+                "delta": 13379760.0
+              },
+              {
+                "field": "m7",
+                "actual": 1785595920.0,
+                "expected": 1760000000.0,
+                "delta": 25595920.0
+              },
+              {
+                "field": "m8",
+                "actual": 1750975520.0,
+                "expected": 1720000000.0,
+                "delta": 30975520.0
+              },
+              {
+                "field": "m9",
+                "actual": 1710393720.0,
+                "expected": 1680000000.0,
+                "delta": 30393720.0
+              },
+              {
+                "field": "m10",
+                "actual": 1743766080.0,
+                "expected": 1660000000.0,
+                "delta": 83766080.0
+              },
+              {
+                "field": "m11",
+                "actual": 1723474360.0,
+                "expected": 1640000000.0,
+                "delta": 83474360.0
+              },
+              {
+                "field": "m12",
+                "actual": 1813003600.0,
+                "expected": 1740000000.0,
+                "delta": 73003600.0
+              }
+            ]
+          },
+          {
+            "code": "B02.15.03.12.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.3333333333333333,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m2",
+                "actual": 0.3333333333333333,
+                "expected": null,
+                "delta": null
+              },
+              {
+                "field": "m3",
+                "actual": 0.3333333333333333,
+                "expected": null,
+                "delta": null
+              }
+            ]
+          },
+          {
+            "code": "B02.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 7700000.0,
+                "delta": 7700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 7150000.0,
+                "delta": 7150000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 8580000.0,
+                "delta": 8580000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 8800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 9020000.0,
+                "delta": 9020000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 9680000.0,
+                "delta": 9680000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 9570000.0,
+                "delta": 9570000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 10230000.0,
+                "delta": 10230000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 10120000.0,
+                "delta": 10120000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 10450000.0,
+                "delta": 10450000.0
+              }
+            ]
+          },
+          {
+            "code": "B02.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 6300000.0,
+                "delta": 6300000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 5850000.0,
+                "delta": 5850000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 7020000.0,
+                "delta": 7020000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 7200000.0,
+                "delta": 7200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 7380000.0,
+                "delta": 7380000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 7920000.0,
+                "delta": 7920000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 7830000.0,
+                "delta": 7830000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 8370000.0,
+                "delta": 8370000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 8280000.0,
+                "delta": 8280000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 8550000.0,
+                "delta": 8550000.0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entry_sheet": "B02金融市场业务支出评估",
+        "output_sheet": "B02金融市场_业务支出评估",
+        "status": "diff",
+        "compared_metrics": 15,
+        "matched_metrics": 13,
+        "diff_metric_count": 2,
+        "top_diffs": [
+          {
+            "code": "B02.91.01.01",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 7700000.0,
+                "delta": 7700000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 7150000.0,
+                "delta": 7150000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 8580000.0,
+                "delta": 8580000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 8800000.0,
+                "delta": 8800000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 9020000.0,
+                "delta": 9020000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 9680000.0,
+                "delta": 9680000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 9570000.0,
+                "delta": 9570000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 9350000.0,
+                "delta": 9350000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 10230000.0,
+                "delta": 10230000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 10120000.0,
+                "delta": 10120000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 10450000.0,
+                "delta": 10450000.0
+              }
+            ]
+          },
+          {
+            "code": "B02.91.01.03",
+            "issue": "value_mismatch",
+            "diffs": [
+              {
+                "field": "m1",
+                "actual": 0.0,
+                "expected": 6300000.0,
+                "delta": 6300000.0
+              },
+              {
+                "field": "m2",
+                "actual": 0.0,
+                "expected": 5850000.0,
+                "delta": 5850000.0
+              },
+              {
+                "field": "m3",
+                "actual": 0.0,
+                "expected": 7020000.0,
+                "delta": 7020000.0
+              },
+              {
+                "field": "m4",
+                "actual": 0.0,
+                "expected": 7200000.0,
+                "delta": 7200000.0
+              },
+              {
+                "field": "m5",
+                "actual": 0.0,
+                "expected": 7380000.0,
+                "delta": 7380000.0
+              },
+              {
+                "field": "m6",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m7",
+                "actual": 0.0,
+                "expected": 7920000.0,
+                "delta": 7920000.0
+              },
+              {
+                "field": "m8",
+                "actual": 0.0,
+                "expected": 7830000.0,
+                "delta": 7830000.0
+              },
+              {
+                "field": "m9",
+                "actual": 0.0,
+                "expected": 7650000.0,
+                "delta": 7650000.0
+              },
+              {
+                "field": "m10",
+                "actual": 0.0,
+                "expected": 8370000.0,
+                "delta": 8370000.0
+              },
+              {
+                "field": "m11",
+                "actual": 0.0,
+                "expected": 8280000.0,
+                "delta": 8280000.0
+              },
+              {
+                "field": "m12",
+                "actual": 0.0,
+                "expected": 8550000.0,
+                "delta": 8550000.0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
