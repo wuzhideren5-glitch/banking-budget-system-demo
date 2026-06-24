@@ -1806,12 +1806,15 @@ class OrgProductMetricRuntimeRefsTests(unittest.TestCase):
 
         headers = [cell.value for cell in ws[1]]
 
-        self.assertEqual(headers[:7], ["科目层级", "科目性质", "科目代码", "科目名称", "1月", "2月", "3月"])
-        self.assertEqual(ws["E2"].value, 1)
-        self.assertEqual(ws["F2"].value, 2)
-        self.assertEqual(ws["Q2"].value, 3)
+        self.assertEqual(
+            headers[:6],
+            ["科目层级", "科目性质", "科目代码", "科目名称", "年度汇总", "1月"],
+        )
+        self.assertEqual(ws["E2"].value, 3)
+        self.assertEqual(ws["F2"].value, 1)
+        self.assertEqual(ws["G2"].value, 2)
+        self.assertEqual(ws["F3"].value, "")
         self.assertEqual(ws["E3"].value, "")
-        self.assertEqual(ws["Q3"].value, "")
 
     def test_output_snapshot_sanitizer_drops_legacy_refs(self) -> None:
         sanitized = _sanitize_org_product_output_entity_for_snapshot(

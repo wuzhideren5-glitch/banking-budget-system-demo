@@ -9,13 +9,12 @@ import sqlite3
 import tempfile
 
 from app.budget_data_writer import (
-    IMPORT_INPUT_POLICY,
+    ORG_PRODUCT_BUDGET_SYNC_POLICY,
     BudgetDataWriteItem,
     BudgetDataWritePolicy,
     BudgetDataWriteResult,
     write_budget_data_items,
 )
-from app.budget_window import budget_actual_allowed_for_month
 from app.core.config import settings
 from app.core.database import get_pool
 from app.runtime_metric_identity import product_code_from_runtime_metric_ref
@@ -24,6 +23,9 @@ from app.services.global_refresh_status import set_budget_refresh_time
 from app.services.metric_tree_rollups import rebuild_metric_tree_rollups
 from app.services.pivot_aggregate import rebuild_budget_pivot_aggregate_for_version
 from app.services.runtime_metric_refs import derive_runtime_ref_from_org_product_metric_code
+
+ORG_PRODUCT_ENTRY_WAN_YUAN_TO_YUAN = 10_000
+_RATIO_MARKERS = ("率", "占比", "比例", "百分比", "%")
 
 
 @dataclass
@@ -148,6 +150,47 @@ def _parse_numeric_cell(value: Any) -> tuple[bool, float | None, str]:
     return True, number / 100.0 if is_percent else number, ""
 
 
+def _is_ratio_metric(*, value_type: str | None, metric_name: str | None) -> bool:
+    for text in (value_type, metric_name):
+        normalized = str(text or "").strip()
+        if any(marker in normalized for marker in _RATIO_MARKERS):
+            return True
+    return False
+
+
+def org_product_entry_value_to_budget_fact(
+    *,
+    numeric_value: float,
+    value_type: str | None = None,
+    metric_name: str | None = None,
+) -> float:
+    """机构产品录入以万元存金额；budget_data 与预算展示默认按元取数。"""
+    if _is_ratio_metric(value_type=value_type, metric_name=metric_name):
+        return float(numeric_value)
+    return float(numeric_value) * ORG_PRODUCT_ENTRY_WAN_YUAN_TO_YUAN
+
+
+def load_data_account_value_types_sync(
+    common_path: Path,
+    data_acct_codes: set[str],
+) -> dict[str, str]:
+    if not data_acct_codes or not common_path.exists():
+        return {}
+    sorted_codes = tuple(sorted(data_acct_codes))
+    placeholders = ",".join("?" for _ in sorted_codes)
+    with sqlite3.connect(common_path) as db:
+        rows = db.execute(
+            f"SELECT data_acct_code, value_type FROM data_account WHERE data_acct_code IN ({placeholders})",
+            sorted_codes,
+        ).fetchall()
+    out: dict[str, str] = {}
+    for row in rows:
+        code = str(_row_value(row, "data_acct_code", 0) or "").strip().upper()
+        if code:
+            out[code] = str(_row_value(row, "value_type", 1) or "").strip()
+    return out
+
+
 def _iter_month_cells(values: dict[str, Any]) -> list[tuple[int, int, Any, str]]:
     months = values.get("months") if isinstance(values.get("months"), dict) else {}
     out: list[tuple[int, int, Any, str]] = []
@@ -174,6 +217,7 @@ def plan_org_product_budget_sync(
     current_month: int,
     period_month_map: dict[int, int],
     budget_actuals: list[int] | None = None,
+    value_type_by_code: dict[str, str] | None = None,
 ) -> OrgProductBudgetSyncPlan:
     allowed_actuals = {int(item) for item in (budget_actuals or [1, 0]) if int(item) in (0, 1)}
     if not allowed_actuals:
@@ -226,13 +270,12 @@ def plan_org_product_budget_sync(
                 plan.skipped_cells += 1
                 plan.warnings.append(f"{source_ref}: {year} 年 M{month:02d} 未找到期间")
                 continue
-            if not budget_actual_allowed_for_month(int(budget_actual), month, int(current_month)):
-                kind = "实际值" if budget_actual == 1 else "预算值"
-                plan.skipped_cells += 1
-                plan.warnings.append(
-                    f"{source_ref}: 当前版本月份窗口限制，{kind}不允许写入 {month} 月（current_month={int(current_month)}）"
-                )
-                continue
+            value_type = (value_type_by_code or {}).get(data_acct_code)
+            fact_value = org_product_entry_value_to_budget_fact(
+                numeric_value=float(numeric_value),
+                value_type=value_type,
+                metric_name=metric_name,
+            )
             plan.write_items.append(
                 BudgetDataWriteItem(
                     data_acct_code=data_acct_code,
@@ -240,7 +283,7 @@ def plan_org_product_budget_sync(
                     period_id=int(period_id),
                     budget_actual=int(budget_actual),
                     version_id=int(budget_version_id),
-                    value=float(numeric_value),
+                    value=float(fact_value),
                     source_ref=source_ref,
                 )
             )
@@ -258,7 +301,7 @@ async def apply_org_product_budget_sync_plan(
     budget_version_id: int,
     timestamp: str,
     write_items: Callable[..., Awaitable[BudgetDataWriteResult]] = write_budget_data_items,
-    write_policy: BudgetDataWritePolicy = IMPORT_INPUT_POLICY,
+    write_policy: BudgetDataWritePolicy = ORG_PRODUCT_BUDGET_SYNC_POLICY,
     rebuild_summary: Callable[[int, Path | None], Awaitable[int]] = rebuild_budget_summary_for_version,
     rebuild_aggregate: Callable[[int, Path], Awaitable[int]] = rebuild_budget_pivot_aggregate_for_version,
     set_refresh_time: Callable[[Path, str], Awaitable[None]] = set_budget_refresh_time,
@@ -314,7 +357,11 @@ async def apply_org_product_budget_sync_plan(
 
     summary_rows = await rebuild_summary(int(budget_version_id), budget_path)
     await set_refresh_time(budget_path, timestamp)
-    budget_aggregate_rows = await rebuild_aggregate(int(budget_version_id), budget_path)
+    budget_aggregate_rows = 0
+    try:
+        budget_aggregate_rows = await rebuild_aggregate(int(budget_version_id), budget_path)
+    except Exception as exc:
+        write_result.warnings.append(f"透视聚合刷新失败：{exc}")
     return OrgProductBudgetSyncApplyResult(
         write_result=write_result,
         metric_rollup_cells_written=metric_rollup_cells_written,

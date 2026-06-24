@@ -367,41 +367,54 @@ export function OrgProductForecastOutputContent() {
     const code = (selectedEntityCode || "").trim();
     const tn = (selectedTableName || "").trim();
     if (!code || !tn) return;
-    const { blob, filename } = await exportOrgProductOutput({
-      entity_code: code,
-      year: selectedYear,
-      version_id: selectedVersionId,
-      table_name: tn,
-      include_children: false,
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename ?? `预测输出_${code}_${selectedYear}_v${selectedVersionId}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    setError("");
+    try {
+      const { blob, filename } = await exportOrgProductOutput({
+        entity_code: code,
+        year: selectedYear,
+        version_id: selectedVersionId,
+        table_name: tn,
+        include_children: false,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename ?? `预测输出_${code}_${selectedYear}_v${selectedVersionId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "导出当前表失败");
+    }
   };
 
   const exportAll = async () => {
     const code = (selectedEntityCode || "").trim();
-    if (!code) return;
-    const { blob, filename } = await exportOrgProductOutput({
-      entity_code: code,
-      year: selectedYear,
-      version_id: selectedVersionId,
-      table_name: null,
-      include_children: true,
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename ?? `预测输出_全量_${code}_${selectedYear}_v${selectedVersionId}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    if (!code) {
+      setError("请选择机构或产品");
+      return;
+    }
+    setError("");
+    try {
+      const { blob, filename } = await exportOrgProductOutput({
+        entity_code: code,
+        year: selectedYear,
+        version_id: selectedVersionId,
+        table_name: null,
+        include_children: true,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename ?? `预测输出_全量_${code}_${selectedYear}_v${selectedVersionId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "导出全量失败");
+    }
   };
 
   const loadSavedOutputVersion = async () => {
@@ -692,14 +705,14 @@ export function OrgProductForecastOutputContent() {
                   <th className="border border-gray-200 px-2 py-2 whitespace-nowrap">科目性质</th>
                   <th className="border border-gray-200 px-2 py-2 whitespace-nowrap">科目代码</th>
                   <th className="border border-gray-200 px-2 py-2 whitespace-nowrap">科目名称</th>
+                  <th className="border border-gray-200 px-2 py-2 text-right whitespace-nowrap" title="口径见上方说明">
+                    年度汇总
+                  </th>
                   {Array.from({ length: 12 }).map((_, idx) => (
                     <th key={`m-${idx + 1}`} className="border border-gray-200 px-2 py-2 text-right whitespace-nowrap">
                       {idx + 1}月
                     </th>
                   ))}
-                  <th className="border border-gray-200 px-2 py-2 text-right whitespace-nowrap" title="口径见上方说明">
-                    年度汇总
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -710,6 +723,12 @@ export function OrgProductForecastOutputContent() {
                       <td className="border border-gray-200 px-2 py-1 whitespace-nowrap text-gray-700">{r.nature}</td>
                       <td className="border border-gray-200 px-2 py-1 whitespace-nowrap font-mono text-gray-700">{r.code}</td>
                       <td className="border border-gray-200 px-2 py-1 whitespace-nowrap text-gray-800">{r.name}</td>
+                      <td
+                        className="border border-gray-200 px-2 py-1 text-right whitespace-nowrap font-medium text-gray-900"
+                        title={r.annual_method || annualAggHint(r.nature, Boolean(String(r.formula || "").trim()))}
+                      >
+                        {formatByNature(r.nature, r.annual, r.value_type)}
+                      </td>
                       {Array.from({ length: 12 }).map((_, idx) => (
                         <td
                           key={`${r.id}-m-${idx}`}
@@ -721,12 +740,6 @@ export function OrgProductForecastOutputContent() {
                           {formatByNature(r.nature, r.months?.[idx], r.value_type)}
                         </td>
                       ))}
-                      <td
-                        className="border border-gray-200 px-2 py-1 text-right whitespace-nowrap font-medium text-gray-900"
-                        title={r.annual_method || annualAggHint(r.nature, Boolean(String(r.formula || "").trim()))}
-                      >
-                        {formatByNature(r.nature, r.annual, r.value_type)}
-                      </td>
                     </tr>
                   );
                 })}

@@ -4,9 +4,12 @@ import {
   getOrgProductDataEntrySnapshot,
   saveRefreshOrgProductDataEntry,
   exportOrgProductDataEntry,
+  exportOrgProductDataEntryBatch,
   previewDataEntryBudgetSync,
   applyDataEntryBudgetSync,
   importDataEntryWorkbook,
+  applyDataEntryWorkbookImport,
+  type DataEntryBatchExportItem,
 } from "@/lib/org-product/orgProductDataEntryApi";
 import { getOrgProductTreeSnapshot } from "@/lib/org-product/orgProductTreeApi";
 import { getOrgProductMetricSnapshot, getMetricTableCatalog } from "@/lib/org-product/orgProductMetricApi";
@@ -551,6 +554,35 @@ function resolveEntityName(
   return hit?.entity_name ?? "";
 }
 
+function buildBatchExportItems(
+  tree: OrgProductNode | null,
+  snapshot: OrgProductMetricSnapshotDto | null,
+  catalog: MetricTableCatalogItem[],
+  selectedEntityCodes: string[],
+  selectedTableNames: string[]
+): DataEntryBatchExportItem[] {
+  const items: DataEntryBatchExportItem[] = [];
+  const seen = new Set<string>();
+  for (const code of selectedEntityCodes) {
+    const entityCode = code.trim();
+    if (!entityCode) continue;
+    const tables = tableNamesForEntity(tree, snapshot, entityCode, catalog);
+    for (const tableName of selectedTableNames) {
+      const tn = tableName.trim();
+      if (!tn || !tables.includes(tn)) continue;
+      const key = `${entityCode}::${tn}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({
+        entity_code: entityCode,
+        entity_name: resolveEntityName(tree, snapshot, entityCode),
+        table_name: tn,
+      });
+    }
+  }
+  return items;
+}
+
 function getMetricForestForEntity(
   snapshot: OrgProductMetricSnapshotDto | null,
   entityCode: string,
@@ -673,6 +705,11 @@ export function OrgProductDataEntryContent() {
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [batchExporting, setBatchExporting] = useState(false);
+  const [batchImporting, setBatchImporting] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelectedEntities, setBatchSelectedEntities] = useState<string[]>([]);
+  const [batchSelectedTables, setBatchSelectedTables] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -740,6 +777,28 @@ export function OrgProductDataEntryContent() {
     [tree, metricSnapshot, selectedEntityCode, metricTableCatalog]
   );
 
+  const batchTableOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const code of batchSelectedEntities) {
+      for (const tn of tableNamesForEntity(tree, metricSnapshot, code, metricTableCatalog)) {
+        if (tn) names.add(tn);
+      }
+    }
+    return [...names];
+  }, [batchSelectedEntities, tree, metricSnapshot, metricTableCatalog]);
+
+  const batchExportItems = useMemo(
+    () =>
+      buildBatchExportItems(
+        tree,
+        metricSnapshot,
+        metricTableCatalog,
+        batchSelectedEntities,
+        batchSelectedTables
+      ),
+    [tree, metricSnapshot, metricTableCatalog, batchSelectedEntities, batchSelectedTables]
+  );
+
   const metricForest = useMemo(
     () => getMetricForestForEntity(metricSnapshot, selectedEntityCode, selectedTableName),
     [metricSnapshot, selectedEntityCode, selectedTableName]
@@ -763,6 +822,41 @@ export function OrgProductDataEntryContent() {
     () => buildDataColumnWidths(dataColumns, filteredRows),
     [dataColumns, filteredRows]
   );
+
+  useEffect(() => {
+    if (!batchMode) return;
+    setBatchSelectedEntities((prev) => {
+      if (prev.length) return prev;
+      const code = selectedEntityCode.trim();
+      return code ? [code] : [];
+    });
+    setBatchSelectedTables((prev) => {
+      if (prev.length) return prev;
+      const tn = selectedTableName.trim();
+      return tn ? [tn] : [];
+    });
+  }, [batchMode, selectedEntityCode, selectedTableName]);
+
+  useEffect(() => {
+    if (!batchMode) return;
+    setBatchSelectedTables((prev) => prev.filter((tn) => batchTableOptions.includes(tn)));
+  }, [batchMode, batchTableOptions]);
+
+  const toggleBatchEntity = (entityCode: string) => {
+    const code = entityCode.trim();
+    if (!code) return;
+    setBatchSelectedEntities((prev) =>
+      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
+    );
+  };
+
+  const toggleBatchTable = (tableName: string) => {
+    const tn = tableName.trim();
+    if (!tn) return;
+    setBatchSelectedTables((prev) =>
+      prev.includes(tn) ? prev.filter((item) => item !== tn) : [...prev, tn]
+    );
+  };
 
   const loadSnapshot = async (
     entityCode: string,
@@ -1007,6 +1101,39 @@ export function OrgProductDataEntryContent() {
     }
   };
 
+  const exportBatchTemplate = async () => {
+    if (!batchExportItems.length) {
+      setError("请先在批量模式下选择至少一个机构/产品和一个指标表。");
+      return;
+    }
+    setBatchExporting(true);
+    setError("");
+    setMessage("");
+    try {
+      const { blob, filename } = await exportOrgProductDataEntryBatch({
+        year: selectedYear,
+        month_index: selectedMonth,
+        items: batchExportItems,
+        include_saved_values: false,
+        version_id: versionNameToId(selectedVersionName),
+        version_name: selectedVersionName,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || `机构产品数据录入批量模板_${selectedYear}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setMessage(`已开始下载批量模板，共 ${batchExportItems.length} 个工作表。`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "批量导出失败");
+    } finally {
+      setBatchExporting(false);
+    }
+  };
+
   const exportCurrent = async () => {
     const code = selectedEntityCode.trim();
     const tn = selectedTableName.trim();
@@ -1058,6 +1185,40 @@ export function OrgProductDataEntryContent() {
     try {
       const fd = new FormData();
       fd.append("file", file);
+      if (batchMode) {
+        const ok = window.confirm(
+          `将按工作表名称批量导入并保存到 ${selectedVersionName}（${selectedYear}年${selectedMonth}月）。未匹配的工作表会跳过。是否继续？`
+        );
+        if (!ok) return;
+        setBatchImporting(true);
+        const resp = await applyDataEntryWorkbookImport(selectedYear, selectedMonth, fd, {
+          version_id: versionNameToId(selectedVersionName),
+          version_name: selectedVersionName,
+          entry_status: "draft",
+        });
+        const savedNames = (resp.saved ?? []).map((item) => item.sheet_name).join("、");
+        const unmatchedCount = resp.unmatched_count ?? 0;
+        setMessage(
+          `批量导入完成：已保存 ${resp.saved_count ?? 0} 个工作表${savedNames ? `（${savedNames}）` : ""}${unmatchedCount ? `，跳过 ${unmatchedCount} 个未匹配 sheet` : ""}。`
+        );
+        const currentCode = selectedEntityCode.trim();
+        const currentTable = selectedTableName.trim();
+        const savedCurrent = (resp.saved ?? []).find(
+          (item) => item.entity_code === currentCode && item.table_name === currentTable
+        );
+        if (savedCurrent && metricSnapshot) {
+          const forest = getMetricForestForEntity(metricSnapshot, currentCode, currentTable);
+          await loadSnapshot(
+            currentCode,
+            selectedYear,
+            versionNameToId(selectedVersionName),
+            currentTable,
+            forest
+          );
+        }
+        return;
+      }
+
       const resp = await (importDataEntryWorkbook(
         selectedYear,
         selectedMonth,
@@ -1105,6 +1266,7 @@ export function OrgProductDataEntryContent() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Excel 导入失败");
     } finally {
+      setBatchImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -1139,6 +1301,15 @@ export function OrgProductDataEntryContent() {
             if (hasMetrics) selectEntity(node);
           }}
         >
+          {batchMode && hasMetrics ? (
+            <input
+              type="checkbox"
+              checked={batchSelectedEntities.includes(node.code.trim())}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => toggleBatchEntity(node.code)}
+              className="h-3.5 w-3.5 shrink-0 rounded border-gray-300"
+            />
+          ) : null}
           {hasChildren ? (
             <button
               type="button"
@@ -1330,7 +1501,42 @@ export function OrgProductDataEntryContent() {
               )}
             </select>
 
+            {batchMode ? (
+              <div className="flex min-w-[220px] flex-wrap items-center gap-x-3 gap-y-1 rounded border border-blue-100 bg-blue-50/40 px-2 py-1">
+                <span className="w-full text-[10px] font-medium text-blue-700">批量范围</span>
+                {batchTableOptions.length ? (
+                  batchTableOptions.map((t) => (
+                    <label key={t} className="inline-flex items-center gap-1 text-[11px] text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={batchSelectedTables.includes(t)}
+                        onChange={() => toggleBatchTable(t)}
+                        className="h-3.5 w-3.5 rounded border-gray-300"
+                      />
+                      <span>{t}</span>
+                    </label>
+                  ))
+                ) : (
+                  <span className="text-[11px] text-gray-500">请先勾选机构/产品</span>
+                )}
+              </div>
+            ) : null}
+
+            {batchMode ? (
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                已选 {batchExportItems.length} 个 sheet
+              </span>
+            ) : null}
+
             <div className="ml-auto flex shrink-0 flex-wrap items-start justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBatchMode((v) => !v)}
+                className={`${neutralActionClass} ${entryToolbarBtn} ${batchMode ? "border-blue-300 bg-blue-50 text-blue-700" : ""}`}
+                title="开启后可多选机构/产品与指标表，批量导出模板或按 sheet 名批量导入"
+              >
+                <span>{batchMode ? "退出批量" : "批量模式"}</span>
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1340,23 +1546,37 @@ export function OrgProductDataEntryContent() {
               />
               <button
                 type="button"
-                disabled={cellReadOnly}
+                disabled={cellReadOnly || batchImporting}
                 onClick={() => fileInputRef.current?.click()}
                 className={`${neutralActionClass} ${entryToolbarBtn}`}
+                title={batchMode ? "按工作表名称批量导入并保存到当前版本" : "导入当前 sheet 到编辑区"}
               >
                 <Upload className="h-3.5 w-3.5" />
-                <span>Excel导入</span>
+                <span>{batchImporting ? "导入中..." : batchMode ? "批量导入" : "Excel导入"}</span>
               </button>
-              <button
-                type="button"
-                disabled={exporting || !rows.length}
-                onClick={() => void exportCurrent()}
-                className={`${neutralActionClass} ${entryToolbarBtn}`}
-                title="导出当前数据录入底稿"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span>{exporting ? "导出中..." : "Excel导出"}</span>
-              </button>
+              {batchMode ? (
+                <button
+                  type="button"
+                  disabled={batchExporting || !batchExportItems.length}
+                  onClick={() => void exportBatchTemplate()}
+                  className={`${neutralActionClass} ${entryToolbarBtn}`}
+                  title="导出所选机构/产品×指标表组合，每个组合一个 sheet"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>{batchExporting ? "导出中..." : "批量导出模板"}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={exporting || !rows.length}
+                  onClick={() => void exportCurrent()}
+                  className={`${neutralActionClass} ${entryToolbarBtn}`}
+                  title="导出当前数据录入底稿"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>{exporting ? "导出中..." : "Excel导出"}</span>
+                </button>
+              )}
               <button
                 type="button"
                 disabled={saving || cellReadOnly}

@@ -40,6 +40,63 @@ export function exportOrgProductDataEntry(payload: unknown): Promise<{ blob: Blo
   return apiPostBlob("/api/org-product-data-entry/export", payload);
 }
 
+export type DataEntryBatchExportItem = {
+  entity_code: string;
+  entity_name?: string;
+  table_name: string;
+};
+
+export type DataEntryBatchExportRequest = {
+  year: number;
+  month_index: number;
+  items: DataEntryBatchExportItem[];
+  include_saved_values?: boolean;
+  version_id?: number;
+  version_name?: string;
+};
+
+export function exportOrgProductDataEntryBatch(
+  payload: DataEntryBatchExportRequest,
+): Promise<{ blob: Blob; filename: string | null }> {
+  return apiPostBlob("/api/org-product-data-entry/export-batch", payload);
+}
+
+export type DataEntryImportWorkbookApplyResponse = {
+  saved: Array<{
+    sheet_name: string;
+    entity_code: string;
+    entity_name: string;
+    table_name: string;
+    row_count: number;
+    updated_at: string;
+  }>;
+  unmatched: Array<{
+    sheet_name: string;
+    entity_code?: string;
+    table_name?: string;
+    row_count?: number;
+    reason?: string;
+  }>;
+  saved_count: number;
+  unmatched_count: number;
+  sheet_count: number;
+};
+
+export function applyDataEntryWorkbookImport(
+  year: string | number,
+  month: string | number,
+  formData: FormData,
+  extraParams?: Record<string, string | number>,
+): Promise<DataEntryImportWorkbookApplyResponse> {
+  let url = `/api/org-product-data-entry/import-workbook-apply?year=${encodeURIComponent(String(year))}&month=${encodeURIComponent(String(month))}`;
+  if (extraParams) {
+    for (const [key, value] of Object.entries(extraParams)) {
+      url += `&${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`;
+    }
+  }
+  return apiPostForm(url, formData);
+}
+
 export function previewDataEntryBudgetSync(payload: unknown): Promise<BudgetSyncPreviewResponseDto> {
   return apiPost<BudgetSyncPreviewResponseDto>("/api/org-product-data-entry/budget-sync/preview", payload);
 }

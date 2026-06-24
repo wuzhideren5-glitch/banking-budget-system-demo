@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import unittest
 
+from app.routers.org_product_output import export_org_product_output
 from app.routers.org_product_output import router as org_product_output_router
 from app.routers.org_product_data_entry import router as org_product_data_entry_router
+from app.routers.org_product_helpers import OrgProductOutputRunRequest
 from app.routers.org_product_helpers import _derive_metric_logic_code
 from app.routers.org_product_helpers import _normalize_rollup_flag
 from app.routers.org_product_helpers import _resolve_metric_formula_for_month
@@ -72,6 +75,22 @@ class OrgProductOutputRouterContractTests(unittest.TestCase):
                 self.assertEqual(body_params, ["payload"])
                 self.assertNotIn("payload", query_params)
                 self.assertIsNotNone(getattr(route, "body_field", None))
+
+    def test_bulk_export_response_uses_utf8_content_disposition(self) -> None:
+        async def _run() -> None:
+            payload = OrgProductOutputRunRequest(
+                entity_code="AA",
+                year=2026,
+                version_id=2026000003,
+                table_name=None,
+                include_children=True,
+            )
+            response = await export_org_product_output(payload)
+            disposition = response.headers.get("content-disposition") or ""
+            self.assertIn("filename*=", disposition)
+            self.assertNotIn("预测输出", disposition.split("filename=")[1].split(";")[0])
+
+        asyncio.run(_run())
 
 
 if __name__ == "__main__":

@@ -139,9 +139,8 @@ NATURE_VALUE_SET = {"收入", "支出", "利润", "其他", "其它"}
 ENTRY_GRANULARITY_ANNUAL = {"annual", "year", "yearly", "按年", "按年录入", "仅年度", "仅年度录入", "年度", "全年", "仅全年录入"}
 ENTRY_GRANULARITY_MONTHLY = {"monthly", "month", "按月", "按月录入", "月度", "按月录入（默认）"}
 ORG_PRODUCT_OUTPUT_EXPORT_HEADERS = (
-    ["科目层级", "科目性质", "科目代码", "科目名称"]
+    ["科目层级", "科目性质", "科目代码", "科目名称", "年度汇总"]
     + [f"{i}月" for i in range(1, 13)]
-    + ["年度汇总"]
 )
 
 
@@ -237,6 +236,29 @@ class DataEntrySavePayload(BaseModel):
     table_name: str = ""
     entry_status: str = "draft"
     metrics: list[DataEntryMetricRowPayload] = []
+
+
+class DataEntryBatchExportItem(BaseModel):
+    entity_code: str
+    entity_name: str = ""
+    table_name: str
+
+
+class DataEntryBatchExportRequest(BaseModel):
+    year: int
+    month_index: int = 3
+    items: list[DataEntryBatchExportItem]
+    include_saved_values: bool = False
+    version_id: int | None = None
+    version_name: str = ""
+
+
+class DataEntryImportWorkbookApplyRequest(BaseModel):
+    year: int
+    month_index: int = 3
+    version_id: int | None = None
+    version_name: str = ""
+    entry_status: str = "draft"
 
 
 class OrgProductDataEntryCommitRequest(BaseModel):
@@ -659,15 +681,19 @@ def _unique_sheet_title(existing: set[str], desired: str) -> str:
     return fallback
 
 
-def _parse_data_entry_month_value(values: dict[str, Any], month: int) -> float | None:
-    if month < 1 or month > 12:
-        return None
-    months = values.get("months") if isinstance(values, dict) else None
-    if not isinstance(months, dict):
-        return None
-    raw_a = months.get(f"a{month}")
-    raw_f = months.get(f"f{month}")
-    raw = raw_a if str(raw_a or "").strip() else raw_f
+VALID_CALC_ROLES = frozenset({"entry", "formula", "entry_overrides_formula"})
+
+
+def _normalize_calc_role(value: Any, *, allow_manual_entry: Any = 1) -> str:
+    text = str(value or "").strip().lower()
+    if text in VALID_CALC_ROLES:
+        return text
+    if _normalize_allow_manual_entry(allow_manual_entry) == 0:
+        return "formula"
+    return "entry_overrides_formula"
+
+
+def _parse_data_entry_scalar_value(raw: Any) -> float | None:
     text = str(raw or "").strip()
     if not text:
         return None
@@ -679,6 +705,79 @@ def _parse_data_entry_month_value(values: dict[str, Any], month: int) -> float |
     if "%" in text or "％" in text:
         return val / 100.0
     return val
+
+
+def _parse_data_entry_month_value(values: dict[str, Any], month: int) -> float | None:
+    if month < 1 or month > 12:
+        return None
+    months = values.get("months") if isinstance(values, dict) else None
+    if not isinstance(months, dict):
+        return None
+    raw_a = months.get(f"a{month}")
+    raw_f = months.get(f"f{month}")
+    raw = raw_a if str(raw_a or "").strip() else raw_f
+    return _parse_data_entry_scalar_value(raw)
+
+
+def _parse_data_entry_annual_value(values: dict[str, Any], key: str = "year_forecast") -> float | None:
+    if not isinstance(values, dict):
+        return None
+    return _parse_data_entry_scalar_value(values.get(key))
+
+
+def _lookup_entry_month_value(
+    entry_by_code: dict[str, list[float | None]],
+    code_key: str,
+    meta: dict[str, Any] | None,
+    month_idx: int,
+) -> float | None:
+    base = entry_by_code.get(code_key)
+    if base is None and meta:
+        base = entry_by_code.get(str(meta.get("id") or ""))
+    if base is None or month_idx < 1 or month_idx > 12:
+        return None
+    return base[month_idx - 1]
+
+
+def _lookup_entry_annual_value(
+    entry_annual_by_code: dict[str, float | None],
+    code_key: str,
+    meta: dict[str, Any] | None,
+) -> float | None:
+    value = entry_annual_by_code.get(code_key)
+    if value is not None:
+        return value
+    if meta:
+        return entry_annual_by_code.get(str(meta.get("id") or ""))
+    return None
+
+
+def _org_product_value_from_entry(meta: dict[str, Any], entry_value: float | None) -> bool:
+    """分月/全年共用：当前格有录入值时，是否应优先采用录入而非公式。"""
+    if entry_value is None:
+        return False
+    calc_role = _normalize_calc_role(meta.get("calc_role"), allow_manual_entry=meta.get("allow_manual_entry"))
+    if calc_role == "formula":
+        return False
+    if calc_role == "entry":
+        return True
+    return _normalize_allow_manual_entry(meta.get("allow_manual_entry")) == 1
+
+
+def _org_product_month_value_from_entry(meta: dict[str, Any], entry_value: float | None) -> bool:
+    return _org_product_value_from_entry(meta, entry_value)
+
+
+def _org_product_annual_value_from_entry(meta: dict[str, Any], annual_entry: float | None) -> bool:
+    return _org_product_value_from_entry(meta, annual_entry)
+
+
+def _org_product_should_use_annual_formula(meta: dict[str, Any], *, use_formula: bool) -> bool:
+    """全年列：手工录入（year_forecast）之后、汇总之前，是否允许走年公式。"""
+    if not use_formula:
+        return False
+    calc_role = _normalize_calc_role(meta.get("calc_role"), allow_manual_entry=meta.get("allow_manual_entry"))
+    return calc_role != "entry"
 
 
 def _prepare_metric_formula_expression(formula: str | None) -> str:
@@ -845,8 +944,8 @@ def _append_org_product_output_export_sheet(ws: Any, rows: list[dict[str, Any]],
                 str(row.get("nature") or ""),
                 str(row.get("code") or ""),
                 str(row.get("name") or ""),
-                *[("" if v is None else float(v)) for v in (months + [None] * 12)[:12]],
                 "" if row.get("annual") is None else float(row.get("annual")),
+                *[("" if v is None else float(v)) for v in (months + [None] * 12)[:12]],
             ]
         )
 
@@ -1529,16 +1628,36 @@ def _get_data_entry_metric_value(values: dict[str, Any], key: str) -> str:
     return _normalize_text(months.get(key))
 
 
-def _build_data_entry_export_workbook(payload: dict[str, Any]) -> Workbook:
+def _empty_data_entry_metric_values() -> dict[str, Any]:
+    return {
+        "prev_actual": "",
+        "prev_budget": "",
+        "prev_forecast": "",
+        "year_forecast": "",
+        "months": {},
+    }
+
+
+def _data_entry_sheet_title(entity_code: str, entity_name: str, table_name: str) -> str:
+    code = _normalize_text(entity_code)
+    name = _normalize_text(entity_name)
+    table = _normalize_text(table_name) or DEFAULT_METRIC_TABLE_NAME
+    return f"{code}{name}{table}" or "data_entry"
+
+
+def _append_data_entry_export_sheet(
+    wb: Workbook,
+    payload: dict[str, Any],
+    used_titles: set[str],
+) -> str:
     year = int(payload.get("year") or datetime.now(timezone.utc).year)
     forecast_month = int(payload.get("month_index") or 1)
     entity_code = _normalize_text(payload.get("entity_code"))
     entity_name = _normalize_text(payload.get("entity_name"))
     table_name = _normalize_text(payload.get("table_name")) or DEFAULT_METRIC_TABLE_NAME
     columns = _data_entry_export_columns(year, forecast_month)
-    wb = Workbook()
-    ws = wb.active
-    ws.title = _unique_sheet_title(set(), f"{entity_code}{entity_name}{table_name}" or "data_entry")
+    sheet_title = _unique_sheet_title(used_titles, _data_entry_sheet_title(entity_code, entity_name, table_name))
+    ws = wb.create_sheet(title=sheet_title)
     ws.append([label for _key, label in columns])
     for cell in ws[1]:
         cell.font = cell.font.copy(bold=True) if hasattr(cell, "font") else Font(bold=True)
@@ -1549,7 +1668,9 @@ def _build_data_entry_export_workbook(payload: dict[str, Any]) -> Workbook:
         values = metric.get("values") if isinstance(metric.get("values"), dict) else {}
         row: list[str] = []
         for key, _label in columns:
-            if key in {"prev_actual", "prev_budget", "prev_forecast", "year_forecast"} or re.fullmatch(r"[af]\d{1,2}", key):
+            if key in {"prev_actual", "prev_budget", "prev_forecast", "year_forecast"} or re.fullmatch(
+                r"[af]\d{1,2}", key
+            ):
                 row.append(_get_data_entry_metric_value(values, key))
             else:
                 row.append(_normalize_text(metric.get(key)))
@@ -1566,7 +1687,148 @@ def _build_data_entry_export_workbook(payload: dict[str, Any]) -> Workbook:
     }
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
+    return sheet_title
+
+
+def _build_data_entry_export_workbook(payload: dict[str, Any]) -> Workbook:
+    wb = Workbook()
+    default_ws = wb.active
+    wb.remove(default_ws)
+    used_titles: set[str] = set()
+    _append_data_entry_export_sheet(wb, payload, used_titles)
+    if not wb.sheetnames:
+        wb.create_sheet("data_entry")
     return wb
+
+
+def _build_data_entry_batch_export_workbook(payloads: list[dict[str, Any]]) -> Workbook:
+    wb = Workbook()
+    default_ws = wb.active
+    wb.remove(default_ws)
+    used_titles: set[str] = set()
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        _append_data_entry_export_sheet(wb, payload, used_titles)
+    if not wb.sheetnames:
+        wb.create_sheet("data_entry")
+    return wb
+
+
+def _resolve_data_entry_entity_name(conn: sqlite3.Connection, entity_code: str) -> str:
+    code = _normalize_text(entity_code).upper()
+    if not code:
+        return ""
+    for row in load_org_product_metric_table_rows_from_runtime_tree(conn):
+        if str(row.get("entity_code") or "").strip().upper() == code:
+            name = _normalize_text(row.get("entity_name"))
+            if name:
+                return name
+    return code
+
+
+def _load_data_entry_snapshot_metrics(
+    conn: sqlite3.Connection,
+    *,
+    entity_code: str,
+    year: int,
+    table_name: str,
+    version_id: int | None,
+) -> dict[str, dict[str, Any]]:
+    if version_id is None:
+        return {}
+    _ensure_data_entry_snapshot_table_v2(conn)
+    cur = conn.execute(
+        """
+        SELECT payload_json
+        FROM org_product_data_entry_snapshot_v2
+        WHERE entity_code=? AND year=? AND version_id=? AND table_name=?
+        ORDER BY updated_at DESC
+        LIMIT 1
+        """,
+        (entity_code, int(year), int(version_id), table_name),
+    )
+    row = cur.fetchone()
+    if not row or not row[0]:
+        return {}
+    try:
+        payload_obj = json.loads(row[0])
+    except Exception:
+        return {}
+    if not isinstance(payload_obj, dict):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for metric in list(payload_obj.get("metrics") or []):
+        if not isinstance(metric, dict):
+            continue
+        code = _normalize_text(metric.get("metric_code"))
+        metric_id = _normalize_text(metric.get("metric_id"))
+        values = metric.get("values") if isinstance(metric.get("values"), dict) else {}
+        if code:
+            out[code] = values
+        if metric_id:
+            out[metric_id] = values
+    return out
+
+
+def _build_data_entry_export_payload_from_runtime(
+    conn: sqlite3.Connection,
+    *,
+    entity_code: str,
+    entity_name: str,
+    table_name: str,
+    year: int,
+    month_index: int,
+    version_id: int | None = None,
+    include_saved_values: bool = False,
+) -> dict[str, Any]:
+    code = _normalize_text(entity_code).upper()
+    table = _normalize_text(table_name)
+    if not code or not table:
+        raise ValueError("entity_code 与 table_name 不能为空")
+    table_obj = load_org_product_metric_payload_from_runtime_tree(
+        conn,
+        entity_code=code,
+        table_name=table,
+    )
+    if not table_obj:
+        raise ValueError(f"未找到指标表：{code}/{table}")
+    resolved_name = _normalize_text(entity_name) or _resolve_data_entry_entity_name(conn, code)
+    saved_values_by_key = (
+        _load_data_entry_snapshot_metrics(
+            conn,
+            entity_code=code,
+            year=int(year),
+            table_name=table,
+            version_id=version_id,
+        )
+        if include_saved_values
+        else {}
+    )
+    metrics: list[dict[str, Any]] = []
+    for metric in _flatten_metric_nodes([m for m in list(table_obj.get("metrics") or []) if isinstance(m, dict)]):
+        metric_code = _normalize_text(metric.get("code"))
+        metric_id = _normalize_text(metric.get("id"))
+        values = dict(saved_values_by_key.get(metric_code) or saved_values_by_key.get(metric_id) or _empty_data_entry_metric_values())
+        metrics.append(
+            {
+                "metric_id": metric_id,
+                "metric_code": metric_code,
+                "metric_name": _normalize_text(metric.get("name")),
+                "levelLabel": _normalize_text(metric.get("levelLabel")),
+                "nature": _normalize_nature(metric.get("nature")),
+                "values": values,
+            }
+        )
+    return {
+        "entity_code": code,
+        "entity_name": resolved_name,
+        "year": int(year),
+        "month_index": int(month_index),
+        "table_id": _normalize_text(table_obj.get("id")),
+        "table_name": table,
+        "metrics": metrics,
+    }
 
 
 def _normalize_entry_granularity(value: Any) -> str:
@@ -1772,6 +2034,10 @@ def _build_metric_rows(nodes: list[dict[str, Any]], rows: list[dict[str, str]], 
                 "name": _normalize_text(node.get("name")),
                 "value_type": _normalize_metric_value_type(node.get("value_type"), node.get("nature")),
                 "allow_manual_entry": _normalize_allow_manual_entry(node.get("allow_manual_entry"), 1),
+                "calc_role": _normalize_calc_role(
+                    node.get("calc_role"),
+                    allow_manual_entry=node.get("allow_manual_entry"),
+                ),
                 "note": _normalize_text(node.get("note")),
                 "formula": _normalize_text(node.get("formula")),
                 "formula_budget_annual": _normalize_text(node.get("formula_budget_annual")),

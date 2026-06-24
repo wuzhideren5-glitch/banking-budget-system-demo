@@ -36,6 +36,7 @@ class BudgetDataWritePolicy:
     value_kind: ValueKind = "manual"
     invalid_mode: InvalidMode = "error"
     allow_formula_runtime_refs: bool = False
+    enforce_month_window: bool = True
 
 
 @dataclass
@@ -88,6 +89,14 @@ IMPORT_INPUT_POLICY = BudgetDataWritePolicy(
     need_calc=1,
     invalid_mode="skip",
     allow_formula_runtime_refs=False,
+)
+
+ORG_PRODUCT_BUDGET_SYNC_POLICY = BudgetDataWritePolicy(
+    name="org_product_budget_sync",
+    need_calc=1,
+    invalid_mode="skip",
+    allow_formula_runtime_refs=True,
+    enforce_month_window=False,
 )
 
 FORMULA_RESULT_POLICY = BudgetDataWritePolicy(
@@ -588,7 +597,9 @@ async def write_budget_data_items(
                 continue
             result.errors.append(_message(item.source_ref, msg))
             continue
-        if not budget_actual_allowed_for_month(item.budget_actual, month, current_month):
+        if policy.enforce_month_window and not budget_actual_allowed_for_month(
+            item.budget_actual, month, current_month
+        ):
             kind = "预算值" if item.budget_actual == 0 else "实际值"
             msg = f"当前版本月份窗口限制：{kind}不允许写入 {month} 月（current_month={current_month}）"
             if policy.invalid_mode == "skip":

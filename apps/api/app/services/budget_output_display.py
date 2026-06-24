@@ -67,6 +67,16 @@ def _path_available(path: Path | None) -> bool:
     return bool(path and (_uses_mysql_path(path) or path.exists()))
 
 
+def _budget_year_from_path(budget_path: Path) -> int | None:
+    match = re.fullmatch(r"budget_(\d{4})\.db", budget_path.name)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
 def _mysql_sql(sql: str) -> str:
     stripped = sql.strip()
     lowered = stripped.lower()
@@ -784,16 +794,28 @@ def _choose_database_for_year(
 async def _fetch_versions_for_budget_file(budget_path: Path) -> list[dict[str, Any]]:
     if not _path_available(budget_path):
         return []
+    budget_year = _budget_year_from_path(budget_path)
     async with _connect_db(budget_path) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         await ensure_budget_version_schema(db)
-        cur = await db.execute(
-            """
-            SELECT version_id, version_name, current_month, version_date_time
-            FROM version
-            ORDER BY version_id
-            """
-        )
+        if budget_year is not None and _uses_mysql_path(budget_path):
+            cur = await db.execute(
+                """
+                SELECT version_id, version_name, current_month, version_date_time
+                FROM version
+                WHERE budget_year = ?
+                ORDER BY version_id
+                """,
+                (int(budget_year),),
+            )
+        else:
+            cur = await db.execute(
+                """
+                SELECT version_id, version_name, current_month, version_date_time
+                FROM version
+                ORDER BY version_id
+                """
+            )
         rows = await cur.fetchall()
     return [
         {

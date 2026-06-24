@@ -8,7 +8,11 @@ from pathlib import Path
 
 from app.core.config import settings
 import app.services.org_product_budget_sync as org_product_budget_sync_module
-from app.budget_data_writer import IMPORT_INPUT_POLICY, write_budget_data_items
+from app.budget_data_writer import (
+    ORG_PRODUCT_BUDGET_SYNC_POLICY,
+    IMPORT_INPUT_POLICY,
+    write_budget_data_items,
+)
 from app.services.org_product_budget_sync import (
     OrgProductBudgetSyncPlan,
     _infer_budget_year,
@@ -111,41 +115,157 @@ class OrgProductBudgetSyncTests(unittest.TestCase):
                 budget_version_id=1,
                 current_month=3,
                 period_month_map={idx: idx for idx in range(1, 13)},
+                value_type_by_code={"A01.01.01": "金额", "A01.05.03": "金额"},
             )
 
             self.assertEqual(plan.candidate_rows, 2)
             self.assertEqual(plan.non_confirmed_rows, 0)
             self.assertEqual(plan.unbound_rows, 1)
-            self.assertEqual(len(plan.write_items), 3)
-            self.assertEqual(plan.skipped_cells, 2)
+            self.assertEqual(len(plan.write_items), 5)
+            self.assertEqual(plan.skipped_cells, 0)
 
             result = asyncio.run(
                 write_budget_data_items(
                     budget_path=budget_path,
                     common_path=common_path,
                     items=plan.write_items,
-                    policy=IMPORT_INPUT_POLICY,
+                    policy=ORG_PRODUCT_BUDGET_SYNC_POLICY,
                 )
             )
 
-            self.assertEqual(result.saved_cells, 3)
+            self.assertEqual(result.saved_cells, 5)
             with sqlite3.connect(budget_path) as conn:
                 rows = conn.execute(
                     """
                     SELECT data_acct_code, product_code, period_id, budget_actual, version_id, value, value_source
                     FROM budget_data
-                    ORDER BY period_id, budget_actual
+                    ORDER BY period_id, budget_actual, data_acct_code
                     """
                 ).fetchall()
 
             self.assertEqual(
                 rows,
                 [
-                    ("A01.01.01", "A01", 1, 1, 1, 100.0, "manual"),
-                    ("A01.05.03", "A01", 1, 1, 1, 999.0, "manual"),
-                    ("A01.01.01", "A01", 4, 0, 1, 200.0, "manual"),
+                    ("A01.01.01", "A01", 1, 1, 1, 1000000.0, "manual"),
+                    ("A01.05.03", "A01", 1, 1, 1, 9990000.0, "manual"),
+                    ("A01.01.01", "A01", 2, 0, 1, 3000000.0, "manual"),
+                    ("A01.01.01", "A01", 3, 1, 1, 4000000.0, "manual"),
+                    ("A01.01.01", "A01", 4, 0, 1, 2000000.0, "manual"),
                 ],
             )
+
+    def test_org_product_sync_policy_allows_parent_metric_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            common_path = root / "common.db"
+            budget_path = root / "budget_2026.db"
+            with sqlite3.connect(common_path) as conn:
+                conn.execute("CREATE TABLE period(period_id INTEGER PRIMARY KEY, year TEXT, month TEXT)")
+                conn.execute("INSERT INTO period(period_id, year, month) VALUES (1, 'Y2026', 'M01')")
+                conn.executescript(
+                    """
+                    CREATE TABLE data_account(
+                      data_acct_code TEXT PRIMARY KEY,
+                      budget_formula TEXT,
+                      actual_formula TEXT,
+                      allow_manual_entry INTEGER
+                    );
+                    CREATE TABLE data_account_metric_binding(
+                      data_acct_code TEXT PRIMARY KEY,
+                      metric_node_code TEXT,
+                      is_active INTEGER
+                    );
+                    CREATE TABLE data_account_metric_node(
+                      node_code TEXT PRIMARY KEY,
+                      node_type TEXT
+                    );
+                    INSERT INTO data_account VALUES ('AA.01', 'AA.01.01 + AA.01.02', 'AA.01.01 + AA.01.02', 1);
+                    INSERT INTO data_account_metric_node VALUES ('AA.01', 'CATEGORY');
+                    INSERT INTO data_account_metric_binding VALUES ('AA.01', 'AA.01', 1);
+                    """
+                )
+                conn.commit()
+
+            with sqlite3.connect(budget_path) as conn:
+                conn.executescript(
+                    """
+                    CREATE TABLE version(
+                      version_id INTEGER PRIMARY KEY,
+                      version_name TEXT,
+                      version_date_time TEXT,
+                      current_month INTEGER NOT NULL
+                    );
+                    INSERT INTO version VALUES (2026000003, 'forecast', '', 4);
+                    CREATE TABLE budget_data(
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      data_acct_code TEXT NOT NULL,
+                      product_code TEXT NOT NULL,
+                      period_id INTEGER NOT NULL,
+                      budget_actual INTEGER NOT NULL,
+                      version_id INTEGER NOT NULL,
+                      value REAL NOT NULL,
+                      formula_value REAL,
+                      manual_value REAL,
+                      value_source TEXT NOT NULL DEFAULT 'none',
+                      need_calc INTEGER NOT NULL DEFAULT 0,
+                      create_time TEXT,
+                      update_time TEXT,
+                      UNIQUE(data_acct_code, product_code, period_id, version_id, budget_actual)
+                    );
+                    """
+                )
+                conn.commit()
+
+            item = next(
+                iter(
+                    plan_org_product_budget_sync(
+                        payload={
+                            "metrics": [
+                                {
+                                    "metric_code": "AA.01",
+                                    "metric_name": "营业收入",
+                                    "values": {"months": {"a1": "243800"}},
+                                }
+                            ]
+                        },
+                        entity_code="AA",
+                        table_name="业务状况表",
+                        year=2026,
+                        budget_version_id=2026000003,
+                        current_month=4,
+                        period_month_map={1: 1},
+                        value_type_by_code={"AA.01": "金额"},
+                    ).write_items
+                )
+            )
+
+            import_result = asyncio.run(
+                write_budget_data_items(
+                    budget_path=budget_path,
+                    common_path=common_path,
+                    items=[item],
+                    policy=IMPORT_INPUT_POLICY,
+                )
+            )
+            self.assertEqual(import_result.saved_cells, 0)
+            self.assertEqual(import_result.skipped_cells, 1)
+
+            sync_result = asyncio.run(
+                write_budget_data_items(
+                    budget_path=budget_path,
+                    common_path=common_path,
+                    items=[item],
+                    policy=ORG_PRODUCT_BUDGET_SYNC_POLICY,
+                )
+            )
+            self.assertEqual(sync_result.saved_cells, 1)
+            self.assertEqual(sync_result.skipped_cells, 0)
+
+            with sqlite3.connect(budget_path) as conn:
+                row = conn.execute(
+                    "SELECT data_acct_code, value, value_source FROM budget_data WHERE data_acct_code='AA.01'"
+                ).fetchone()
+            self.assertEqual(row, ("AA.01", 2438000000.0, "manual"))
 
     def test_apply_refreshes_summary_and_pivot_after_successful_write(self) -> None:
         calls: list[tuple[str, object]] = []

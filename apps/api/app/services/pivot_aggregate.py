@@ -327,7 +327,7 @@ async def ensure_compare_pivot_aggregate_table(db: Any) -> None:
     ensure_compare_read_model_schema(db)
 
 
-def _budget_insert_sql(grain: str) -> str:
+def _budget_insert_sql(grain: str, *, include_budget_year: bool = False) -> str:
     month_expr = "month" if grain == "month" else "'全部'"
     quarter_expr = "quarter" if grain in {"month", "quarter"} else "'全部'"
     group_cols = [
@@ -348,19 +348,23 @@ def _budget_insert_sql(grain: str) -> str:
         "value_type",
         "value_source",
     ]
+    if include_budget_year:
+        group_cols.insert(0, "budget_year")
     if grain == "month":
         group_cols.extend(["month", "quarter"])
     elif grain == "quarter":
         group_cols.append("quarter")
     group_by = ", ".join(group_cols)
+    budget_year_cols = "budget_year, " if include_budget_year else ""
+    budget_year_select = "budget_year, " if include_budget_year else ""
     return f"""
         INSERT INTO budget_pivot_aggregate (
-          grain, metric_level1, metric_level2, metric_level3, metric_level4, metric_level5,
+          {budget_year_cols}grain, metric_level1, metric_level2, metric_level3, metric_level4, metric_level5,
           dept_level1, dept_level2, dept_level3, data_code_name, product_code_name,
           year, month, quarter, budget_actual, version_id, version_name, value, value_type, value_source, update_time
         )
         SELECT
-          ? AS grain, metric_level1, metric_level2, metric_level3, metric_level4, metric_level5,
+          {budget_year_select}? AS grain, metric_level1, metric_level2, metric_level3, metric_level4, metric_level5,
           dept_level1, dept_level2, dept_level3, data_code_name, product_code_name,
           year, {month_expr} AS month, {quarter_expr} AS quarter, budget_actual, version_id, version_name,
           SUM(value) AS value, value_type, value_source, ? AS update_time
@@ -421,8 +425,13 @@ async def rebuild_budget_pivot_aggregate_for_version(version_id: int, budget_pat
     now = _iso_now()
     await ensure_budget_pivot_aggregate_table(budget_path)
     await _execute_for_path(budget_path, "DELETE FROM budget_pivot_aggregate WHERE version_id = ?", (int(version_id),))
+    include_budget_year = _uses_mysql_path(budget_path)
     for grain in ("year", "quarter", "month"):
-        await _execute_for_path(budget_path, _budget_insert_sql(grain), (grain, now, int(version_id)))
+        await _execute_for_path(
+            budget_path,
+            _budget_insert_sql(grain, include_budget_year=include_budget_year),
+            (grain, now, int(version_id)),
+        )
     row = await _fetch_one_for_path(
         budget_path,
         "SELECT COUNT(*) AS aggregate_count FROM budget_pivot_aggregate WHERE version_id = ?",
